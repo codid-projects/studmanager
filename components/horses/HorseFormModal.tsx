@@ -8,6 +8,7 @@ interface HorseFormModalProps {
   isManual?: boolean;
   initialData?: HorseFormData | null;
   onClose: () => void;
+  onBack?: () => void;
   onSubmit: (data: HorseFormData) => void;
 }
 
@@ -98,6 +99,7 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
   isManual = true,
   initialData = null,
   onClose,
+  onBack,
   onSubmit,
 }) => {
   const { t } = useTranslation();
@@ -257,6 +259,25 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
           <h2 className="text-[18px] md:text-[20px] lg:text-[22px] font-bold text-[#2F2740] mr-2 md:mr-0">
             {t('horses.manualAddTitle')}
           </h2>
+
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center gap-2 rounded-[14px] border border-[#eadfd9] bg-white px-4 py-2 text-sm font-semibold text-[#2b1a12] transition hover:bg-gray-50"
+            >
+              <svg
+                className={`h-4 w-4 ${isRTL ? '' : 'rotate-180'}`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M15 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>{t('horses.backToStudbook')}</span>
+            </button>
+          ) : null}
         </div>
 
         <div className="px-4 md:px-8 lg:px-10 pb-4 md:pb-8 pt-2 flex-1 overflow-y-auto">

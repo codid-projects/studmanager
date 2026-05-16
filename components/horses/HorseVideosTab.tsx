@@ -15,10 +15,17 @@ const DUMMY_VIDEOS = [
   { id: 4, title: "Morning Gallop", url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ" },
 ];
 
-export const HorseVideosTab: FC<HorseVideosTabProps> = () => {
+export const HorseVideosTab: FC<HorseVideosTabProps> = ({ horse }) => {
   const { direction } = useLocale();
   const isRTL = direction === "rtl";
   const [isMounted, setIsMounted] = useState(false);
+  const videos = horse?.raw?.videos?.length
+    ? horse.raw.videos.map((url: string, index: number) => ({
+        id: index + 1,
+        title: url,
+        url,
+      }))
+    : DUMMY_VIDEOS;
 
   // Prevents hydration errors with react-player by ensuring rendering happens only on client
   useEffect(() => {
@@ -35,7 +42,7 @@ export const HorseVideosTab: FC<HorseVideosTabProps> = () => {
       </h2>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {DUMMY_VIDEOS.map((video) => (
+        {videos.map((video: { id: number; title: string; url: string }) => (
           <div key={video.id} className="relative w-full rounded-2xl overflow-hidden shadow-sm bg-black aspect-video flex flex-col">
             <div className="flex-1 relative">
               {isMounted && (

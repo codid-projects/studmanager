@@ -1,5 +1,13 @@
 import { LoginPageContent } from '@/components/auth/LoginPageContent';
 
-export default function LoginPage() {
-  return <LoginPageContent />;
+interface LoginPageProps {
+  searchParams: Promise<{
+    session?: string;
+  }>;
+}
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+
+  return <LoginPageContent sessionExpired={params.session === 'expired'} />;
 }

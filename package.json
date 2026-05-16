@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "api:direct": "node scripts/set-api-mode.mjs direct",
+    "api:server": "node scripts/set-api-mode.mjs server"
   },
   "dependencies": {
     "html-to-image": "^1.11.13",

@@ -140,6 +140,9 @@
     "loginButton": "Enter platform",
     "signingIn": "Signing in...",
     "validation": "Please enter your email or username and password.",
+    "invalidCredentials": "Invalid username or password.",
+    "networkError": "Unable to reach the server. Please try again.",
+    "sessionExpired": "Your session has finished. Please sign in again.",
     "featureTeam": "Member management",
     "featureTeamDesc": "Clear permissions with an organized user directory.",
     "featureTasks": "Task follow-up",
@@ -297,6 +300,7 @@
     "horseMotherNameEn": "Mother's Name (English)",
     "type": "Type",
     "features": "Features",
+    "coatColor": "Color",
     "description": "Description",
     "image": "Image of the horse",
     "addFromStudbook": "Add from Studbook",
@@ -327,6 +331,7 @@
     "backLeftLeg": "Back Left Leg",
     "notes": "Notes",
     "manualAddTitle": "Add Horse Manually",
+    "backToStudbook": "Back to Studbook",
     "registrationNumber": "Registration Number",
     "microchipId": "Microchip ID",
     "feiRegistrationNumber": "FEI Registration Number",
@@ -342,7 +347,9 @@
     "supportedVideos": "Supported formats: MP4",
     "addVideoLink": "Add video link",
     "imageUploadTitle": "Upload Images",
-    "videoUploadTitle": "Upload Videos"
+    "videoUploadTitle": "Upload Videos",
+    "viewFull": "View full",
+    "manualApiPending": "Manual horse creation is not available in the provided API contract yet."
   },
   "matingTest": {
     "title": "Pedigree Analysis",

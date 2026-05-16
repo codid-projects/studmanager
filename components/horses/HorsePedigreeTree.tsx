@@ -417,10 +417,10 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
           style={{
             WebkitOverflowScrolling: "touch",
             overscrollBehaviorX: "contain",
-            overscrollBehaviorY: "contain",
+            overscrollBehaviorY: isFullscreen ? "contain" : "auto",
             touchAction: isFullscreen && isMobileViewport
               ? "pan-x pan-y pinch-zoom"
-              : "pan-x pan-y",
+              : "pan-y pan-x",
           }}
         >
           <div

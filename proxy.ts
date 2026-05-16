@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { locales, defaultLocale } from './lib/i18n';
-import { AUTH_COOKIE, AUTH_VALUE } from './lib/auth';
+import { AUTH_COOKIE, AUTH_TOKEN_COOKIE, AUTH_USER_COOKIE, AUTH_VALUE } from './lib/auth';
 
 const PUBLIC_FILE_REGEX = /\.[^/]+$/;
 
@@ -34,11 +34,25 @@ export function proxy(request: NextRequest) {
     ) || defaultLocale;
     const isLoginRoute = pathname === `/${locale}/login`;
     const isLocaleIndex = pathname === `/${locale}`;
+    const isExpiredSession = request.nextUrl.searchParams.get('session') === 'expired';
 
     if (isLocaleIndex) {
       return NextResponse.redirect(
         new URL(`/${locale}/${isAuthenticated ? 'dashboard' : 'login'}`, request.url)
       );
+    }
+
+    if (isLoginRoute && isExpiredSession) {
+      const response = NextResponse.next();
+
+      for (const cookieName of [AUTH_COOKIE, AUTH_TOKEN_COOKIE, AUTH_USER_COOKIE]) {
+        response.cookies.set(cookieName, '', {
+          path: '/',
+          maxAge: 0,
+        });
+      }
+
+      return response;
     }
 
     if (isLoginRoute && isAuthenticated) {

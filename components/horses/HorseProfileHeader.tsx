@@ -1,9 +1,10 @@
 "use client";
 
-import { FC } from "react";
+import { FC, useState } from "react";
 import Image from "next/image";
 import { useLocale } from "@/lib/locale-context";
 import { useRouter } from "next/navigation";
+import horsePlaceholder from "@/app/assets/imgs/horse-placehodler.png";
 
 interface Horse {
   id: string;
@@ -23,6 +24,12 @@ interface HorseProfileHeaderProps {
 export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse }) => {
   const { locale, direction } = useLocale();
   const isRTL = direction === "rtl";
+  const [coverSrc, setCoverSrc] = useState<string | typeof horsePlaceholder>(
+    horse.image || horsePlaceholder,
+  );
+  const [avatarSrc, setAvatarSrc] = useState<string | typeof horsePlaceholder>(
+    horse.image || horsePlaceholder,
+  );
 
   const horseName = locale === "ar" ? horse.nameAr : horse.nameEn;
   const router = useRouter();
@@ -34,20 +41,22 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse }) => {
         {/* Cover */}
         <div className="relative w-full h-80 rounded-3xl overflow-hidden shadow-sm">
           <Image
-            src="https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?w=1600&h=600&fit=crop"
-            alt="Cover"
+            src={coverSrc}
+            alt={horseName}
             fill
             className="object-cover"
+            onError={() => setCoverSrc(horsePlaceholder)}
           />
         </div>
 
         {/* Avatar overlapping the bottom edge */}
         <div className={`absolute -bottom-16 ${isRTL ? "right-12" : "left-12"} w-40 h-40 rounded-full border-4 border-[#fdfbf7] overflow-hidden bg-white shadow-md z-10`}>
           <Image
-            src={horse.image}
+            src={avatarSrc}
             alt={horseName}
             fill
             className="object-cover"
+            onError={() => setAvatarSrc(horsePlaceholder)}
           />
         </div>
       </div>

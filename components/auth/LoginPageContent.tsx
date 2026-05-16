@@ -12,10 +12,14 @@ import {
   UserRound,
 } from 'lucide-react';
 
+import { loginClient } from '@/lib/api/client';
 import { useLocale, useTranslation } from '@/lib/locale-context';
-import { setAuthCookie } from '@/lib/auth';
 
-export function LoginPageContent() {
+interface LoginPageContentProps {
+  sessionExpired?: boolean;
+}
+
+export function LoginPageContent({ sessionExpired = false }: LoginPageContentProps) {
   const router = useRouter();
   const { locale, direction } = useLocale();
   const { t } = useTranslation();
@@ -27,7 +31,7 @@ export function LoginPageContent() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!identifier.trim() || !password.trim()) {
@@ -37,8 +41,23 @@ export function LoginPageContent() {
 
     setSubmitting(true);
     setError('');
-    setAuthCookie(rememberMe);
-    router.replace(`/${locale}/dashboard`);
+
+    try {
+      await loginClient({
+        username: identifier.trim(),
+        password,
+        rememberMe,
+        locale,
+      });
+
+      router.replace(`/${locale}/dashboard`);
+      router.refresh();
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : '';
+      setError(message.toLowerCase().includes('invalid') ? t('login.invalidCredentials') : t('login.networkError'));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const InputArrow = direction === 'rtl' ? ArrowLeft : ArrowRight;
@@ -103,6 +122,12 @@ export function LoginPageContent() {
               </div>
 
               <form className="space-y-5" onSubmit={handleSubmit}>
+                {sessionExpired ? (
+                  <div className="rounded-2xl border border-[#efd3a3] bg-[#fff8e8] px-4 py-3 text-sm font-medium text-[#8a5a16]">
+                    {t('login.sessionExpired')}
+                  </div>
+                ) : null}
+
                 <div className="relative">
                   <label htmlFor="identifier" className="sr-only">
                     {t('login.identifierLabel')}

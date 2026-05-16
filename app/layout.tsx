@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { GlobalApiDebugTool } from '@/components/debug/GlobalApiDebugTool';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -35,6 +36,7 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className="bg-secondary-gray text-text-dark antialiased">
         {children}
+        <GlobalApiDebugTool />
       </body>
     </html>
   );

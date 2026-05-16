@@ -8,8 +8,13 @@ interface HorseInfoTabProps {
 }
 
 export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
-  const { direction } = useLocale();
+  const { direction, locale } = useLocale();
   const isRTL = direction === "rtl";
+  const raw = horse?.raw ?? {};
+  const localized = (ar?: string | null, en?: string | null) =>
+    locale === "ar" ? ar || en || "-" : en || ar || "-";
+  const value = (input?: string | null) => input || "-";
+  const studName = (stud?: any) => localized(stud?.studArabicName, stud?.studName);
 
   return (
     <div className={`mb-12 ${isRTL ? "text-right" : "text-left"}`}>
@@ -22,42 +27,42 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
           
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "الاسم :" : "Name :"}</span>
-            <span className="text-black font-semibold">{isRTL ? "اسم الخيل" : horse?.nameEn || "Horse Name"}</span>
+            <span className="text-black font-semibold">{localized(raw.arabicName, raw.englishName)}</span>
           </div>
           
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "الاسم المعروف :" : "Known As :"}</span>
-            <span className="text-black font-semibold">{isRTL ? "اسم الخيل" : "Known Name"}</span>
+            <span className="text-black font-semibold">{value(raw.knownAs)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-[#a08a6b] font-medium">{isRTL ? "الرسن :" : "Breed :"}</span>
-            <span className="text-black font-semibold">{isRTL ? "اسم الخيل" : "Breed Name"}</span>
+            <span className="text-[#a08a6b] font-medium">{isRTL ? "السلالة :" : "Strain :"}</span>
+            <span className="text-black font-semibold">{localized(raw.strainAr, raw.strainEn)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "حاليا في :" : "Currently In :"}</span>
-            <span className="text-black font-semibold">{isRTL ? "مصر" : "Egypt"}</span>
+            <span className="text-black font-semibold">{value(raw.currentlyIn)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "الجنس :" : "Gender :"}</span>
-            <span className="text-black font-semibold">{isRTL ? "ذكر" : "Male"}</span>
+            <span className="text-black font-semibold">{value(raw.gender)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "اللون :" : "Color :"}</span>
-            <span className="text-black font-semibold">{isRTL ? "أسود" : "Black"}</span>
+            <span className="text-black font-semibold">{value(raw.color)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "تاريخ الميلاد :" : "Birth Date :"}</span>
-            <span className="text-black font-semibold">18/9/1999</span>
+            <span className="text-black font-semibold">{horse?.birthDate || "-"}</span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "ولد في :" : "Born In :"}</span>
-            <span className="text-black font-semibold">{isRTL ? "مصر" : "Egypt"}</span>
+            <span className="text-black font-semibold">{value(raw.bornIn)}</span>
           </div>
         </div>
 
@@ -67,27 +72,27 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
           
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "أرقام التسجيل :" : "Registration No :"}</span>
-            <span className="text-black font-semibold">123456789</span>
+            <span className="text-black font-semibold">{value(raw.registrationNumber)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "رقم الشريحة :" : "Microchip No :"}</span>
-            <span className="text-black font-semibold">12345678956468</span>
+            <span className="text-black font-semibold">{value(raw.microchipID)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "رقم UELN :" : "UELN No :"}</span>
-            <span className="text-black font-semibold">{isRTL ? "غير معروف" : "Unknown"}</span>
+            <span className="text-black font-semibold">{value(raw.uelnNumber)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "رقم تسجيل الاتحاد الدولي للفروسية :" : "FEI Registration :"}</span>
-            <span className="text-black font-semibold">{isRTL ? "غير معروف" : "Unknown"}</span>
+            <span className="text-black font-semibold">{value(raw.internationalFEIRegistrationNumber)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "رقم تسجيل الرياضي المحلي :" : "Local Registration :"}</span>
-            <span className="text-black font-semibold">{isRTL ? "غير معروف" : "Unknown"}</span>
+            <span className="text-black font-semibold">{value(raw.nationalSportRegistrationNumber)}</span>
           </div>
         </div>
 
@@ -97,17 +102,17 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
           
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "اسم المربي :" : "Breeder Name :"}</span>
-            <span className="text-black font-semibold">{isRTL ? "اسم المربي" : "Breeder Name"}</span>
+            <span className="text-black font-semibold">{studName(raw.breeder)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "البريد الإلكتروني :" : "Email :"}</span>
-            <span className="text-black font-semibold">asdfgh@gmail.com</span>
+            <span className="text-black font-semibold">{value(raw.breeder?.studEmail)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "رقم الهاتف :" : "Phone Number :"}</span>
-            <span className="text-black font-semibold">+201010101010</span>
+            <span className="text-black font-semibold">{value(raw.breeder?.primaryPhoneNumber)}</span>
           </div>
         </div>
 
@@ -117,17 +122,17 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
           
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "اسم المالك :" : "Owner Name :"}</span>
-            <span className="text-black font-semibold">{isRTL ? "اسم المربي" : "Owner Name"}</span>
+            <span className="text-black font-semibold">{studName(raw.owner)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "البريد الإلكتروني :" : "Email :"}</span>
-            <span className="text-black font-semibold">asdfgh@gmail.com</span>
+            <span className="text-black font-semibold">{value(raw.owner?.studEmail)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "رقم الهاتف :" : "Phone Number :"}</span>
-            <span className="text-black font-semibold">+201010101010</span>
+            <span className="text-black font-semibold">{value(raw.owner?.primaryPhoneNumber)}</span>
           </div>
         </div>
 

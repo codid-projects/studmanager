@@ -1,5 +1,7 @@
 export const AUTH_COOKIE = 'studmanager-auth';
 export const AUTH_VALUE = 'authenticated';
+export const AUTH_TOKEN_COOKIE = 'studmanager-token';
+export const AUTH_USER_COOKIE = 'studmanager-user';
 
 export function hasAuthCookie() {
   if (typeof document === 'undefined') return false;

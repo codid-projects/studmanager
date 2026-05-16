@@ -16,10 +16,11 @@ const DUMMY_PHOTOS = [
   "https://images.unsplash.com/photo-1493246507139-91e8bef99c02?w=1200&h=800&fit=crop",
 ];
 
-export const HorsePhotosTab: FC<HorsePhotosTabProps> = () => {
+export const HorsePhotosTab: FC<HorsePhotosTabProps> = ({ horse }) => {
   const { direction } = useLocale();
   const { t } = useTranslation();
   const isRTL = direction === "rtl";
+  const photos = horse?.raw?.images?.length ? horse.raw.images : DUMMY_PHOTOS;
   
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
@@ -48,12 +49,12 @@ export const HorsePhotosTab: FC<HorsePhotosTabProps> = () => {
 
   const handleNext = () => {
     if (selectedIdx === null) return;
-    setSelectedIdx((prev) => (prev !== null && prev < DUMMY_PHOTOS.length - 1 ? prev + 1 : 0));
+    setSelectedIdx((prev) => (prev !== null && prev < photos.length - 1 ? prev + 1 : 0));
   };
 
   const handlePrev = () => {
     if (selectedIdx === null) return;
-    setSelectedIdx((prev) => (prev !== null && prev > 0 ? prev - 1 : DUMMY_PHOTOS.length - 1));
+    setSelectedIdx((prev) => (prev !== null && prev > 0 ? prev - 1 : photos.length - 1));
   };
 
   return (
@@ -64,7 +65,7 @@ export const HorsePhotosTab: FC<HorsePhotosTabProps> = () => {
       
       {/* Justified-style layout using Flexbox */}
       <div className="flex flex-wrap gap-3">
-        {DUMMY_PHOTOS.map((photo, i) => (
+        {photos.map((photo: string, i: number) => (
           <div 
             key={i} 
             onClick={() => setSelectedIdx(i)}
@@ -116,7 +117,7 @@ export const HorsePhotosTab: FC<HorsePhotosTabProps> = () => {
 
             <div className="relative w-full h-full max-w-6xl max-h-[80vh] flex items-center justify-center">
               <img 
-                src={DUMMY_PHOTOS[selectedIdx]} 
+                src={photos[selectedIdx]} 
                 alt="Selected horse" 
                 className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
               />
@@ -132,7 +133,7 @@ export const HorsePhotosTab: FC<HorsePhotosTabProps> = () => {
 
           {/* Thumbnails Strip */}
           <div className="absolute bottom-10 left-0 right-0 flex justify-center px-4 overflow-x-auto no-scrollbar gap-3 pb-4">
-             {DUMMY_PHOTOS.map((photo, i) => (
+             {photos.map((photo: string, i: number) => (
                <button 
                  key={i}
                  onClick={() => setSelectedIdx(i)}

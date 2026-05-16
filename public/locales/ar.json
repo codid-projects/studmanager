@@ -140,6 +140,9 @@
     "loginButton": "دخول إلى المنصة",
     "signingIn": "جاري تسجيل الدخول...",
     "validation": "يرجى إدخال البريد الإلكتروني أو اسم المستخدم وكلمة المرور.",
+    "invalidCredentials": "اسم المستخدم أو كلمة المرور غير صحيحة.",
+    "networkError": "تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى.",
+    "sessionExpired": "انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.",
     "featureTeam": "إدارة الأعضاء",
     "featureTeamDesc": "صلاحيات واضحة وسجل مستخدمين منظم.",
     "featureTasks": "متابعة المهام",
@@ -297,6 +300,7 @@
     "horseMotherNameEn": "اسم الأم (إنجليزي)",
     "type": "النوع",
     "features": "المميزات",
+    "coatColor": "اللون",
     "description": "الوصف",
     "image": "صورة الخيل",
     "addFromStudbook": "Studbook إضافة خيل من",
@@ -327,6 +331,7 @@
     "backLeftLeg": "الساق الخلفية اليسرى",
     "notes": "ملاحظات",
     "manualAddTitle": "إضافة خيل يدويا",
+    "backToStudbook": "الرجوع إلى Studbook",
     "registrationNumber": "رقم التسجيل",
     "microchipId": "رقم الرقاقة (Microchip ID)",
     "feiRegistrationNumber": "رقم التسجيل الدولي FEI",
@@ -342,7 +347,9 @@
     "supportedVideos": "MP4 : الصيغ المدعومة",
     "addVideoLink": "إضافة رابط فيديو",
     "imageUploadTitle": "تحميل الصور",
-    "videoUploadTitle": "تحميل الفيديو"
+    "videoUploadTitle": "تحميل الفيديو",
+    "viewFull": "عرض كامل",
+    "manualApiPending": "إضافة الخيل يدويًا غير متاحة في عقد الـ API المرفق حتى الآن."
   },
   "matingTest": {
     "title": "تحليل السلالة",

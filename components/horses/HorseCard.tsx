@@ -4,6 +4,7 @@ import { FC } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useLocale, useTranslation } from '@/lib/locale-context';
+import horsePlaceholder from '@/app/assets/imgs/horse-placehodler.png';
 
 interface Horse {
   id: string;
@@ -11,7 +12,8 @@ interface Horse {
   nameEn: string;
   type: string;
   birthDate: string;
-  features: number;
+  metaLabel: string;
+  metaValue: string;
   image: string;
   gender: string;
 }
@@ -35,7 +37,7 @@ export const HorseCard: FC<HorseCardProps> = ({
       {/* Image */}
       <div className="absolute left-1/2 top-0 z-10 h-24 w-24 -translate-x-1/2 overflow-hidden rounded-full bg-gray-200 ring-[10px] ring-[#faf5f2] sm:h-36 sm:w-36 sm:ring-[16px]">
         <Image
-          src={horse.image}
+          src={horse.image || horsePlaceholder}
           alt={horseName}
           fill
           className="object-cover"
@@ -57,10 +59,10 @@ export const HorseCard: FC<HorseCardProps> = ({
         <div className="mb-4 grid grid-cols-3 gap-2 text-center sm:mb-6 sm:gap-6">
           <div className="flex flex-col gap-1">
             <span className="text-sm font-semibold text-[#3b2314] sm:text-lg">
-              {horse.features}
+              {horse.metaValue}
             </span>
             <span className="text-[10px] text-gray-500 sm:text-sm">
-              {t('horses.features')}
+              {horse.metaLabel}
             </span>
           </div>
 
