@@ -52,7 +52,9 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
   const requestHeaders = new Headers(headers);
   requestHeaders.set('Accept', 'application/json');
 
-  if (body !== undefined) {
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+
+  if (body !== undefined && !isFormData) {
     requestHeaders.set('Content-Type', 'application/json');
   }
 
@@ -62,7 +64,7 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
 
   const response = await fetch(buildUrl(path, query), {
     ...init,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
     headers: requestHeaders,
     cache: 'no-store',
     signal: signal ?? timeoutSignal,

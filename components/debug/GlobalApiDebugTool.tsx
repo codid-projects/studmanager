@@ -7,6 +7,16 @@ import { ApiDebugInspector, type ApiDebugEntry } from './ApiDebugInspector';
 const API_BASE = API_BASE_URL;
 
 function parseBody(body: BodyInit | null | undefined) {
+  if (body instanceof FormData) {
+    return Array.from(body.entries()).reduce<Record<string, unknown[]>>((acc, [key, value]) => {
+      const displayValue = value instanceof File
+        ? { name: value.name, type: value.type, size: value.size }
+        : value;
+      acc[key] = [...(acc[key] ?? []), displayValue];
+      return acc;
+    }, {});
+  }
+
   if (!body || typeof body !== 'string') return body ?? null;
 
   try {
@@ -77,10 +87,12 @@ function endpointMeta(pathWithQuery: string, method: string, payload: unknown) {
     serverProxy.searchParams.set('pageSize', pageSize);
 
     return {
-      label: 'Horses list',
+      label: method === 'POST' ? 'Create horse' : 'Horses list',
       backendEndpoint: url.toString(),
       nextEndpoint: `${serverProxy.pathname}${serverProxy.search}`,
-      nextService: nextServicePrefix,
+      nextService: method === 'POST'
+        ? `${nextServicePrefix} Server fallback: app/api/horses/route.ts -> lib/api/horses-service.ts:createHorse`
+        : nextServicePrefix,
     };
   }
 

@@ -287,8 +287,71 @@ GET /api/ExternalHorses/{localId}/siblings?pageNumber=1&pageSize=15
 Status:
 
 - Service functions are implemented.
-- Profile page attempts to load them without blocking the main horse detail.
+- Profile page now lazy-loads children only when the Children tab opens.
+- Profile page now lazy-loads siblings only when the Siblings tab opens.
 - Live checks timed out on 2026-05-16, so failures fall back to empty tables.
+
+### Create Horse
+
+Backend endpoint:
+
+```txt
+POST /api/Horses
+```
+
+Request type:
+
+```txt
+multipart/form-data
+```
+
+Status:
+
+- Manual add flow now submits with `FormData`, not JSON.
+- Field names are appended as backend PascalCase keys.
+- `DateofBirth` is normalized to `YYYY-MM-DD`.
+- `HorseProfileImage` is sent as a single file.
+- `Images` and `Videos` helpers append repeated keys for arrays.
+- Empty, null, and undefined fields are skipped.
+- Boolean fields are sent as `"true"` / `"false"`.
+- Integer fields are sent as strings through `FormData`.
+- `400` and `409` show backend messages when available, localized to Arabic when mapped.
+- On success, `data` is treated as the created local horse id and the UI navigates to the horse profile.
+
+### External Horse Screens
+
+Added typed frontend functions for:
+
+```txt
+GET /api/ExternalHorses/search-external-horses
+GET /api/ExternalHorses/search-external-studs
+POST /api/ExternalHorses/import-horse
+GET /api/ExternalHorses/{localId}/dashboard
+GET /api/ExternalHorses/{studbookId}/pedigree
+GET /api/ExternalHorses/{studbookId}/analysis-tree
+GET /api/ExternalHorses/{studbookId}/tail-male
+GET /api/ExternalHorses/{studbookId}/tail-female
+GET /api/ExternalHorses/testmating
+GET /api/ExternalHorses/{localHorseId}/events
+GET /api/ExternalHorses/{localHorseId}/championships
+GET /api/ExternalHorses/{localHorseId}/awards
+POST /api/ExternalHorses/sync-events
+GET /api/ExternalHorses/{localId}/siblings
+GET /api/ExternalHorses/{localId}/offsprings
+POST /api/ExternalHorses/{localId}/sync-attachments
+```
+
+UI wiring completed:
+
+- Profile dashboard cards call `/dashboard`.
+- Pedigree tab calls `/pedigree` and falls back to existing static tree on error.
+- Competition tab calls events, championships, and awards only when each sub-tab is opened.
+- Children and siblings tabs lazy-load on activation.
+
+Localization:
+
+- Added shared country/color maps for API values like `EGYPT`, `grey`, `bay`, and related variants.
+- Horse cards, import cards, and profile info now use the shared maps.
 
 ## Files Added
 
@@ -298,6 +361,11 @@ Status:
 - `lib/api/auth-service.ts`
 - `lib/api/horses-service.ts`
 - `lib/api/horse-formatters.ts`
+- `lib/api/create-horse-form-data.ts`
+- `lib/api/create-horse.ts`
+- `lib/api/external-horses.ts`
+- `lib/api/external-horses-hooks.ts`
+- `lib/api/localization.ts`
 - `app/api/auth/login/route.ts`
 - `app/api/auth/logout/route.ts`
 - `app/api/horses/studbook/route.ts`
@@ -342,3 +410,30 @@ Known build warnings:
 - Existing metadataBase warning from Next metadata generation.
 
 These warnings are unrelated to the API integration changes.
+
+## Latest Horse Flow Update
+
+Completed in this pass:
+
+- Pedigree certificate now accepts the backend `root + ancestors` response shape and no longer depends on mock/fallback pedigree rows.
+- Duplicate ancestors in the pedigree certificate are highlighted with the same color set used by the Studbook Pro horse background wrappers.
+- Parent labels were replaced with compact mother/father icons instead of `(Mother)` / `(Father)` text.
+- Test mating page now searches external studbook horses and calls `GET /api/ExternalHorses/testmating` with `horseMotherStudbookId`, `horseFatherStudbookId`, and `levels`.
+- The test mating result renders through the same pedigree certificate component, with loading, empty, and error states.
+- The mating analytics tab is only available from a horse context and uses the current horse `studbookId` through the existing analytics integration.
+- Create horse now blocks step navigation until required fields pass validation:
+  - Arabic name is required and Arabic-only.
+  - English name is required.
+  - Date of birth and gender are required.
+  - Breeder/owner emails must be valid when provided.
+  - Video link must be a valid YouTube URL when provided.
+- Create horse can select father and mother from the external studbook search and sends their IDs as `HorseFatherStudbookId` and `HorseMotherStudbookId`.
+- Horse marking pickers now use the copied Studbook Pro marking assets under `public/horse-options`.
+
+Verification:
+
+```txt
+npm run build
+```
+
+Result: build completed successfully. Existing metadataBase and Recharts static-render warnings remain unrelated.

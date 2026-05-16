@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { AUTH_USER_COOKIE } from '@/lib/auth';
 import { useLocale, useTranslation } from '@/lib/locale-context';
 import { BellIcon, SearchIcon, MenuIcon, CloseIcon } from './AppIcons';
 import { LocaleMenu } from '@/components/common/LocaleMenu';
@@ -18,6 +20,29 @@ export function TopBar({
 }: TopBarProps) {
   const { t } = useTranslation();
   const { locale, direction } = useLocale();
+  const [authUserName, setAuthUserName] = useState('');
+
+  useEffect(() => {
+    const rawCookie = document.cookie
+      .split('; ')
+      .find((cookie) => cookie.startsWith(`${AUTH_USER_COOKIE}=`))
+      ?.slice(AUTH_USER_COOKIE.length + 1);
+
+    if (!rawCookie) return;
+
+    try {
+      const user = JSON.parse(decodeURIComponent(rawCookie)) as {
+        fullName?: string | null;
+        username?: string | null;
+      };
+      setAuthUserName(user.fullName || user.username || '');
+    } catch {
+      setAuthUserName('');
+    }
+  }, []);
+
+  const displayName = authUserName || (locale === 'ar' ? 'المستخدم' : 'User');
+  const avatarLetter = useMemo(() => displayName.trim().charAt(0).toUpperCase() || 'U', [displayName]);
 
   return (
     <div className="fixed top-2 left-2 right-2 z-30 flex items-center justify-between rounded-[20px] bg-white px-4 py-3 shadow-[0_4px_20px_rgba(0,0,0,0.08)] border border-gray-100 sm:relative sm:top-0 sm:left-0 sm:right-0 sm:z-30 sm:rounded-[26px] sm:px-6 sm:py-4 lg:px-8 sm:border-none sm:shadow-[0_10px_35px_rgba(94,56,23,0.06)]">
@@ -97,10 +122,10 @@ export function TopBar({
 
         <div className="flex items-center gap-2 text-[#2f2220]">
           <span className="font-semibold text-sm">
-            {t('dashboard.userName')}
+            {displayName}
           </span>
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[radial-gradient(circle_at_35%_35%,#d9b898,#6b4d39)] text-sm font-semibold text-white shadow-inner">
-            م
+            {avatarLetter}
           </div>
         </div>
       </div>

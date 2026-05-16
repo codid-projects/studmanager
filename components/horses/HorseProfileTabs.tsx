@@ -6,6 +6,7 @@ import { useLocale } from "@/lib/locale-context";
 
 const TABS = [
   { id: "pedigree", labelAr: "الأنساب", labelEn: "Pedigree", icon: "/horse/انساب.svg", activeIcon: "/horse/انساب.svg", inactiveIcon: "/horse/انساب-notactive.svg" },
+  { id: "analytics", labelAr: "التحليلات", labelEn: "Analytics", icon: "/horse/معلومات.svg" },
   { id: "info", labelAr: "معلومات", labelEn: "Info", icon: "/horse/معلومات.svg" },
   { id: "photos", labelAr: "صور", labelEn: "Photos", icon: "/horse/صور.svg" },
   { id: "videos", labelAr: "فيديوهات", labelEn: "Videos", icon: "/horse/فيديوهات.svg" },

@@ -1,13 +1,15 @@
 "use client";
 
 import { FC, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import { toPng } from "html-to-image";
 import { useLocale } from "@/lib/locale-context";
 import { X } from "lucide-react";
+import { getHorsePedigree } from "@/lib/api/external-horses";
+import { getLocalizedName } from "@/lib/api/localization";
 
 interface Horse {
   id?: string;
+  studbookId?: number | null;
   name?: string;
   pedigreeImage?: string;
 }
@@ -16,105 +18,119 @@ interface HorsePedigreeTreeProps {
   horse: Horse;
   showTitle?: boolean;
   controlsVariant?: "default" | "compact";
+  pedigreeData?: unknown;
+  loading?: boolean;
 }
 
-type ParentRole = "Mother" | "Father";
+type ParentRole = "Root" | "Mother" | "Father";
 
 type PedigreeNode = {
   id: string;
   name: string;
   role: ParentRole;
+  duplicateColor?: { background: string; border: string };
 };
 
 const NODE_HEIGHT_PX = 18;
 const CERTIFICATE_ASPECT = 1600 / 900;
-
-const pedigreeMockData: PedigreeNode[][] = [
-  [
-    { id: "g1-1", name: "Ahlam II", role: "Mother" },
-    { id: "g1-2", name: "Nazeer", role: "Father" },
-  ],
-  [
-    { id: "g2-1", name: "Bint Zareefa", role: "Mother" },
-    { id: "g2-2", name: "Sid Abouhom", role: "Father" },
-    { id: "g2-3", name: "Bint Samiha", role: "Mother" },
-    { id: "g2-4", name: "Mansour", role: "Father" },
-  ],
-  [
-    { id: "g3-1", name: "Zareefa", role: "Mother" },
-    { id: "g3-2", name: "Balance", role: "Father" },
-    { id: "g3-3", name: "Layla", role: "Mother" },
-    { id: "g3-4", name: "Al Deree", role: "Father" },
-    { id: "g3-5", name: "Samieha", role: "Mother" },
-    { id: "g3-6", name: "Kazmeen", role: "Father" },
-    { id: "g3-7", name: "Nafaa El Saghira", role: "Mother" },
-    { id: "g3-8", name: "Gamil Manial", role: "Father" },
-  ],
-  [
-    { id: "g4-1", name: "Dorra", role: "Mother" },
-    { id: "g4-2", name: "Kazmeen", role: "Father" },
-    { id: "g4-3", name: "Farida", role: "Mother" },
-    { id: "g4-4", name: "Ibn Samhan", role: "Father" },
-    { id: "g4-5", name: "Bint Sabah", role: "Mother" },
-    { id: "g4-6", name: "Ibn Rabdan", role: "Father" },
-    { id: "g4-7", name: "Saklaviyah Shaifiya", role: "Mother" },
-    { id: "g4-8", name: "Saklawi Sheifi", role: "Father" },
-    { id: "g4-9", name: "Bint Hadba Al Saghira", role: "Mother" },
-    { id: "g4-10", name: "Samhan", role: "Father" },
-    { id: "g4-11", name: "Kasima", role: "Mother" },
-    { id: "g4-12", name: "Sottam I", role: "Father" },
-    { id: "g4-13", name: "Nafieah Al Kabierah", role: "Mother" },
-    { id: "g4-14", name: "Maanegi Sbeyli", role: "Father" },
-    { id: "g4-15", name: "Dalal Al Zarka", role: "Mother" },
-    { id: "g4-16", name: "Saklawi I", role: "Father" },
-  ],
-  [
-    { id: "g5-1", name: "Dalal El Hamra", role: "Mother" },
-    { id: "g5-2", name: "Saadun", role: "Father" },
-    { id: "g5-3", name: "Kasima", role: "Mother" },
-    { id: "g5-4", name: "Sottam I", role: "Father" },
-    { id: "g5-5", name: "Nadra El Saghira", role: "Mother" },
-    { id: "g5-6", name: "Saklawi II", role: "Father" },
-    { id: "g5-7", name: "Nafaa El Saghira", role: "Mother" },
-    { id: "g5-8", name: "Samhan", role: "Father" },
-    { id: "g5-9", name: "Sabah", role: "Mother" },
-    { id: "g5-10", name: "Kazmeen", role: "Father" },
-    { id: "g5-11", name: "Bint Gamila", role: "Mother" },
-    { id: "g5-12", name: "Rabdan El Azrak", role: "Father" },
-    { id: "g5-13", name: "Mom N/A", role: "Mother" },
-    { id: "g5-14", name: "Dad N/A", role: "Father" },
-    { id: "g5-15", name: "Mom N/A", role: "Mother" },
-    { id: "g5-16", name: "Dad N/A", role: "Father" },
-    { id: "g5-17", name: "Hadbah", role: "Mother" },
-    { id: "g5-18", name: "El Halabi", role: "Father" },
-    { id: "g5-19", name: "Om Dalal", role: "Mother" },
-    { id: "g5-20", name: "Rabdan El Azrak", role: "Father" },
-    { id: "g5-21", name: "Kasida", role: "Mother" },
-    { id: "g5-22", name: "Narkisa", role: "Father" },
-    { id: "g5-23", name: "Selma II", role: "Mother" },
-    { id: "g5-24", name: "Astraled", role: "Father" },
-    { id: "g5-25", name: "Donia", role: "Mother" },
-    { id: "g5-26", name: "Rabdan El Azrak", role: "Father" },
-    { id: "g5-27", name: "Mom N/A", role: "Mother" },
-    { id: "g5-28", name: "Dad N/A", role: "Father" },
-    { id: "g5-29", name: "Om Dalal", role: "Mother" },
-    { id: "g5-30", name: "Rabdan El Azrak", role: "Father" },
-    { id: "g5-31", name: "Al Dahma", role: "Mother" },
-    { id: "g5-32", name: "Saklawi I", role: "Father" },
-  ],
+const DUPLICATE_ANCESTOR_COLORS = [
+  { background: "#FEE2E2", border: "#DC2626" },
+  { background: "#CCFBF1", border: "#0F766E" },
+  { background: "#FEF9C3", border: "#CA8A04" },
+  { background: "#D9F99D", border: "#65A30D" },
+  { background: "#D1FAE5", border: "#059669" },
+  { background: "#DBEAFE", border: "#2563EB" },
+  { background: "#E0E7FF", border: "#4F46E5" },
+  { background: "#FAE8FF", border: "#C026D3" },
 ];
 
-const MAX_LEAF_COUNT = Math.max(
-  ...pedigreeMockData.map((column) => column.length),
-);
-
-const getTopPercent = (count: number, index: number) => {
-  const span = MAX_LEAF_COUNT / count;
+const getTopPercent = (count: number, index: number, maxLeafCount: number) => {
+  const span = maxLeafCount / count;
   const center = index * span + span / 2;
-  return (center / MAX_LEAF_COUNT) * 100;
+  return (center / maxLeafCount) * 100;
 };
 
-const labelForNode = (node: PedigreeNode) => `${node.name} (${node.role})`;
+const normalizePedigreeLevels = (payload: unknown): unknown[][] => {
+  if (Array.isArray(payload)) return payload.filter(Array.isArray) as unknown[][];
+
+  if (payload && typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+    if (Array.isArray(record.ancestors)) {
+      const ancestors = record.ancestors.filter(Array.isArray) as unknown[][];
+      return record.root ? [[record.root], ...ancestors] : ancestors;
+    }
+    if (Array.isArray(record.data)) return record.data.filter(Array.isArray) as unknown[][];
+    if (Array.isArray(record.levels)) return record.levels.filter(Array.isArray) as unknown[][];
+  }
+
+  return [];
+};
+
+const ParentIcon = ({ role }: { role: ParentRole }) => {
+  if (role === "Root") return null;
+
+  return (
+    null
+    // <span
+    //   className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold leading-none ${
+    //     role === "Mother"
+    //       ? "bg-[#f8dce7] text-[#9b315a]"
+    //       : "bg-[#dce9fb] text-[#285c9f]"
+    //   }`}
+    //   title={role}
+    //   aria-label={role}
+    // >
+    //   {role === "Mother" ? "♀" : "♂"}
+    // </span>
+  );
+};
+
+function getDuplicateColorMap(columns: PedigreeNode[][]) {
+  const counts = new Map<string, number>();
+  const colors = new Map<string, { background: string; border: string }>();
+
+  columns.flat().forEach((node) => {
+    if (node.role === "Root") return;
+    counts.set(node.id, (counts.get(node.id) ?? 0) + 1);
+  });
+
+  let colorIndex = 0;
+  counts.forEach((count, id) => {
+    if (count > 1) {
+      colors.set(id, DUPLICATE_ANCESTOR_COLORS[colorIndex % DUPLICATE_ANCESTOR_COLORS.length]);
+      colorIndex += 1;
+    }
+  });
+
+  return colors;
+}
+
+const mapPedigreeLevels = (levels: unknown[][], isRTL: boolean): PedigreeNode[][] => {
+  const mapped = levels.map((generation, generationIndex) =>
+    generation.map((nodeValue, nodeIndex) => {
+      const node = nodeValue && typeof nodeValue === "object" ? nodeValue as Record<string, unknown> : {};
+
+      return {
+        id: String(node.id ?? `${generationIndex}-${nodeIndex}`),
+        name: getLocalizedName(
+          typeof node.englishName === "string" ? node.englishName : null,
+          typeof node.arabicName === "string" ? node.arabicName : null,
+          isRTL,
+        ),
+        role: (generationIndex === 0 ? "Root" : nodeIndex % 2 === 0 ? "Father" : "Mother") as ParentRole,
+      };
+    }),
+  ).filter((column) => column.length);
+
+  const duplicateColors = getDuplicateColorMap(mapped);
+
+  return mapped.map((column) =>
+    column.map((node) => ({
+      ...node,
+      duplicateColor: duplicateColors.get(node.id),
+    })),
+  );
+};
 
 const waitForRenderableImages = async (container: HTMLElement) => {
   const images = Array.from(container.querySelectorAll("img"));
@@ -186,9 +202,16 @@ const PedigreeBox = ({ node, top }: { node: PedigreeNode; top: number }) => {
         height: `${NODE_HEIGHT_PX}px`,
       }}
     >
-      <div className="flex h-full w-full items-center justify-center rounded-[8px] border border-dashed border-[#bbb3aa] bg-[#f7f3ee]/80 px-2 text-center font-serif text-[8px] leading-none text-[#2c3953] shadow-[0_1px_0_rgba(0,0,0,0.02)] sm:text-[8.5px] md:text-[9px] lg:text-[9.5px] xl:text-[10px]">
-        <span className="block w-full truncate whitespace-nowrap">
-          {labelForNode(node)}
+      <div
+        className="flex h-full w-full items-center justify-center gap-1 rounded-[8px] border border-dashed border-[#bbb3aa] bg-[#f7f3ee]/80 px-1.5 text-center font-serif text-[8px] leading-none text-[#2c3953] shadow-[0_1px_0_rgba(0,0,0,0.02)] sm:text-[8.5px] md:text-[9px] lg:text-[9.5px] xl:text-[10px]"
+        style={node.duplicateColor ? {
+          backgroundColor: node.duplicateColor.background,
+          borderColor: node.duplicateColor.border,
+        } : undefined}
+      >
+        <ParentIcon role={node.role} />
+        <span className="block min-w-0 truncate whitespace-nowrap">
+          {node.name}
         </span>
       </div>
     </div>
@@ -199,6 +222,8 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
   horse,
   showTitle = true,
   controlsVariant = "default",
+  pedigreeData,
+  loading = false,
 }) => {
   const { direction } = useLocale();
   const isRTL = direction === "rtl";
@@ -209,10 +234,73 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
 
   const [isDownloading, setIsDownloading] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [apiColumns, setApiColumns] = useState<PedigreeNode[][]>([]);
+  const [isTreeLoading, setIsTreeLoading] = useState(Boolean(horse.studbookId) || loading);
+  const [treeError, setTreeError] = useState("");
 
   const orderedColumns = useMemo(() => {
-    return isRTL ? [...pedigreeMockData].reverse() : pedigreeMockData;
-  }, [isRTL]);
+    return isRTL ? [...apiColumns].reverse() : apiColumns;
+  }, [apiColumns, isRTL]);
+  const maxLeafCount = useMemo(
+    () => Math.max(1, ...apiColumns.map((column) => column.length)),
+    [apiColumns],
+  );
+  const hasPedigree = apiColumns.length > 0;
+  const certificateMinWidth = Math.max(980, apiColumns.length * 190);
+
+  useEffect(() => {
+    if (pedigreeData !== undefined) {
+      setTreeError("");
+      setIsTreeLoading(loading);
+
+      if (!loading) {
+        setApiColumns(mapPedigreeLevels(normalizePedigreeLevels(pedigreeData), isRTL));
+      }
+
+      return;
+    }
+
+    if (!horse.studbookId) {
+      setApiColumns([]);
+      setIsTreeLoading(false);
+      setTreeError("");
+      return;
+    }
+
+    let mounted = true;
+
+    async function loadPedigree() {
+      setIsTreeLoading(true);
+      setTreeError("");
+      setApiColumns([]);
+
+      try {
+        const result = await getHorsePedigree({ studbookId: horse.studbookId as number, levels: 6 });
+        const levels = normalizePedigreeLevels(result.data);
+        if (mounted) {
+          setApiColumns(mapPedigreeLevels(levels, isRTL));
+        }
+      } catch (requestError) {
+        if (mounted) {
+          setTreeError(
+            requestError instanceof Error
+              ? requestError.message
+              : isRTL
+                ? "تعذر تحميل بيانات النسب الخارجية"
+                : "Failed to load external pedigree data",
+          );
+        }
+      } finally {
+        if (mounted) setIsTreeLoading(false);
+      }
+    }
+
+    loadPedigree();
+
+    return () => {
+      mounted = false;
+    };
+  }, [horse.studbookId, isRTL, pedigreeData, loading]);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
@@ -325,7 +413,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
           <button
             type="button"
             onClick={handleDownload}
-            disabled={isDownloading}
+            disabled={isDownloading || !hasPedigree}
             className={`inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap bg-white font-semibold text-[#3e3640] transition hover:bg-[#f8f3ed] disabled:cursor-not-allowed disabled:opacity-60 ${
               controlsVariant === "compact"
                 ? "h-11 w-11 rounded-xl border border-[#e6ddd4]"
@@ -350,11 +438,12 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
           <button
             type="button"
             onClick={handleToggleFullscreen}
+            disabled={!hasPedigree}
             className={`inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap bg-white font-semibold text-[#3e3640] transition hover:bg-[#f8f3ed] ${
               controlsVariant === "compact"
                 ? "h-11 w-11 rounded-xl border border-[#e6ddd4]"
                 : "h-11 rounded-2xl px-4 text-sm"
-            }`}
+            } disabled:cursor-not-allowed disabled:opacity-50`}
             title={
               isFullscreen
                 ? isRTL
@@ -380,6 +469,41 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
           </button>
         </div>
       </div>
+
+      {treeError ? (
+        <div className="mb-4 rounded-2xl border border-[#f2c7c7] bg-[#fff3f3] px-4 py-3 text-sm text-[#b04444]">
+          {treeError}
+        </div>
+      ) : null}
+
+      {isTreeLoading ? (
+        <div className="rounded-[26px] bg-[#efeae5] p-3">
+          <div className="relative aspect-[1600/900] min-w-[980px] overflow-hidden rounded-[20px] bg-[#f7f3ee] shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
+            <div className="grid h-full grid-cols-5 gap-x-4 px-8 py-10" dir={isRTL ? "rtl" : "ltr"}>
+              {(isRTL ? [4, 3, 2, 1, 0] : [0, 1, 2, 3, 4]).map((columnIndex) => (
+                <div key={columnIndex} className="flex flex-col justify-around">
+                  {Array.from({ length: 2 ** Math.min(columnIndex + 1, 5) }).map((__, itemIndex) => (
+                    <div key={itemIndex} className="flex h-[18px] items-center gap-1 rounded-[8px] bg-[#ded6cf] px-1.5">
+                      {columnIndex > 0 ? <span className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#cfc6be]" /> : null}
+                      <span className="h-2 flex-1 rounded-full bg-[#cfc6be]" />
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : !hasPedigree ? (
+        <div className="rounded-[26px] border border-dashed border-[#d9c8ba] bg-white p-10 text-center text-sm text-[#7a6c63]">
+          {horse.studbookId
+            ? isRTL
+              ? "لا توجد بيانات نسب متاحة لهذا الخيل."
+              : "No pedigree data is available for this horse."
+            : isRTL
+              ? "لا يوجد رقم Studbook لهذا الخيل لعرض شهادة النسب."
+              : "No studbook id is available for this horse pedigree."}
+        </div>
+      ) : (
 
       <div
         ref={fullscreenRef}
@@ -430,11 +554,11 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
               aspectRatio: `${CERTIFICATE_ASPECT}`,
               width:
                 isFullscreen && isMobileViewport
-                  ? "980px"
+                  ? `${certificateMinWidth}px`
                   : isFullscreen
                     ? `min(96vw, calc((100dvh - 72px) * ${CERTIFICATE_ASPECT}))`
                     : "100%",
-              minWidth: isFullscreen && !isMobileViewport ? undefined : "980px",
+              minWidth: isFullscreen && !isMobileViewport ? undefined : `${certificateMinWidth}px`,
               maxWidth: isFullscreen ? undefined : "1500px",
             }}
           >
@@ -448,7 +572,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
               <img
                 src="/horse/centerinnerlogoofpedgree.svg"
                 alt="Pedigree Center Logo"
-                className="h-auto w-[34%] max-w-[420px] object-contain"
+                className="h-auto w-[28%] max-w-[340px] object-contain"
               />
             </div>
 
@@ -456,9 +580,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
               <div
                 className="grid h-full w-full gap-x-3 md:gap-x-4 lg:gap-x-5"
                 style={{
-                  gridTemplateColumns: isRTL
-                    ? "1.2fr 1.05fr 1fr 0.95fr 1.1fr"
-                    : "1.1fr 0.95fr 1fr 1.05fr 1.2fr",
+                  gridTemplateColumns: `repeat(${orderedColumns.length}, minmax(0, 1fr))`,
                 }}
               >
                 {orderedColumns.map((column, columnIndex) => (
@@ -470,7 +592,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
                       <PedigreeBox
                         key={node.id}
                         node={node}
-                        top={getTopPercent(column.length, nodeIndex)}
+                        top={getTopPercent(column.length, nodeIndex, maxLeafCount)}
                       />
                     ))}
                   </div>
@@ -492,6 +614,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

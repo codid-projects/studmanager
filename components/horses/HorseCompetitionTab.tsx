@@ -1,25 +1,66 @@
 "use client";
 
-import { FC, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import { useLocale } from "@/lib/locale-context";
+import { getHorseAwards, getHorseChampionships, getHorseEvents } from "@/lib/api/external-horses";
+import { formatDate } from "@/lib/api/horse-formatters";
+import { getLocalizedName } from "@/lib/api/localization";
+import type { HorseAwardHistory, HorseChampionHistory, HorseEventHistory } from "@/lib/api/types";
 
 interface HorseCompetitionTabProps {
   horse?: any;
 }
 
-const DUMMY_RESULTS = Array.from({ length: 15 }).map((_, i) => ({
-  id: i,
-  name: "اسم المنافسة",
-  date: "19/9/1999",
-  category: "أدب",
-  rank: "1",
-  points: "20",
-}));
-
-export const HorseCompetitionTab: FC<HorseCompetitionTabProps> = () => {
-  const { direction } = useLocale();
+export const HorseCompetitionTab: FC<HorseCompetitionTabProps> = ({ horse }) => {
+  const { direction, locale } = useLocale();
   const isRTL = direction === "rtl";
   const [activeSubTab, setActiveSubTab] = useState("competition");
+  const [events, setEvents] = useState<HorseEventHistory[]>([]);
+  const [championships, setChampionships] = useState<HorseChampionHistory[]>([]);
+  const [awards, setAwards] = useState<HorseAwardHistory[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const localHorseId = Number(horse?.id);
+
+  useEffect(() => {
+    if (!Number.isFinite(localHorseId)) return;
+
+    let mounted = true;
+
+    async function load() {
+      setLoading(true);
+      setError("");
+
+      try {
+        if (activeSubTab === "competition" && !events.length) {
+          const result = await getHorseEvents({ localHorseId, pageNumber: 1, pageSize: 20 });
+          if (mounted) setEvents(result.data?.data ?? []);
+        }
+
+        if (activeSubTab === "championships" && !championships.length) {
+          const result = await getHorseChampionships({ localHorseId, pageNumber: 1, pageSize: 20 });
+          if (mounted) setChampionships(result.data?.data ?? []);
+        }
+
+        if (activeSubTab === "awards" && !awards.length) {
+          const result = await getHorseAwards({ localHorseId, pageNumber: 1, pageSize: 20 });
+          if (mounted) setAwards(result.data?.data ?? []);
+        }
+      } catch (requestError) {
+        if (mounted) setError(requestError instanceof Error ? requestError.message : isRTL ? "تعذر تحميل البيانات" : "Failed to load data");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeSubTab, localHorseId]);
+
+  const rows = activeSubTab === "competition" ? events : activeSubTab === "championships" ? championships : awards;
 
   return (
     <div className={`mb-12 ${isRTL ? "text-right" : "text-left"}`}>
@@ -89,15 +130,32 @@ export const HorseCompetitionTab: FC<HorseCompetitionTabProps> = () => {
               </tr>
             </thead>
             <tbody>
-              {DUMMY_RESULTS.map((res, idx) => (
-                <tr key={res.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
-                  <td className="py-4 px-6 border-b border-gray-100">{res.name}</td>
-                  <td className="py-4 px-6 border-b border-gray-100">{res.date}</td>
-                  <td className="py-4 px-6 border-b border-gray-100">{res.category}</td>
-                  <td className="py-4 px-6 border-b border-gray-100">{res.rank}</td>
-                  <td className="py-4 px-6 border-b border-gray-100">{res.points}</td>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="py-10 text-[#7a6c63]">{isRTL ? "جارٍ التحميل" : "Loading"}</td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td colSpan={5} className="py-10 text-[#b04444]">{error}</td>
+                </tr>
+              ) : rows.length ? (
+                rows.map((res, idx) => {
+                  const event = res as HorseEventHistory & HorseChampionHistory & HorseAwardHistory;
+                  return (
+                    <tr key={`${event.eventId}-${idx}`} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
+                      <td className="py-4 px-6 border-b border-gray-100">{getLocalizedName(event.eventNameEn, event.eventNameAr, locale === "ar")}</td>
+                      <td className="py-4 px-6 border-b border-gray-100">{formatDate(event.eventStartDate)}</td>
+                      <td className="py-4 px-6 border-b border-gray-100">{activeSubTab === "awards" ? event.award ?? "-" : event.className ?? event.eventType ?? "-"}</td>
+                      <td className="py-4 px-6 border-b border-gray-100">{event.rank ?? "-"}</td>
+                      <td className="py-4 px-6 border-b border-gray-100">{event.totalPoint ?? event.score ?? "-"}</td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={5} className="py-10 text-[#7a6c63]">{isRTL ? "لا توجد سجلات" : "No records found"}</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

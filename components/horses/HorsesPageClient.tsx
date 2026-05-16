@@ -1,13 +1,17 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { HorseCard } from '@/components/horses/HorseCard';
-import { HorseFormModal } from '@/components/horses/HorseFormModal';
+import { HorseFormModal, type HorseFormData } from '@/components/horses/HorseFormModal';
 import { StudbookImportModal } from '@/components/horses/StudbookImportModal';
 import { toHorseCardModel } from '@/lib/api/horse-formatters';
 import { clientApiFetch } from '@/lib/api/client';
+import { createHorse } from '@/lib/api/create-horse';
+import { localizeApiMessage } from '@/lib/api/errors';
 import { isDirectApiMode } from '@/lib/api/transport';
+import type { CreateHorsePayload } from '@/lib/api/types';
 import type { HorseListItemDto, LocaleCode, PagedResponse, StudbookHorseDto } from '@/lib/api/types';
 import { useLocale, useTranslation } from '@/lib/locale-context';
 
@@ -24,6 +28,7 @@ export function HorsesPageClient({
 }: HorsesPageClientProps) {
   const { t } = useTranslation();
   const { locale, direction } = useLocale();
+  const router = useRouter();
   const isRTL = direction === 'rtl';
   const [isStudbookOpen, setIsStudbookOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -113,6 +118,62 @@ export function HorsesPageClient({
     window.location.reload();
   };
 
+  const toCreatePayload = (data: HorseFormData): CreateHorsePayload => ({
+    EnglishName: data.nameEn,
+    ArabicName: data.nameAr,
+    DateofBirth: data.birthDate,
+    Gender: data.gender,
+    BornIn: data.birthCountry,
+    CurrentlyIn: data.currentCountry,
+    Color: data.color,
+    Height: data.height,
+    AdditionalInformation: data.description,
+    FaceSpecialMarkings: data.faceMarks,
+    FrontRightLeg: data.frontRightLeg,
+    FrontLeftLeg: data.frontLeftLeg,
+    BackRightLeg: data.backRightLeg,
+    BackLeftLeg: data.backLeftLeg,
+    SpecialNotes: data.notes,
+    RegistrationNumber: data.registrationNumber,
+    MicrochipID: data.microchipId,
+    UELNNumber: data.uelnNumber,
+    InternationalFEIRegistrationNumber: data.feiRegistrationNumber,
+    NationalSportRegistrationNumber: data.nationalRegistrationNumber,
+    PassportNumber: data.passportNumber,
+    HorseProfileImage: data.image instanceof File ? data.image : null,
+    Videos: data.videoLink ? [data.videoLink] : [],
+    HorseFatherStudbookId: data.fatherStudbookId,
+    HorseMotherStudbookId: data.motherStudbookId,
+    IsStallion: data.gender === 'Male',
+    IsMare: data.gender === 'Female',
+  });
+
+  const handleManualCreate = async (data: HorseFormData) => {
+    try {
+      const result = await createHorse(toCreatePayload(data));
+
+      if (!result.succeeded) {
+        throw new Error(localizeApiMessage(result.message, locale as LocaleCode));
+      }
+
+      const createdHorseId = result.data;
+      setIsAddModalOpen(false);
+
+      if (createdHorseId) {
+        router.push(`/${locale}/horses/${createdHorseId}`);
+        return;
+      }
+
+      window.location.reload();
+    } catch (requestError) {
+      throw new Error(
+        requestError instanceof Error
+          ? localizeApiMessage(requestError.message, locale as LocaleCode)
+          : t('common.error'),
+      );
+    }
+  };
+
   return (
     <MainLayout>
       <div className={`rounded-[16px] p-4 sm:rounded-[28px] sm:p-6 ${isRTL ? 'text-right' : 'text-left'}`}>
@@ -190,10 +251,7 @@ export function HorsesPageClient({
           setIsAddModalOpen(false);
           setIsStudbookOpen(true);
         }}
-        onSubmit={() => {
-          setError(t('horses.manualApiPending'));
-          setIsAddModalOpen(false);
-        }}
+        onSubmit={handleManualCreate}
       />
 
     </MainLayout>

@@ -11,3 +11,5 @@ export { HorseVideosTab } from './HorseVideosTab';
 export { HorseChildrenTab } from './HorseChildrenTab';
 export { HorseSiblingsTab } from './HorseSiblingsTab';
 export { HorseCompetitionTab } from './HorseCompetitionTab';
+export { HorseProfileSkeleton } from './HorseProfileSkeleton';
+export { HorseAnalyticsTab } from './HorseAnalyticsTab';

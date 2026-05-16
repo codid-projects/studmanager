@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useLocale } from "@/lib/locale-context";
 import { useRouter } from "next/navigation";
 import horsePlaceholder from "@/app/assets/imgs/horse-placehodler.png";
+import { X } from "lucide-react";
 
 interface Horse {
   id: string;
@@ -30,6 +31,7 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse }) => {
   const [avatarSrc, setAvatarSrc] = useState<string | typeof horsePlaceholder>(
     horse.image || horsePlaceholder,
   );
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const horseName = locale === "ar" ? horse.nameAr : horse.nameEn;
   const router = useRouter();
@@ -39,15 +41,20 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse }) => {
       {/* Cover Image & Avatar Container */}
       <div className="relative mb-16">
         {/* Cover */}
-        <div className="relative w-full h-80 rounded-3xl overflow-hidden shadow-sm">
+        <button
+          type="button"
+          onClick={() => setPreviewOpen(true)}
+          className="relative h-80 w-full overflow-hidden rounded-3xl shadow-sm"
+          aria-label={isRTL ? "عرض صورة الخيل" : "Preview horse image"}
+        >
           <Image
             src={coverSrc}
             alt={horseName}
             fill
-            className="object-cover"
+            className="object-cover transition duration-300 hover:scale-[1.02]"
             onError={() => setCoverSrc(horsePlaceholder)}
           />
-        </div>
+        </button>
 
         {/* Avatar overlapping the bottom edge */}
         <div className={`absolute -bottom-16 ${isRTL ? "right-12" : "left-12"} w-40 h-40 rounded-full border-4 border-[#fdfbf7] overflow-hidden bg-white shadow-md z-10`}>
@@ -60,6 +67,28 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse }) => {
           />
         </div>
       </div>
+
+      {previewOpen ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-4" onClick={() => setPreviewOpen(false)}>
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(false)}
+            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
+            aria-label={isRTL ? "إغلاق" : "Close"}
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <div className="relative h-[80vh] w-full max-w-5xl" onClick={(event) => event.stopPropagation()}>
+            <Image
+              src={coverSrc}
+              alt={horseName}
+              fill
+              className="object-contain"
+              onError={() => setCoverSrc(horsePlaceholder)}
+            />
+          </div>
+        </div>
+      ) : null}
 
       {/* Info Context Below Cover */}
       <div className={`flex flex-col md:flex-row justify-between items-start md:items-center px-4 md:px-12`}>

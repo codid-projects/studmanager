@@ -7,9 +7,10 @@ import { useLocale } from '@/lib/locale-context';
 interface RelatedHorsesTableProps {
   rows: RelatedHorseDto[];
   title: string;
+  error?: string;
 }
 
-export function RelatedHorsesTable({ rows, title }: RelatedHorsesTableProps) {
+export function RelatedHorsesTable({ rows, title, error = '' }: RelatedHorsesTableProps) {
   const { locale, direction } = useLocale();
   const isRTL = direction === 'rtl';
 
@@ -18,6 +19,12 @@ export function RelatedHorsesTable({ rows, title }: RelatedHorsesTableProps) {
       <div className="mb-6 flex">
         <h2 className="text-2xl font-bold text-[#2a2a2a]">{title}</h2>
       </div>
+
+      {error ? (
+        <div className="mb-4 rounded-2xl border border-[#f2c7c7] bg-[#fff3f3] px-4 py-3 text-sm text-[#b04444]">
+          {error}
+        </div>
+      ) : null}
 
       <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
         <div className="overflow-x-auto">

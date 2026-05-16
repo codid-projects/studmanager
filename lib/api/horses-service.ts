@@ -1,6 +1,7 @@
 import { apiFetch } from './http';
 import type {
   ApiResult,
+  CreateHorsePayload,
   HorseInfoDto,
   HorseListItemDto,
   HorseSiblingsDto,
@@ -9,6 +10,7 @@ import type {
   RelatedHorseDto,
   StudbookHorseDto,
 } from './types';
+import { buildCreateHorseFormData } from './create-horse-form-data';
 
 function unwrapResult<T>(payload: T | ApiResult<T>): T {
   if (payload && typeof payload === 'object' && 'data' in payload && 'statusCode' in payload) {
@@ -108,6 +110,13 @@ export async function importHorse(payload: ImportHorseDto) {
   return apiFetch<ApiResult<number>>('/api/ExternalHorses/import-horse', {
     method: 'POST',
     body: payload,
+  });
+}
+
+export async function createHorse(payload: CreateHorsePayload | FormData) {
+  return apiFetch<ApiResult<number>>('/api/Horses', {
+    method: 'POST',
+    body: payload instanceof FormData ? payload : buildCreateHorseFormData(payload),
   });
 }
 

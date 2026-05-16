@@ -8,6 +8,12 @@ export interface ApiResult<T> {
   messages?: string[] | null;
 }
 
+export type ApiMessageResult = {
+  succeeded: boolean;
+  message: string | null;
+  statusCode: number;
+};
+
 export interface PagedResponse<T> {
   data: T[];
   currentPage: number;
@@ -135,6 +141,177 @@ export interface ImportHorseDto {
   specialLineAr?: string | null;
 }
 
+export type UploadFilePayload = {
+  uri: string;
+  name?: string;
+  type?: string;
+};
+
+export type CreateHorsePayload = {
+  EnglishName?: string;
+  ArabicName?: string;
+  KnownAs?: string;
+  HorseProfileImage?: UploadFilePayload | File | null;
+  StrainEn?: string;
+  StrainAr?: string;
+  SpecialEn?: string;
+  SpecialAr?: string;
+  DateofBirth?: string;
+  Gender?: string;
+  BornIn?: string;
+  CurrentlyIn?: string;
+  Color?: string;
+  Height?: string;
+  AdditionalInformation?: string;
+  FaceSpecialMarkings?: string;
+  FrontRightLeg?: string;
+  FrontLeftLeg?: string;
+  BackRightLeg?: string;
+  BackLeftLeg?: string;
+  SpecialNotes?: string;
+  RegistrationNumber?: string;
+  MicrochipID?: string;
+  UELNNumber?: string;
+  InternationalFEIRegistrationNumber?: string;
+  NationalSportRegistrationNumber?: string;
+  PassportNumber?: string;
+  Images?: Array<UploadFilePayload | File>;
+  Videos?: string[];
+  HorseFatherStudbookId?: number;
+  HorseMotherStudbookId?: number;
+  OwnerStudbookId?: number;
+  BreederStudbookId?: number;
+  IsStallion?: boolean;
+  IsMare?: boolean;
+  IsStrain?: boolean;
+  IsSpecial?: boolean;
+};
+
+export type ExternalCountsDto = {
+  total: number;
+  female: number;
+  male: number;
+};
+
+export type ExternalHorseDashboardInformation = {
+  siblings: ExternalCountsDto;
+  foals: ExternalCountsDto;
+};
+
+export type HorsePedigreeNode = {
+  id: number;
+  englishName: string | null;
+  arabicName: string | null;
+  horseFatherId: number | null;
+  horseFatherEnglishName: string | null;
+  horseFatherArabicName: string | null;
+  horseMotherId: number | null;
+  horseMotherEnglishName: string | null;
+  horseMotherArabicName: string | null;
+};
+
+export type HorseFamilyTreeItem = {
+  id: number;
+  englishName: string | null;
+  arabicName: string | null;
+  horseFatherArabicName: string | null;
+  horseMotherArabicName: string | null;
+  horseFatherEnglishName: string | null;
+  horseMotherEnglishName: string | null;
+  percentage: number | null;
+  percentageFromMother: number | null;
+  percentageFromFather: number | null;
+  generationLevels: number[] | null;
+  generationLevelsFromMother: number[] | null;
+  generationLevelsFromFather: number[] | null;
+};
+
+export type ExternalTailNode = {
+  id: number;
+  englishName: string | null;
+  arabicName: string | null;
+  gender: string | null;
+  dateofBirth: string | null;
+  horseFatherId: number | null;
+  horseMotherId: number | null;
+  horseFatherEnglishName: string | null;
+  horseFatherArabicName: string | null;
+  horseMotherEnglishName: string | null;
+  horseMotherArabicName: string | null;
+  generationLevel: number;
+};
+
+export type ExternalTreeNode = {
+  id: number;
+  englishName: string | null;
+  arabicName: string | null;
+  gender: string | null;
+  dateofBirth: string | null;
+  microchipID: string | null;
+  studBreeder: StudDto | null;
+  studOwner: StudDto | null;
+  strain: ExternalTreeNode | null;
+  specailLine: ExternalTreeNode | null;
+  horseFatherId: number | null;
+  horseFatherEnglishName: string | null;
+  horseFatherArabicName: string | null;
+  horseMotherId: number | null;
+  horseMotherEnglishName: string | null;
+  horseMotherArabicName: string | null;
+};
+
+export type HorseEventHistory = {
+  studbookEventId: number | null;
+  eventId: number;
+  eventNameEn: string | null;
+  eventNameAr: string | null;
+  eventStartDate: string | null;
+  eventEndDate: string | null;
+  eventType: string | null;
+  className: string | null;
+  horseNumber: number;
+  totalPoint: number;
+  totalScorePercentage: number;
+  rank: number;
+};
+
+export type HorseChampionHistory = {
+  eventId: number;
+  eventNameEn: string | null;
+  eventNameAr: string | null;
+  judgingType: string | null;
+  eventStartDate: string | null;
+  eventEndDate: string | null;
+  classId: number;
+  className: string | null;
+  score: number;
+  rank: number;
+};
+
+export type HorseAwardHistory = {
+  eventId: number;
+  eventNameEn: string | null;
+  eventNameAr: string | null;
+  eventStartDate: string | null;
+  eventEndDate: string | null;
+  award: string | null;
+  judgingType: string | null;
+};
+
+export type ExternalHorseSearchItem = StudbookHorseDto;
+
+export type ExternalStudSearchItem = {
+  id: number;
+  studName: string | null;
+  studArabicName: string | null;
+  country: string | null;
+  studProfileImage: string | null;
+};
+
+export type ImportHorsePayload = {
+  studbookId: number;
+};
+
 export interface RelatedHorseDto {
   englishName: string | null;
   arabicName: string | null;
@@ -145,6 +322,9 @@ export interface RelatedHorseDto {
   motherEnglishName: string | null;
   motherArabicName: string | null;
 }
+
+export type HorseSibling = RelatedHorseDto;
+export type HorseOffspring = RelatedHorseDto;
 
 export interface HorseSiblingsDto {
   all: PagedResponse<RelatedHorseDto> | null;

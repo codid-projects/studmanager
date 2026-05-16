@@ -6,6 +6,7 @@ import type {
   StudbookHorseDto,
 } from './types';
 import horsePlaceholder from '@/app/assets/imgs/horse-placehodler.png';
+import { localizeColor, localizeCountry } from './localization';
 
 export const DEFAULT_HORSE_IMAGE = horsePlaceholder.src;
 
@@ -75,7 +76,7 @@ export function horseDisplayName(
 
 export function toHorseCardModel(horse: HorseListItemDto, locale: LocaleCode) {
   const meta = horseMeta(locale, [
-    { labelAr: 'اللون', labelEn: 'Color', value: horse.color },
+    { labelAr: 'اللون', labelEn: 'Color', value: horse.color ? localizeColor(horse.color, locale) : null },
     { labelAr: 'السلالة', labelEn: 'Strain', value: firstPresent(horse.strainAr, horse.strainEn) },
     { labelAr: 'الخط الخاص', labelEn: 'Special line', value: firstPresent(horse.specialAr, horse.specialEn) },
   ]);
@@ -94,7 +95,7 @@ export function toHorseCardModel(horse: HorseListItemDto, locale: LocaleCode) {
 
 export function toStudbookCardModel(horse: StudbookHorseDto, locale: LocaleCode) {
   const meta = horseMeta(locale, [
-    { labelAr: 'اللون', labelEn: 'Color', value: horse.color },
+    { labelAr: 'اللون', labelEn: 'Color', value: horse.color ? localizeColor(horse.color, locale) : null },
     { labelAr: 'السلالة', labelEn: 'Strain', value: firstPresent(horse.strainAr, horse.strain) },
     { labelAr: 'الخط الخاص', labelEn: 'Special line', value: firstPresent(horse.specialLineAr, horse.specialLine) },
     { labelAr: 'ولد في', labelEn: 'Born in', value: horse.bornIn },
@@ -132,9 +133,9 @@ export function toProfileHorseModel(horse: HorseInfoDto, locale: LocaleCode) {
     femaleOffspring: 0,
     maleResults: 0,
     femaleResults: 0,
-    origin: horse.bornIn ?? '-',
+    origin: localizeCountry(horse.bornIn, locale),
     registrationNumber: horse.registrationNumber ?? '-',
-    color: horse.color ?? '-',
+    color: localizeColor(horse.color, locale),
     raw: horse,
   };
 }

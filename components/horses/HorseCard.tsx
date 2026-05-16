@@ -56,30 +56,30 @@ export const HorseCard: FC<HorseCardProps> = ({
         </h3>
 
         {/* Stats */}
-        <div className="mb-4 grid grid-cols-3 gap-2 text-center sm:mb-6 sm:gap-6">
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-semibold text-[#3b2314] sm:text-lg">
+        <div className="mb-4 grid grid-cols-3 gap-1 text-center sm:mb-6 sm:gap-3">
+          <div className="flex min-w-0 flex-col items-center justify-start gap-1 rounded-xl bg-[#fbf8f4] px-1.5 py-2">
+            <span className="block max-w-full truncate text-xs font-semibold text-[#3b2314] sm:text-base">
               {horse.metaValue}
             </span>
-            <span className="text-[10px] text-gray-500 sm:text-sm">
+            <span className="block max-w-full truncate text-[10px] text-gray-500 sm:text-xs">
               {horse.metaLabel}
             </span>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold text-[#3b2314] sm:text-lg">
+          <div className="flex min-w-0 flex-col items-center justify-start gap-1 rounded-xl bg-[#fbf8f4] px-1.5 py-2">
+            <span className="block w-full text-center text-[10px] font-semibold leading-tight text-[#3b2314] sm:text-sm">
               {horse.birthDate}
             </span>
-            <span className="text-[10px] text-gray-500 sm:text-sm">
+            <span className="block max-w-full truncate text-[10px] text-gray-500 sm:text-xs">
               {t('horses.birthDate')}
             </span>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-semibold text-[#3b2314] sm:text-lg">
+          <div className="flex min-w-0 flex-col items-center justify-start gap-1 rounded-xl bg-[#fbf8f4] px-1.5 py-2">
+            <span className="block max-w-full truncate text-xs font-semibold text-[#3b2314] sm:text-base">
               {horse.type}
             </span>
-            <span className="text-[10px] text-gray-500 sm:text-sm">
+            <span className="block max-w-full truncate text-[10px] text-gray-500 sm:text-xs">
               {t('horses.type')}
             </span>
           </div>

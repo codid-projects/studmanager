@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
+  HorseAnalyticsTab,
   HorseCompetitionTab,
   HorseInfoTab,
   HorsePedigreeStats,
@@ -13,15 +14,18 @@ import {
   HorseProfileHeader,
   HorseProfileTabs,
   HorseVideosTab,
+  HorseProfileSkeleton,
 } from '@/components/horses';
 import { RelatedHorsesTable } from '@/components/horses/profile/RelatedHorsesTable';
 import { clientApiFetch } from '@/lib/api/client';
+import { getExternalHorseDashboard, getHorseOffsprings, getHorseSiblings } from '@/lib/api/external-horses';
 import { toProfileHorseModel } from '@/lib/api/horse-formatters';
 import { isDirectApiMode } from '@/lib/api/transport';
 import type {
   ApiResult,
   HorseInfoDto,
   HorseListItemDto,
+  ExternalHorseDashboardInformation,
   HorseSiblingsDto,
   LocaleCode,
   PagedResponse,
@@ -93,6 +97,9 @@ export function HorseProfilePageClient({
   const [siblings, setSiblings] = useState(initialSiblings);
   const [localError, setLocalError] = useState(error);
   const [loading, setLoading] = useState(isDirectApiMode && !initialHorse);
+  const [relatedLoading, setRelatedLoading] = useState('');
+  const [relatedError, setRelatedError] = useState('');
+  const [dashboard, setDashboard] = useState<ExternalHorseDashboardInformation | null>(null);
 
   const profileHorse = horse ? toProfileHorseModel(horse, locale as LocaleCode) : null;
 
@@ -122,26 +129,6 @@ export function HorseProfilePageClient({
       }),
     );
 
-    window.dispatchEvent(
-      new CustomEvent('api-debug-entry', {
-        detail: {
-          id: `horse-related-${localId}-${Date.now()}`,
-          label: 'Horse related data',
-          method: 'GET',
-          backendEndpoint: `https://studmanagerapi-dev.studmarket.net/api/ExternalHorses/${localId}/offsprings + /siblings`,
-          nextEndpoint: `Server render: /${locale}/horses/${localId}`,
-          nextService: 'app/[locale]/horses/[id]/page.tsx -> getHorseOffsprings + getHorseSiblings',
-          payload: { localId, pageNumber: 1, pageSize: 15 },
-          status: 200,
-          response: {
-            offsprings,
-            siblings,
-          },
-          createdAt: now,
-          replayable: false,
-        },
-      }),
-    );
   }, [localError, horse, locale, offsprings, siblings]);
 
   useEffect(() => {
@@ -180,24 +167,6 @@ export function HorseProfilePageClient({
         if (!mounted) return;
         setHorse(horseDetail);
 
-        const [offspringsPayload, siblingsPayload] = await Promise.all([
-          clientApiFetch<ApiResult<PagedResponse<RelatedHorseDto>> | PagedResponse<RelatedHorseDto>>({
-            backendPath: `/api/ExternalHorses/${horseId}/offsprings`,
-            nextPath: `/${locale}/horses/${horseId}`,
-            query: { pageNumber: 1, pageSize: 15 },
-            locale: locale as LocaleCode,
-          }).then(unwrapResult).catch(() => null),
-          clientApiFetch<ApiResult<HorseSiblingsDto> | HorseSiblingsDto>({
-            backendPath: `/api/ExternalHorses/${horseId}/siblings`,
-            nextPath: `/${locale}/horses/${horseId}`,
-            query: { pageNumber: 1, pageSize: 15 },
-            locale: locale as LocaleCode,
-          }).then(unwrapResult).catch(() => null),
-        ]);
-
-        if (!mounted) return;
-        setOffsprings(offspringsPayload);
-        setSiblings(siblingsPayload);
       } catch (requestError) {
         if (!mounted) return;
         setLocalError(requestError instanceof Error ? requestError.message : t('common.error'));
@@ -212,6 +181,91 @@ export function HorseProfilePageClient({
       mounted = false;
     };
   }, [horseId, locale, t]);
+
+  useEffect(() => {
+    if (!horseId) return;
+
+    let mounted = true;
+
+    async function loadDashboard() {
+      try {
+        const result = await getExternalHorseDashboard(Number(horseId));
+        if (mounted) setDashboard(result.data ?? null);
+      } catch {
+        if (mounted) setDashboard(null);
+      }
+    }
+
+    loadDashboard();
+
+    return () => {
+      mounted = false;
+    };
+  }, [horseId]);
+
+  useEffect(() => {
+    if (!horseId) return;
+    if (activeTab !== 'children' || offsprings) return;
+
+    let mounted = true;
+
+    async function loadOffsprings() {
+      setRelatedLoading('children');
+      setRelatedError('');
+
+      try {
+        const result = await getHorseOffsprings({
+          localId: Number(horseId),
+          pageNumber: 1,
+          pageSize: 20,
+        });
+
+        if (mounted) setOffsprings(result.data ?? null);
+      } catch (requestError) {
+        if (mounted) setRelatedError(requestError instanceof Error ? requestError.message : t('common.error'));
+      } finally {
+        if (mounted) setRelatedLoading('');
+      }
+    }
+
+    loadOffsprings();
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeTab, horseId, offsprings, t]);
+
+  useEffect(() => {
+    if (!horseId) return;
+    if (activeTab !== 'siblings' || siblings) return;
+
+    let mounted = true;
+
+    async function loadSiblings() {
+      setRelatedLoading('siblings');
+      setRelatedError('');
+
+      try {
+        const result = await getHorseSiblings({
+          localId: Number(horseId),
+          pageNumber: 1,
+          pageSize: 20,
+        });
+
+        if (mounted) setSiblings(result.data ?? null);
+      } catch (requestError) {
+        if (mounted) setRelatedError(requestError instanceof Error ? requestError.message : t('common.error'));
+      } finally {
+        if (mounted) setRelatedLoading('');
+      }
+    }
+
+    loadSiblings();
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeTab, horseId, siblings, t]);
 
   return (
     <MainLayout>
@@ -236,9 +290,7 @@ export function HorseProfilePageClient({
         </div>
 
         {loading ? (
-          <div className="rounded-2xl bg-white px-4 py-10 text-center text-sm text-[#7a6c63]">
-            {t('common.loading')}
-          </div>
+          <HorseProfileSkeleton />
         ) : localError || !profileHorse ? (
           <div className="rounded-2xl border border-[#f2c7c7] bg-[#fff3f3] px-4 py-3 text-sm text-[#b04444]">
             {localError || t('common.error')}
@@ -246,24 +298,43 @@ export function HorseProfilePageClient({
         ) : (
           <>
             <HorseProfileHeader horse={profileHorse} />
-            <HorsePedigreeStats horse={profileHorse} />
+            <HorsePedigreeStats
+              loading={!dashboard}
+              horse={{
+                maleOffspring: dashboard?.foals?.male,
+                femaleOffspring: dashboard?.foals?.female,
+                maleResults: dashboard?.siblings?.male,
+                femaleResults: dashboard?.siblings?.female,
+              }}
+            />
             <HorseProfileTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
             {activeTab === 'pedigree' && <HorsePedigreeTree horse={profileHorse} />}
+            {activeTab === 'analytics' && <HorseAnalyticsTab studbookId={profileHorse.studbookId} />}
             {activeTab === 'info' && <HorseInfoTab horse={profileHorse} />}
             {activeTab === 'photos' && <HorsePhotosTab horse={profileHorse} />}
             {activeTab === 'videos' && <HorseVideosTab horse={profileHorse} />}
             {activeTab === 'children' && (
-              <RelatedHorsesTable
-                title={isRTL ? 'الأبناء' : 'Children'}
-                rows={offsprings?.data ?? []}
-              />
+              relatedLoading === 'children' ? (
+                <div className="rounded-2xl bg-white px-4 py-10 text-center text-sm text-[#7a6c63]">{t('common.loading')}</div>
+              ) : (
+                <RelatedHorsesTable
+                  title={isRTL ? 'الأبناء' : 'Children'}
+                  rows={offsprings?.data ?? []}
+                  error={relatedError}
+                />
+              )
             )}
             {activeTab === 'siblings' && (
-              <RelatedHorsesTable
-                title={isRTL ? 'الأشقاء' : 'Siblings'}
-                rows={siblings?.all?.data ?? []}
-              />
+              relatedLoading === 'siblings' ? (
+                <div className="rounded-2xl bg-white px-4 py-10 text-center text-sm text-[#7a6c63]">{t('common.loading')}</div>
+              ) : (
+                <RelatedHorsesTable
+                  title={isRTL ? 'الأشقاء' : 'Siblings'}
+                  rows={siblings?.all?.data ?? []}
+                  error={relatedError}
+                />
+              )
             )}
             {activeTab === 'competition' && <HorseCompetitionTab horse={profileHorse} />}
           </>

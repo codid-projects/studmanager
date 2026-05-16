@@ -2,6 +2,7 @@
 
 import { FC } from "react";
 import { useLocale } from "@/lib/locale-context";
+import { localizeColor, localizeCountry } from "@/lib/api/localization";
 
 interface HorseInfoTabProps {
   horse?: any;
@@ -14,6 +15,8 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
   const localized = (ar?: string | null, en?: string | null) =>
     locale === "ar" ? ar || en || "-" : en || ar || "-";
   const value = (input?: string | null) => input || "-";
+  const country = (input?: string | null) => localizeCountry(input, locale === "ar" ? "ar" : "en");
+  const color = (input?: string | null) => localizeColor(input, locale === "ar" ? "ar" : "en");
   const studName = (stud?: any) => localized(stud?.studArabicName, stud?.studName);
 
   return (
@@ -42,7 +45,7 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "حاليا في :" : "Currently In :"}</span>
-            <span className="text-black font-semibold">{value(raw.currentlyIn)}</span>
+            <span className="text-black font-semibold">{country(raw.currentlyIn)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -52,7 +55,7 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "اللون :" : "Color :"}</span>
-            <span className="text-black font-semibold">{value(raw.color)}</span>
+            <span className="text-black font-semibold">{color(raw.color)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -62,7 +65,7 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
 
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "ولد في :" : "Born In :"}</span>
-            <span className="text-black font-semibold">{value(raw.bornIn)}</span>
+            <span className="text-black font-semibold">{country(raw.bornIn)}</span>
           </div>
         </div>
 

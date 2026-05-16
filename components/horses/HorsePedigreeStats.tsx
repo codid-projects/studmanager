@@ -4,19 +4,35 @@ import { FC } from "react";
 import { useLocale } from "@/lib/locale-context";
 
 interface Horse {
-  maleOffspring: number;
-  femaleOffspring: number;
-  maleResults: number;
-  femaleResults: number;
+  maleOffspring?: number | null;
+  femaleOffspring?: number | null;
+  maleResults?: number | null;
+  femaleResults?: number | null;
 }
 
 interface HorsePedigreeStatsProps {
   horse: Horse;
+  loading?: boolean;
 }
 
-export const HorsePedigreeStats: FC<HorsePedigreeStatsProps> = ({ horse }) => {
+function StatValue({ value, loading }: { value?: number | null; loading?: boolean }) {
+  if (loading || value === null || value === undefined) {
+    return <span className="inline-block h-7 w-12 animate-pulse rounded-lg bg-[#eadfd9]" />;
+  }
+
+  return <>{value}</>;
+}
+
+function totalValue(first?: number | null, second?: number | null) {
+  if (first === null || first === undefined || second === null || second === undefined) return null;
+  return first + second;
+}
+
+export const HorsePedigreeStats: FC<HorsePedigreeStatsProps> = ({ horse, loading = false }) => {
   const { direction } = useLocale();
   const isRTL = direction === "rtl";
+  const siblingsTotal = totalValue(horse.femaleResults, horse.maleResults);
+  const offspringTotal = totalValue(horse.femaleOffspring, horse.maleOffspring);
 
   return (
     <div className="mb-8 grid grid-cols-2 gap-3 sm:gap-6">
@@ -26,13 +42,13 @@ export const HorsePedigreeStats: FC<HorsePedigreeStatsProps> = ({ horse }) => {
           {isRTL ? "الإخوة" : "Siblings"}
         </h2>
         <div className="mb-4 text-xl font-bold text-[#1f2937] sm:mb-8 sm:text-2xl">
-          {horse.femaleResults + horse.maleResults}
+          <StatValue value={siblingsTotal} loading={loading} />
         </div>
 
         <div className="flex w-full items-center justify-center">
           <div className="flex-1 flex flex-col items-center">
             <div className="mb-2 text-lg font-bold text-[#1f2937] sm:text-2xl">
-              {horse.femaleResults}
+              <StatValue value={horse.femaleResults} loading={loading} />
             </div>
             <div className="flex items-center gap-1 text-sm font-medium text-[#3d2a1b] sm:text-xl">
               <span>{isRTL ? "أنثى" : "Female"}</span>
@@ -44,7 +60,7 @@ export const HorsePedigreeStats: FC<HorsePedigreeStatsProps> = ({ horse }) => {
 
           <div className="flex-1 flex flex-col items-center">
             <div className="mb-2 text-lg font-bold text-[#1f2937] sm:text-2xl">
-              {horse.maleResults}
+              <StatValue value={horse.maleResults} loading={loading} />
             </div>
             <div className="flex items-center gap-1 text-sm font-medium text-[#3d2a1b] sm:text-xl">
               <span>{isRTL ? "ذكر" : "Male"}</span>
@@ -60,13 +76,13 @@ export const HorsePedigreeStats: FC<HorsePedigreeStatsProps> = ({ horse }) => {
           {isRTL ? "الإنتاج" : "Production"}
         </h2>
         <div className="mb-4 text-xl font-bold text-[#1f2937] sm:mb-8 sm:text-2xl">
-          {horse.femaleOffspring + horse.maleOffspring}
+          <StatValue value={offspringTotal} loading={loading} />
         </div>
 
         <div className="flex w-full items-center justify-center">
           <div className="flex-1 flex flex-col items-center">
             <div className="mb-2 text-lg font-bold text-[#1f2937] sm:text-2xl">
-              {horse.femaleOffspring}
+              <StatValue value={horse.femaleOffspring} loading={loading} />
             </div>
             <div className="flex items-center gap-1 text-sm font-medium text-[#3d2a1b] sm:text-xl">
               <span>{isRTL ? "أنثى" : "Female"}</span>
@@ -78,7 +94,7 @@ export const HorsePedigreeStats: FC<HorsePedigreeStatsProps> = ({ horse }) => {
 
           <div className="flex-1 flex flex-col items-center">
             <div className="mb-2 text-lg font-bold text-[#1f2937] sm:text-2xl">
-              {horse.maleOffspring}
+              <StatValue value={horse.maleOffspring} loading={loading} />
             </div>
             <div className="flex items-center gap-1 text-sm font-medium text-[#3d2a1b] sm:text-xl">
               <span>{isRTL ? "ذكر" : "Male"}</span>
