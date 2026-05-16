@@ -18,14 +18,15 @@ const TABS = [
 interface HorseProfileTabsProps {
   activeTab: string;
   onTabChange: (tabId: string) => void;
+  hiddenTabs?: string[];
 }
 
-export const HorseProfileTabs: FC<HorseProfileTabsProps> = ({ activeTab, onTabChange }) => {
+export const HorseProfileTabs: FC<HorseProfileTabsProps> = ({ activeTab, onTabChange, hiddenTabs = [] }) => {
   const { locale } = useLocale();
 
   return (
     <div className="flex overflow-x-auto items-center gap-2 mb-8 pb-2 hide-scrollbar scroll-smooth sm:flex-wrap sm:overflow-visible sm:pb-0">
-      {TABS.map((tab) => {
+      {TABS.filter((tab) => !hiddenTabs.includes(tab.id)).map((tab) => {
         const isActive = activeTab === tab.id;
         const label = locale === "ar" ? tab.labelAr : tab.labelEn;
         const currentIcon = isActive ? (tab.activeIcon || tab.icon) : (tab.inactiveIcon || tab.icon);

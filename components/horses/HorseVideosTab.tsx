@@ -1,67 +1,103 @@
 "use client";
 
-import { FC, useState, useEffect } from "react";
-import ReactPlayer from "react-player";
+import { FC } from "react";
 import { useLocale } from "@/lib/locale-context";
 
 interface HorseVideosTabProps {
-  horse?: any;
+  horse?: {
+    raw?: {
+      videos?: string[] | null;
+    };
+  };
 }
 
-const DUMMY_VIDEOS = [
-  { id: 1, title: "Maddah Mehana", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
-  { id: 2, title: "Training Session", url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ" },
-  { id: 3, title: "Championship Run", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
-  { id: 4, title: "Morning Gallop", url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ" },
-];
+function getYoutubeEmbedUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+
+    if (host === "youtu.be") {
+      const id = parsed.pathname.split("/").filter(Boolean)[0];
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      if (parsed.pathname.startsWith("/embed/")) return url;
+
+      if (parsed.pathname.startsWith("/shorts/")) {
+        const id = parsed.pathname.split("/").filter(Boolean)[1];
+        return id ? `https://www.youtube.com/embed/${id}` : null;
+      }
+
+      const id = parsed.searchParams.get("v");
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function videoTitle(url: string, index: number, isRTL: boolean) {
+  try {
+    const parsed = new URL(url);
+    const fileName = decodeURIComponent(parsed.pathname.split("/").filter(Boolean).pop() || "");
+    return fileName || `${isRTL ? "فيديو" : "Video"} ${index + 1}`;
+  } catch {
+    return `${isRTL ? "فيديو" : "Video"} ${index + 1}`;
+  }
+}
 
 export const HorseVideosTab: FC<HorseVideosTabProps> = ({ horse }) => {
   const { direction } = useLocale();
   const isRTL = direction === "rtl";
-  const [isMounted, setIsMounted] = useState(false);
-  const videos = horse?.raw?.videos?.length
-    ? horse.raw.videos.map((url: string, index: number) => ({
-        id: index + 1,
-        title: url,
-        url,
-      }))
-    : DUMMY_VIDEOS;
+  const videos = (horse?.raw?.videos ?? []).filter((url): url is string => Boolean(url?.trim()));
 
-  // Prevents hydration errors with react-player by ensuring rendering happens only on client
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // Type cast to avoid TS errors with react-player types being flaky
-  const Player: any = ReactPlayer;
+  if (!videos.length) return null;
 
   return (
     <div className={`mb-12 ${isRTL ? "text-right" : "text-left"}`}>
-      <h2 className="text-2xl font-bold text-[#2a2a2a] mb-6">
+      <h2 className="mb-6 text-2xl font-bold text-[#2a2a2a]">
         {isRTL ? "الفيديوهات" : "Videos"}
       </h2>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {videos.map((video: { id: number; title: string; url: string }) => (
-          <div key={video.id} className="relative w-full rounded-2xl overflow-hidden shadow-sm bg-black aspect-video flex flex-col">
-            <div className="flex-1 relative">
-              {isMounted && (
-                <Player
-                  url={video.url}
-                  width="100%"
-                  height="100%"
-                  controls={true}
-                  light={true} // use light mode to show video thumbnail natively from YouTube
-                  playing
-                  className="absolute top-0 left-0"
-                />
-              )}
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {videos.map((url, index) => {
+          const youtubeUrl = getYoutubeEmbedUrl(url);
+          const title = videoTitle(url, index, isRTL);
+
+          return (
+            <div
+              key={`${url}-${index}`}
+              className="overflow-hidden rounded-2xl bg-black shadow-sm"
+            >
+              <div className="relative aspect-video w-full">
+                {youtubeUrl ? (
+                  <iframe
+                    src={youtubeUrl}
+                    title={title}
+                    className="absolute inset-0 h-full w-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                ) : (
+                  <video
+                    src={url}
+                    controls
+                    preload="metadata"
+                    className="absolute inset-0 h-full w-full bg-black object-contain"
+                  />
+                )}
+              </div>
+              <div className="border-t border-gray-200 bg-[#fdfbf7] p-4">
+                <h3 className="truncate text-lg font-medium text-[#2a2a2a]">
+                  {title}
+                </h3>
+              </div>
             </div>
-            <div className="bg-[#fdfbf7] p-4 border-t border-gray-200">
-               <h3 className="text-[#2a2a2a] text-lg font-medium">{video.title}</h3>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

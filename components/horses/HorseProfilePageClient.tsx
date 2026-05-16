@@ -102,6 +102,7 @@ export function HorseProfilePageClient({
   const [dashboard, setDashboard] = useState<ExternalHorseDashboardInformation | null>(null);
 
   const profileHorse = horse ? toProfileHorseModel(horse, locale as LocaleCode) : null;
+  const hasVideos = Boolean(horse?.videos?.some((url) => url?.trim()));
 
   useEffect(() => {
     if (isDirectApiMode) return;
@@ -202,6 +203,12 @@ export function HorseProfilePageClient({
       mounted = false;
     };
   }, [horseId]);
+
+  useEffect(() => {
+    if (activeTab === 'videos' && !hasVideos) {
+      setActiveTab('info');
+    }
+  }, [activeTab, hasVideos]);
 
   useEffect(() => {
     if (!horseId) return;
@@ -307,7 +314,11 @@ export function HorseProfilePageClient({
                 femaleResults: dashboard?.siblings?.female,
               }}
             />
-            <HorseProfileTabs activeTab={activeTab} onTabChange={setActiveTab} />
+            <HorseProfileTabs
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              hiddenTabs={hasVideos ? [] : ['videos']}
+            />
 
             {activeTab === 'pedigree' && <HorsePedigreeTree horse={profileHorse} />}
             {activeTab === 'analytics' && <HorseAnalyticsTab studbookId={profileHorse.studbookId} />}
