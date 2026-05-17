@@ -31,8 +31,8 @@ type PedigreeNode = {
   duplicateColor?: { background: string; border: string };
 };
 
-const NODE_HEIGHT_PX = 18;
-const CERTIFICATE_ASPECT = 1600 / 900;
+const NODE_HEIGHT_PX = 28;
+const CERTIFICATE_ASPECT = 1600 / 1200;
 const DUPLICATE_ANCESTOR_COLORS = [
   { background: "#FEE2E2", border: "#DC2626" },
   { background: "#CCFBF1", border: "#0F766E" },
@@ -203,11 +203,16 @@ const PedigreeBox = ({ node, top }: { node: PedigreeNode; top: number }) => {
       }}
     >
       <div
-        className="flex h-full w-full items-center justify-center gap-1 rounded-[8px] border border-dashed border-[#bbb3aa] bg-[#f7f3ee]/80 px-1.5 text-center font-serif text-[8px] leading-none text-[#2c3953] shadow-[0_1px_0_rgba(0,0,0,0.02)] sm:text-[8.5px] md:text-[9px] lg:text-[9.5px] xl:text-[10px]"
+        className="flex h-full w-full items-center justify-center gap-1 rounded-[8px] border border-dashed border-[#bbb3aa] bg-[#f7f3ee]/80 px-2 text-center font-serif text-[11px] leading-none text-[#2c3953] shadow-[0_1px_0_rgba(0,0,0,0.02)] sm:text-[12px] md:text-[13px] lg:text-[14px] xl:text-[15px]"
         style={node.duplicateColor ? {
           backgroundColor: node.duplicateColor.background,
           borderColor: node.duplicateColor.border,
-        } : undefined}
+          direction: "ltr",
+          unicodeBidi: "isolate",
+        } : {
+          direction: "ltr",
+          unicodeBidi: "isolate",
+        }}
       >
         <ParentIcon role={node.role} />
         <span className="block min-w-0 truncate whitespace-nowrap">
@@ -231,6 +236,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
 
   const fullscreenRef = useRef<HTMLDivElement | null>(null);
   const exportRef = useRef<HTMLDivElement | null>(null);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
 
   const [isDownloading, setIsDownloading] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -238,15 +244,13 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
   const [isTreeLoading, setIsTreeLoading] = useState(Boolean(horse.studbookId) || loading);
   const [treeError, setTreeError] = useState("");
 
-  const orderedColumns = useMemo(() => {
-    return isRTL ? [...apiColumns].reverse() : apiColumns;
-  }, [apiColumns, isRTL]);
+  const orderedColumns = useMemo(() => [...apiColumns].reverse(), [apiColumns]);
   const maxLeafCount = useMemo(
     () => Math.max(1, ...apiColumns.map((column) => column.length)),
     [apiColumns],
   );
   const hasPedigree = apiColumns.length > 0;
-  const certificateMinWidth = Math.max(980, apiColumns.length * 190);
+  const certificateMinWidth = Math.max(1500, apiColumns.length * 240);
 
   useEffect(() => {
     if (pedigreeData !== undefined) {
@@ -337,6 +341,18 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
     };
   }, [isFullscreen, isMobileViewport]);
 
+  useEffect(() => {
+    if (!hasPedigree) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (scrollerRef.current) {
+        scrollerRef.current.scrollLeft = 0;
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [hasPedigree, orderedColumns.length, isFullscreen]);
+
   const handleToggleFullscreen = async () => {
     if (!fullscreenRef.current) return;
 
@@ -397,7 +413,6 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
   return (
     <div
       className="mx-auto mb-8 w-full max-w-[1500px]"
-      dir={isRTL ? "rtl" : "ltr"}
     >
       <div
         className="mb-4 flex flex-col items-start gap-3 px-1 sm:flex-row sm:items-center sm:justify-between"
@@ -477,13 +492,13 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
       ) : null}
 
       {isTreeLoading ? (
-        <div className="rounded-[26px] bg-[#efeae5] p-3">
-          <div className="relative aspect-[1600/900] min-w-[980px] overflow-hidden rounded-[20px] bg-[#f7f3ee] shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
-            <div className="grid h-full grid-cols-5 gap-x-4 px-8 py-10" dir={isRTL ? "rtl" : "ltr"}>
-              {(isRTL ? [4, 3, 2, 1, 0] : [0, 1, 2, 3, 4]).map((columnIndex) => (
+        <div className="rounded-[26px] bg-[#efeae5] p-3" dir="ltr" style={{ direction: "ltr" }}>
+          <div className="relative aspect-[1600/1200] min-w-[1500px] overflow-hidden rounded-[20px] bg-[#f7f3ee] shadow-[0_10px_30px_rgba(0,0,0,0.05)]" dir="ltr" style={{ direction: "ltr" }}>
+            <div className="grid h-full grid-cols-5 gap-x-4 px-8 py-10" dir="ltr" style={{ direction: "ltr" }}>
+              {[4, 3, 2, 1, 0].map((columnIndex) => (
                 <div key={columnIndex} className="flex flex-col justify-around">
                   {Array.from({ length: 2 ** Math.min(columnIndex + 1, 5) }).map((__, itemIndex) => (
-                    <div key={itemIndex} className="flex h-[18px] items-center gap-1 rounded-[8px] bg-[#ded6cf] px-1.5">
+                    <div key={itemIndex} className="flex h-[28px] items-center gap-1 rounded-[8px] bg-[#ded6cf] px-1.5">
                       {columnIndex > 0 ? <span className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#cfc6be]" /> : null}
                       <span className="h-2 flex-1 rounded-full bg-[#cfc6be]" />
                     </div>
@@ -531,6 +546,8 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
         )}
 
         <div
+          dir="ltr"
+          ref={scrollerRef}
           className={`w-full overflow-x-auto overflow-y-hidden rounded-[22px] ${
             isFullscreen && !isMobileViewport
               ? "flex items-center justify-center overflow-hidden"
@@ -578,15 +595,25 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
 
             <div className="relative z-10 h-full px-5 pb-8 pt-8 sm:px-7 sm:pb-10 sm:pt-10 lg:px-8 lg:pb-12 lg:pt-12 xl:px-10">
               <div
-                className="grid h-full w-full gap-x-3 md:gap-x-4 lg:gap-x-5"
+                dir="ltr"
+                className="relative h-full w-full"
                 style={{
-                  gridTemplateColumns: `repeat(${orderedColumns.length}, minmax(0, 1fr))`,
+                  direction: "ltr",
                 }}
               >
-                {orderedColumns.map((column, columnIndex) => (
+                {orderedColumns.map((column, columnIndex) => {
+                  const columnCount = Math.max(1, orderedColumns.length);
+                  const gapPx = 10;
+                  const columnWidth = `calc((100% - ${(columnCount - 1) * gapPx}px) / ${columnCount})`;
+
+                  return (
                   <div
                     key={`column-${columnIndex}`}
-                    className="relative h-full"
+                    className="absolute top-0 h-full"
+                    style={{
+                      left: `calc(${(columnIndex / columnCount) * 100}% + ${columnIndex === 0 ? 0 : columnIndex * gapPx}px - ${columnIndex === 0 ? 0 : (columnIndex / columnCount) * (columnCount - 1) * gapPx}px)`,
+                      width: columnWidth,
+                    }}
                   >
                     {column.map((node, nodeIndex) => (
                       <PedigreeBox
@@ -596,21 +623,24 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
                       />
                     ))}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
-            <div
-              className={`pointer-events-none absolute bottom-8 z-20 h-8 w-24 sm:bottom-5 sm:h-9 sm:w-28 md:h-10 md:w-32 ${
-                isRTL ? "left-8 sm:left-8" : "left-4 sm:left-5"
-              }`}
-            >
-              <img
-                src="/horse/studbooklogo.png"
-                alt="Studbook Logo"
-                className="h-full w-full object-contain object-left"
-              />
-            </div>
+          <div
+  className={`pointer-events-none absolute bottom-8 z-20 h-8 w-24 sm:bottom-5 sm:h-9 sm:w-28 md:h-10 md:w-32 ${
+    isRTL ? "right-7 sm:right-10" : "left-7 sm:left-5"
+  }`}
+>
+  <img
+    src="/horse/studbooklogo.png"
+    alt="Studbook Logo"
+    className={`h-full w-full object-contain ${
+      isRTL ? "object-right" : "object-left"
+    }`}
+  />
+</div>
           </div>
         </div>
       </div>

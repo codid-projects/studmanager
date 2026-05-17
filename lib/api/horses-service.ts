@@ -120,6 +120,12 @@ export async function createHorse(payload: CreateHorsePayload | FormData) {
   });
 }
 
+export async function deleteHorse(localId: string | number) {
+  return apiFetch<ApiResult<null> | ApiResult<boolean> | null>(`/api/Horses/${localId}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function getHorseOffsprings(localId: string | number, pageNumber = 1, pageSize = 15) {
   const payload = await apiFetch<ApiResult<PagedResponse<RelatedHorseDto>>>(
     `/api/ExternalHorses/${localId}/offsprings`,

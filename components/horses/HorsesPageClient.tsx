@@ -6,6 +6,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { HorseCard } from '@/components/horses/HorseCard';
 import { HorseFormModal, type HorseFormData } from '@/components/horses/HorseFormModal';
 import { StudbookImportModal } from '@/components/horses/StudbookImportModal';
+import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
 import { toHorseCardModel } from '@/lib/api/horse-formatters';
 import { clientApiFetch } from '@/lib/api/client';
 import { createHorse } from '@/lib/api/create-horse';
@@ -36,6 +37,8 @@ export function HorsesPageClient({
   const [horses, setHorses] = useState(initialHorses.data);
   const [error, setError] = useState(initialError);
   const [loading, setLoading] = useState(isDirectApiMode && !initialHorses.data.length);
+  const [horseIdToDelete, setHorseIdToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (isDirectApiMode) return;
@@ -116,6 +119,45 @@ export function HorsesPageClient({
   const handleImported = () => {
     setIsStudbookOpen(false);
     window.location.reload();
+  };
+
+  const handleDeleteHorse = async () => {
+    if (!horseIdToDelete || isDeleting) return;
+
+    setIsDeleting(true);
+    setError('');
+
+    try {
+      await clientApiFetch({
+        method: 'DELETE',
+        backendPath: `/api/Horses/${horseIdToDelete}`,
+        nextPath: `/api/horses/${horseIdToDelete}`,
+        nextQuery: { locale },
+        locale: locale as LocaleCode,
+      });
+
+      const deletedId = Number(horseIdToDelete);
+      setHorses((current) => current.filter((horse) => horse.id !== deletedId));
+      setHorseIdToDelete(null);
+    } catch (requestError) {
+      const status = typeof requestError === 'object' && requestError && 'status' in requestError
+        ? Number((requestError as { status?: number }).status)
+        : undefined;
+
+      if (status === 401) {
+        router.replace(`/${locale}/login?session=expired`);
+        router.refresh();
+        return;
+      }
+
+      setError(
+        requestError instanceof Error
+          ? localizeApiMessage(requestError.message, locale as LocaleCode)
+          : t('common.error'),
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const toCreatePayload = (data: HorseFormData): CreateHorsePayload => ({
@@ -220,7 +262,7 @@ export function HorsesPageClient({
         ) : filteredHorses.length ? (
           <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
             {filteredHorses.map((horse) => (
-              <HorseCard key={horse.id} horse={horse} />
+              <HorseCard key={horse.id} horse={horse} onDelete={setHorseIdToDelete} />
             ))}
           </div>
         ) : (
@@ -252,6 +294,16 @@ export function HorsesPageClient({
           setIsStudbookOpen(true);
         }}
         onSubmit={handleManualCreate}
+      />
+
+      <DeleteConfirmModal
+        open={Boolean(horseIdToDelete)}
+        title={t('common.deleteRecord')}
+        description={isDeleting ? t('common.loading') : t('common.deleteRecordMsg')}
+        onCancel={() => {
+          if (!isDeleting) setHorseIdToDelete(null);
+        }}
+        onConfirm={handleDeleteHorse}
       />
 
     </MainLayout>

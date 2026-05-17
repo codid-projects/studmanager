@@ -272,10 +272,11 @@ export function GlobalApiDebugTool() {
   );
 
   return (
-    <ApiDebugInspector
-      entries={entries}
-      onClear={handlers.clear}
-      onReplay={handlers.replay}
-    />
+    null
+    // <ApiDebugInspector
+    //   entries={entries}
+    //   onClear={handlers.clear}
+    //   onReplay={handlers.replay}
+    // />
   );
 }

@@ -3,6 +3,7 @@
 import { FC } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Trash2 } from 'lucide-react';
 import { useLocale, useTranslation } from '@/lib/locale-context';
 import horsePlaceholder from '@/app/assets/imgs/horse-placehodler.png';
 
@@ -26,6 +27,7 @@ interface HorseCardProps {
 
 export const HorseCard: FC<HorseCardProps> = ({
   horse,
+  onDelete,
 }) => {
   const { t } = useTranslation();
   const { direction, locale } = useLocale();
@@ -34,6 +36,18 @@ export const HorseCard: FC<HorseCardProps> = ({
 
   return (
     <div className="relative pt-14 sm:pt-20">
+      {onDelete ? (
+        <button
+          type="button"
+          onClick={() => onDelete(horse.id)}
+          className="absolute right-2 top-16 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-[#f4d5d2] bg-white text-[#b3261e] shadow-sm transition hover:bg-[#fff3f3] sm:right-4 sm:top-24"
+          aria-label={t('common.delete')}
+          title={t('common.delete')}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      ) : null}
+
       {/* Image */}
       <div className="absolute left-1/2 top-0 z-10 h-24 w-24 -translate-x-1/2 overflow-hidden rounded-full bg-gray-200 ring-[10px] ring-[#faf5f2] sm:h-36 sm:w-36 sm:ring-[16px]">
         <Image

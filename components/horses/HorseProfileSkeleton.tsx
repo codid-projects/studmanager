@@ -1,11 +1,20 @@
 'use client';
 
+import { useLocale } from '@/lib/locale-context';
+
 export function HorseProfileSkeleton() {
+  const { direction } = useLocale();
+  const isRTL = direction === 'rtl';
+
   return (
     <div className="animate-pulse pb-12">
-      <div className="mb-16">
+      <div className="relative mb-16">
         <div className="h-80 rounded-3xl bg-white shadow-sm" />
-        <div className="mx-12 -mt-16 h-40 w-40 rounded-full border-4 border-[#fdfbf7] bg-[#ece2da] shadow-md" />
+        <div
+          className={`absolute -bottom-16 h-40 w-40 rounded-full border-4 border-[#fdfbf7] bg-[#ece2da] shadow-md ${
+            isRTL ? 'right-12' : 'left-12'
+          }`}
+        />
       </div>
 
       <div className="mb-8 flex items-center justify-between px-4 md:px-12">

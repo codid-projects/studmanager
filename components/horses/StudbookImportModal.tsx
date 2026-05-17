@@ -29,7 +29,7 @@ export function StudbookImportModal({
   const router = useRouter();
   const isRTL = direction === 'rtl';
   const [query, setQuery] = useState('');
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedHorses, setSelectedHorses] = useState<StudbookHorseDto[]>([]);
   const [studbook, setStudbook] = useState(initialStudbook);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -39,10 +39,31 @@ export function StudbookImportModal({
     () => studbook.data.map((horse) => toStudbookCardModel(horse, locale as LocaleCode)),
     [locale, studbook.data],
   );
-  const selectedHorse = studbook.data.find((horse) => horse.id === selectedId);
+  const selectedIds = useMemo(
+    () => new Set(selectedHorses.map((horse) => horse.id)),
+    [selectedHorses],
+  );
   const handleSessionExpired = () => {
     router.replace(`/${locale}/login?session=expired`);
     router.refresh();
+  };
+
+  const getHorseName = (horse: StudbookHorseDto) => {
+    if (locale === 'ar') return horse.arabicName || horse.englishName || String(horse.id);
+    return horse.englishName || horse.arabicName || String(horse.id);
+  };
+
+  const toggleSelectedHorse = (horseId: number) => {
+    const horse = studbook.data.find((item) => item.id === horseId);
+    if (!horse) return;
+
+    setSelectedHorses((current) => {
+      if (current.some((item) => item.id === horse.id)) {
+        return current.filter((item) => item.id !== horse.id);
+      }
+
+      return [...current, horse];
+    });
   };
 
   useEffect(() => {
@@ -123,50 +144,52 @@ export function StudbookImportModal({
   }, [locale, query, t]);
 
   const handleImport = async () => {
-    if (!selectedHorse) return;
+    if (!selectedHorses.length) return;
 
     setImporting(true);
     setError('');
 
     try {
-      const importPayload: ImportHorseDto = {
-        studbookId: selectedHorse.id,
-        strain: selectedHorse.strain,
-        specialLine: selectedHorse.specialLine,
-        strainAr: selectedHorse.strainAr,
-        specialLineAr: selectedHorse.specialLineAr,
-      };
-      const payload = await clientApiFetch<ApiResult<number>>({
-        method: 'POST',
-        backendPath: '/api/ExternalHorses/import-horse',
-        nextPath: '/api/horses/import',
-        body: importPayload,
-        nextBody: { ...importPayload, locale },
-        locale: locale as LocaleCode,
-      });
-      onDebugCall?.({
-        id: `studbook-import-${Date.now()}`,
-        label: 'Import Studbook horse',
-        method: 'POST',
-        backendEndpoint: 'https://studmanagerapi-dev.studmarket.net/api/ExternalHorses/import-horse',
-        nextEndpoint: '/api/horses/import',
-        nextService: 'app/api/horses/import/route.ts -> lib/api/horses-service.ts:importHorse',
-        payload: {
+      for (const selectedHorse of selectedHorses) {
+        const importPayload: ImportHorseDto = {
           studbookId: selectedHorse.id,
           strain: selectedHorse.strain,
           specialLine: selectedHorse.specialLine,
           strainAr: selectedHorse.strainAr,
           specialLineAr: selectedHorse.specialLineAr,
-          locale,
-        },
-        status: payload?.statusCode ?? 200,
-        response: payload,
-        createdAt: new Date().toLocaleTimeString(),
-      });
+        };
+        const payload = await clientApiFetch<ApiResult<number>>({
+          method: 'POST',
+          backendPath: '/api/ExternalHorses/import-horse',
+          nextPath: '/api/horses/import',
+          body: importPayload,
+          nextBody: { ...importPayload, locale },
+          locale: locale as LocaleCode,
+        });
+        onDebugCall?.({
+          id: `studbook-import-${selectedHorse.id}-${Date.now()}`,
+          label: 'Import Studbook horse',
+          method: 'POST',
+          backendEndpoint: 'https://studmanagerapi-dev.studmarket.net/api/ExternalHorses/import-horse',
+          nextEndpoint: '/api/horses/import',
+          nextService: 'app/api/horses/import/route.ts -> lib/api/horses-service.ts:importHorse',
+          payload: {
+            studbookId: selectedHorse.id,
+            strain: selectedHorse.strain,
+            specialLine: selectedHorse.specialLine,
+            strainAr: selectedHorse.strainAr,
+            specialLineAr: selectedHorse.specialLineAr,
+            locale,
+          },
+          status: payload?.statusCode ?? 200,
+          response: payload,
+          createdAt: new Date().toLocaleTimeString(),
+        });
 
-      if (payload?.succeeded === false) {
-        setError(payload?.message || t('common.error'));
-        return;
+        if (payload?.succeeded === false) {
+          setError(payload?.message || t('common.error'));
+          return;
+        }
       }
 
       onImported();
@@ -188,16 +211,14 @@ export function StudbookImportModal({
         backendEndpoint: 'https://studmanagerapi-dev.studmarket.net/api/ExternalHorses/import-horse',
         nextEndpoint: '/api/horses/import',
         nextService: 'app/api/horses/import/route.ts -> lib/api/horses-service.ts:importHorse',
-        payload: selectedHorse
-          ? {
-              studbookId: selectedHorse.id,
-              strain: selectedHorse.strain,
-              specialLine: selectedHorse.specialLine,
-              strainAr: selectedHorse.strainAr,
-              specialLineAr: selectedHorse.specialLineAr,
-              locale,
-            }
-          : null,
+        payload: selectedHorses.map((horse) => ({
+          studbookId: horse.id,
+          strain: horse.strain,
+          specialLine: horse.specialLine,
+          strainAr: horse.strainAr,
+          specialLineAr: horse.specialLineAr,
+          locale,
+        })),
         error: message,
         createdAt: new Date().toLocaleTimeString(),
       });
@@ -210,11 +231,11 @@ export function StudbookImportModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
         dir={direction}
-        className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[16px] bg-white shadow-xl sm:rounded-[28px]"
+        className="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[16px] bg-white shadow-xl sm:rounded-[28px]"
       >
         <div
           className={`flex flex-col gap-3 px-4 py-4 sm:items-center sm:justify-between sm:px-8 sm:py-6 ${
-            isRTL ? 'sm:flex-row-reverse' : 'sm:flex-row'
+            isRTL ? 'sm:flex-row' : 'sm:flex-row'
           }`}
         >
           <div className="flex items-center gap-2">
@@ -259,8 +280,28 @@ export function StudbookImportModal({
 
         <div className="px-4 sm:px-8">
           <p className={`text-sm text-[#7a6c63] ${isRTL ? 'text-right' : 'text-left'}`}>
-            {t('horses.studbookInstruction')}
+            {isRTL ? 'اختر خيلًا واحدًا أو أكثر من Studbook.' : 'Select one or more horses from the Studbook.'}
           </p>
+          {selectedHorses.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {selectedHorses.map((horse) => (
+                <span
+                  key={horse.id}
+                  className="inline-flex max-w-full items-center gap-2 rounded-full border border-[#d9c8ba] bg-[#fbf8f4] px-3 py-1.5 text-xs font-medium text-[#3a2c24]"
+                >
+                  <span className="max-w-[180px] truncate">{getHorseName(horse)}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedHorses((current) => current.filter((item) => item.id !== horse.id))}
+                    className="flex h-5 w-5 items-center justify-center rounded-full text-[#7a6c63] transition hover:bg-[#eadfd9] hover:text-[#311C11]"
+                    aria-label={isRTL ? 'إزالة من المحدد' : 'Remove selected horse'}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
           {error ? (
             <div className="mt-3 rounded-2xl border border-[#f2c7c7] bg-[#fff3f3] px-4 py-3 text-sm text-[#b04444]">
               {error}
@@ -276,9 +317,9 @@ export function StudbookImportModal({
               {cards.map((horse) => (
                 <button
                   key={horse.id}
-                  onClick={() => setSelectedId(Number(horse.id))}
+                  onClick={() => toggleSelectedHorse(Number(horse.id))}
                   className={`rounded-lg border-[3px] bg-white p-3 text-center shadow-sm transition hover:border-[#bda58f] hover:shadow-md sm:rounded-2xl sm:p-4 ${
-                    selectedId === Number(horse.id)
+                    selectedIds.has(Number(horse.id))
                       ? 'border-[#5a3b25] ring-2 ring-[#5a3b25]/20'
                       : 'border-[#d9c8ba]'
                   }`}
@@ -326,10 +367,14 @@ export function StudbookImportModal({
 
           <button
             onClick={handleImport}
-            disabled={!selectedHorse || importing}
+            disabled={!selectedHorses.length || importing}
             className="rounded-xl bg-[#311C11] px-6 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
           >
-            {importing ? t('common.loading') : t('common.add')}
+            {importing
+              ? t('common.loading')
+              : selectedHorses.length
+                ? `${t('common.add')} (${selectedHorses.length})`
+                : t('common.add')}
           </button>
         </div>
       </div>
