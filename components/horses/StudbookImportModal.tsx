@@ -3,7 +3,9 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { Check } from 'lucide-react';
 import type { ApiDebugEntry } from '@/components/debug/ApiDebugInspector';
+import { useBodyScrollLock } from '@/components/common/useBodyScrollLock';
 import { clientApiFetch } from '@/lib/api/client';
 import { toStudbookCardModel } from '@/lib/api/horse-formatters';
 import type { ApiResult, ImportHorseDto, LocaleCode, PagedResponse, StudbookHorseDto } from '@/lib/api/types';
@@ -29,11 +31,15 @@ export function StudbookImportModal({
   const router = useRouter();
   const isRTL = direction === 'rtl';
   const [query, setQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(initialStudbook.currentPage || 1);
   const [selectedHorses, setSelectedHorses] = useState<StudbookHorseDto[]>([]);
   const [studbook, setStudbook] = useState(initialStudbook);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
+  const pageSize = 12;
+
+  useBodyScrollLock(true);
 
   const cards = useMemo(
     () => studbook.data.map((horse) => toStudbookCardModel(horse, locale as LocaleCode)),
@@ -43,6 +49,16 @@ export function StudbookImportModal({
     () => new Set(selectedHorses.map((horse) => horse.id)),
     [selectedHorses],
   );
+  const totalPages = Math.max(1, studbook.totalPages || 1);
+  const canGoPrevious = currentPage > 1 && !loading;
+  const canGoNext = currentPage < totalPages && !loading;
+  const visiblePages = useMemo(() => {
+    const start = Math.max(1, Math.min(currentPage - 1, totalPages - 2));
+    const end = Math.min(totalPages, start + 2);
+
+    return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+  }, [currentPage, totalPages]);
+
   const handleSessionExpired = () => {
     router.replace(`/${locale}/login?session=expired`);
     router.refresh();
@@ -67,6 +83,10 @@ export function StudbookImportModal({
   };
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [query]);
+
+  useEffect(() => {
     const controller = new AbortController();
     const timeout = window.setTimeout(async () => {
       setLoading(true);
@@ -78,13 +98,13 @@ export function StudbookImportModal({
           nextPath: '/api/horses/studbook',
           backendQuery: {
             SearchTerm: query,
-            PageNumber: 1,
-            PageSize: 12,
+            PageNumber: currentPage,
+            PageSize: pageSize,
           },
           nextQuery: {
             search: query,
-            pageNumber: 1,
-            pageSize: 12,
+            pageNumber: currentPage,
+            pageSize,
             locale,
           },
           locale: locale as LocaleCode,
@@ -93,13 +113,13 @@ export function StudbookImportModal({
           id: `studbook-search-${Date.now()}`,
           label: 'Studbook horse search',
           method: 'GET',
-          backendEndpoint: `https://studmanagerapi-dev.studmarket.net/api/ExternalHorses/search-external-horses?SearchTerm=${encodeURIComponent(query)}&PageNumber=1&PageSize=12`,
-          nextEndpoint: `/api/horses/studbook?search=${encodeURIComponent(query)}&pageNumber=1&pageSize=12&locale=${locale}`,
+          backendEndpoint: `https://studmanagerapi-dev.studmarket.net/api/ExternalHorses/search-external-horses?SearchTerm=${encodeURIComponent(query)}&PageNumber=${currentPage}&PageSize=${pageSize}`,
+          nextEndpoint: `/api/horses/studbook?search=${encodeURIComponent(query)}&pageNumber=${currentPage}&pageSize=${pageSize}&locale=${locale}`,
           nextService: 'app/api/horses/studbook/route.ts -> lib/api/horses-service.ts:searchStudbookHorses',
           payload: {
             search: query,
-            pageNumber: 1,
-            pageSize: 12,
+            pageNumber: currentPage,
+            pageSize,
             locale,
           },
           status: 200,
@@ -124,10 +144,10 @@ export function StudbookImportModal({
             id: `studbook-search-error-${Date.now()}`,
             label: 'Studbook horse search',
             method: 'GET',
-            backendEndpoint: `https://studmanagerapi-dev.studmarket.net/api/ExternalHorses/search-external-horses?SearchTerm=${encodeURIComponent(query)}&PageNumber=1&PageSize=12`,
-            nextEndpoint: `/api/horses/studbook?search=${encodeURIComponent(query)}&pageNumber=1&pageSize=12&locale=${locale}`,
+            backendEndpoint: `https://studmanagerapi-dev.studmarket.net/api/ExternalHorses/search-external-horses?SearchTerm=${encodeURIComponent(query)}&PageNumber=${currentPage}&PageSize=${pageSize}`,
+            nextEndpoint: `/api/horses/studbook?search=${encodeURIComponent(query)}&pageNumber=${currentPage}&pageSize=${pageSize}&locale=${locale}`,
             nextService: 'app/api/horses/studbook/route.ts -> lib/api/horses-service.ts:searchStudbookHorses',
-            payload: { search: query, pageNumber: 1, pageSize: 12, locale },
+            payload: { search: query, pageNumber: currentPage, pageSize, locale },
             error: message,
             createdAt: new Date().toLocaleTimeString(),
           });
@@ -141,7 +161,7 @@ export function StudbookImportModal({
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [locale, query, t]);
+  }, [currentPage, locale, query, t]);
 
   const handleImport = async () => {
     if (!selectedHorses.length) return;
@@ -228,10 +248,12 @@ export function StudbookImportModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/40 p-4">
       <div
         dir={direction}
         className="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[16px] bg-white shadow-xl sm:rounded-[28px]"
+        onWheel={(event) => event.stopPropagation()}
+        onTouchMove={(event) => event.stopPropagation()}
       >
         <div
           className={`flex flex-col gap-3 px-4 py-4 sm:items-center sm:justify-between sm:px-8 sm:py-6 ${
@@ -254,34 +276,60 @@ export function StudbookImportModal({
           </button>
         </div>
 
-        <div className={`flex items-center gap-4 px-4 py-4 sm:px-8 ${isRTL ? 'justify-start' : 'justify-end'}`}>
-          <button
-            onClick={onManualAdd}
-            className="rounded-[16px] border-2 border-[#311C11] px-4 py-[14px] text-xs font-medium sm:px-6 sm:text-sm"
-          >
-            {t('horses.addManually')}
-          </button>
-
-          <div className="relative w-full sm:max-w-[360px]">
+        <div
+          className={`flex flex-col gap-3 border-y border-[#f1e8e1] bg-[#fbf8f4] px-4 py-4 sm:flex-row sm:items-center sm:gap-4 sm:px-8 ${
+            isRTL ? 'sm:justify-start' : 'sm:justify-end'
+          }`}
+        >
+          <div className="relative order-1 w-full sm:max-w-[430px]">
             <input
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={t('common.search')}
-              className={`h-11 w-full rounded-full border border-[#eadfd9] bg-white text-sm outline-none focus:border-[#5a3b25] focus:ring-2 focus:ring-[#5a3b25]/10 ${
-                isRTL ? 'pr-12 text-right' : 'pl-12 text-left'
+              className={`h-12 w-full rounded-2xl border-2 border-[#dccbc0] bg-white text-sm font-medium text-[#302018] shadow-sm outline-none transition placeholder:text-[#9b8b7f] focus:border-[#311C11] focus:ring-4 focus:ring-[#311C11]/10 ${
+                isRTL ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left'
               }`}
             />
-            <span className={`absolute top-1/2 -translate-y-1/2 ${isRTL ? 'right-4' : 'left-4'}`}>
+            <span
+              className={`pointer-events-none absolute top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-[#f3e8e1] ${
+                isRTL ? 'right-3' : 'left-3'
+              }`}
+            >
               <Image src="/horse/search.svg" alt="" width={20} height={20} />
             </span>
           </div>
+
+          <button
+            onClick={onManualAdd}
+            className="order-2 inline-flex h-12 w-full items-center justify-center rounded-2xl bg-[#311C11] px-5 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(49,28,17,0.18)] transition hover:bg-[#4a2d1a] focus:outline-none focus:ring-2 focus:ring-[#311C11]/25 sm:w-auto sm:min-w-[150px]"
+          >
+            <span className="text-lg leading-none">+</span>
+            <span className={isRTL ? 'mr-2' : 'ml-2'}>{t('horses.addManually')}</span>
+          </button>
         </div>
 
-        <div className="px-4 sm:px-8">
-          <p className={`text-sm text-[#7a6c63] ${isRTL ? 'text-right' : 'text-left'}`}>
-            {isRTL ? 'اختر خيلًا واحدًا أو أكثر من Studbook.' : 'Select one or more horses from the Studbook.'}
-          </p>
+        <div className="px-4 pt-4 sm:px-8">
+          <div
+            className={`rounded-2xl border border-[#eadfd9] bg-[#fffaf6] px-4 py-3 shadow-sm ${
+              isRTL ? 'text-right' : 'text-left'
+            }`}
+          >
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-semibold text-[#311C11] sm:text-base">
+                {isRTL ? 'اختر خيلًا واحدًا أو أكثر من Studbook.' : 'Select one or more horses from the Studbook.'}
+              </p>
+              <span className="text-xs font-medium text-[#8a6f5e]">
+                {selectedHorses.length
+                  ? isRTL
+                    ? `${selectedHorses.length} محدد`
+                    : `${selectedHorses.length} selected`
+                  : isRTL
+                    ? 'لم يتم تحديد أي خيل'
+                    : 'No horses selected'}
+              </span>
+            </div>
+          </div>
           {selectedHorses.length ? (
             <div className="mt-3 flex flex-wrap gap-2">
               {selectedHorses.map((horse) => (
@@ -309,7 +357,7 @@ export function StudbookImportModal({
           ) : null}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-8">
+        <div className="flex-1 overscroll-contain overflow-y-auto px-4 py-6 sm:px-8">
           {loading ? (
             <div className="py-10 text-center text-sm text-[#7a6c63]">{t('common.loading')}</div>
           ) : cards.length ? (
@@ -318,16 +366,28 @@ export function StudbookImportModal({
                 <button
                   key={horse.id}
                   onClick={() => toggleSelectedHorse(Number(horse.id))}
-                  className={`rounded-lg border-[3px] bg-white p-3 text-center shadow-sm transition hover:border-[#bda58f] hover:shadow-md sm:rounded-2xl sm:p-4 ${
+                  className={`relative overflow-hidden rounded-2xl border-2 bg-white p-3 text-center shadow-[0_6px_18px_rgba(49,28,17,0.06)] transition hover:-translate-y-0.5 hover:border-[#8a684f] hover:shadow-[0_12px_28px_rgba(49,28,17,0.12)] sm:p-4 ${
                     selectedIds.has(Number(horse.id))
-                      ? 'border-[#5a3b25] ring-2 ring-[#5a3b25]/20'
-                      : 'border-[#d9c8ba]'
+                      ? 'border-[#311C11] bg-[#fffaf6] ring-4 ring-[#311C11]/10'
+                      : 'border-[#d8c7ba]'
                   }`}
                 >
+                  <span
+                    className={`absolute top-3 flex h-7 w-7 items-center justify-center rounded-full border text-xs transition ${
+                      isRTL ? 'left-3' : 'right-3'
+                    } ${
+                      selectedIds.has(Number(horse.id))
+                        ? 'border-[#311C11] bg-[#311C11] text-white'
+                        : 'border-[#d8c7ba] bg-white text-transparent'
+                    }`}
+                    aria-hidden="true"
+                  >
+                    <Check className="h-4 w-4" />
+                  </span>
                   <img
                     src={horse.image}
                     alt={horse.nameEn}
-                    className="h-32 w-full rounded-lg object-cover sm:h-40 sm:rounded-xl"
+                    className="h-32 w-full rounded-xl border border-[#f0e7df] object-cover sm:h-40"
                   />
                   <div className="mt-4 text-sm font-semibold text-[#3a2c24]">{horse.nameAr}</div>
                   <div className="text-sm text-[#8a7b70]">{horse.nameEn}</div>
@@ -351,6 +411,52 @@ export function StudbookImportModal({
           ) : (
             <div className="py-10 text-center text-sm text-[#7a6c63]">{t('common.noRecordsFound')}</div>
           )}
+        </div>
+
+        <div className="border-t border-[#f1e8e1] bg-[#fbf8f4] px-4 py-3 sm:px-8">
+          <div className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
+            <div className="text-center text-xs font-medium text-[#8a6f5e] sm:text-start">
+              {isRTL
+                ? `صفحة ${currentPage} من ${totalPages}`
+                : `Page ${currentPage} of ${totalPages}`}
+            </div>
+
+            <div className="flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={!canGoPrevious}
+                className="h-9 rounded-xl border border-[#d8c7ba] bg-white px-3 text-sm font-semibold text-[#311C11] transition hover:bg-[#fff7f1] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isRTL ? 'السابق' : 'Prev'}
+              </button>
+
+              {visiblePages.map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  disabled={loading}
+                  className={`h-9 min-w-9 rounded-xl border px-3 text-sm font-semibold transition ${
+                    page === currentPage
+                      ? 'border-[#311C11] bg-[#311C11] text-white'
+                      : 'border-[#d8c7ba] bg-white text-[#311C11] hover:bg-[#fff7f1]'
+                  } disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  {page}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={!canGoNext}
+                className="h-9 rounded-xl border border-[#d8c7ba] bg-white px-3 text-sm font-semibold text-[#311C11] transition hover:bg-[#fff7f1] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isRTL ? 'التالي' : 'Next'}
+              </button>
+            </div>
+          </div>
         </div>
 
         <div
