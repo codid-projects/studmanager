@@ -28,6 +28,16 @@ export const emptyMemberForm = {
 
 export type MemberFormState = typeof emptyMemberForm;
 
+export const emptyTaskForm = {
+  title: '',
+  description: '',
+  dueDate: '',
+  status: 'inProgress' as TaskStatus,
+  assignee: '',
+};
+
+export type TaskFormState = typeof emptyTaskForm;
+
 export const initialMembers: Member[] = [
   { id: '1', name: 'محمد', role: 'مدير المزرعة', username: 'mohammed 123', password: '123456' },
   { id: '2', name: 'محمد', role: 'مساعد مدير المزرعة', username: 'mohammed 123', password: '123456' },

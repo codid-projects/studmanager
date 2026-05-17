@@ -33,6 +33,7 @@ export function HorsesPageClient({
   const isRTL = direction === 'rtl';
   const [isStudbookOpen, setIsStudbookOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingHorseId, setEditingHorseId] = useState<string | null>(null);
   const [mainSearchQuery, setMainSearchQuery] = useState('');
   const [horses, setHorses] = useState(initialHorses.data);
   const [error, setError] = useState(initialError);
@@ -115,6 +116,32 @@ export function HorsesPageClient({
 
     return horse.nameAr.includes(mainSearchQuery) || horse.nameEn.toLowerCase().includes(query);
   });
+
+  const editingHorse = editingHorseId
+    ? horses.find((horse) => horse.id === Number(editingHorseId)) ?? null
+    : null;
+
+  const formatFormDate = (value: string | null | undefined) => {
+    if (!value) return '';
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+
+    return date.toISOString().slice(0, 10);
+  };
+
+  const editInitialData: HorseFormData | null = editingHorse
+    ? {
+        nameAr: editingHorse.arabicName ?? '',
+        nameEn: editingHorse.englishName ?? '',
+        type: '',
+        gender: editingHorse.gender ?? '',
+        birthDate: formatFormDate(editingHorse.dateofBirth),
+        color: editingHorse.color ?? '',
+        image: editingHorse.horseProfileImage ?? undefined,
+        imagePreview: editingHorse.horseProfileImage ?? undefined,
+      }
+    : null;
 
   const handleImported = () => {
     setIsStudbookOpen(false);
@@ -216,6 +243,32 @@ export function HorsesPageClient({
     }
   };
 
+  const handleLocalEdit = (data: HorseFormData) => {
+    if (!editingHorseId) return;
+
+    setHorses((current) =>
+      current.map((horse) => {
+        if (horse.id !== Number(editingHorseId)) return horse;
+
+        return {
+          ...horse,
+          englishName: data.nameEn,
+          arabicName: data.nameAr,
+          dateofBirth: data.birthDate,
+          gender: data.gender,
+          color: data.color ?? horse.color,
+          horseProfileImage:
+            typeof data.imagePreview === 'string' && data.imagePreview
+              ? data.imagePreview
+              : typeof data.image === 'string'
+                ? data.image
+                : horse.horseProfileImage,
+        };
+      }),
+    );
+    setEditingHorseId(null);
+  };
+
   return (
     <MainLayout>
       <div className={`rounded-[16px] p-4 sm:rounded-[28px] sm:p-6 ${isRTL ? 'text-right' : 'text-left'}`}>
@@ -262,7 +315,12 @@ export function HorsesPageClient({
         ) : filteredHorses.length ? (
           <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
             {filteredHorses.map((horse) => (
-              <HorseCard key={horse.id} horse={horse} onDelete={setHorseIdToDelete} />
+              <HorseCard
+                key={horse.id}
+                horse={horse}
+                onEdit={setEditingHorseId}
+                onDelete={setHorseIdToDelete}
+              />
             ))}
           </div>
         ) : (
@@ -294,6 +352,14 @@ export function HorsesPageClient({
           setIsStudbookOpen(true);
         }}
         onSubmit={handleManualCreate}
+      />
+
+      <HorseFormModal
+        isOpen={Boolean(editingHorseId)}
+        isManual
+        initialData={editInitialData}
+        onClose={() => setEditingHorseId(null)}
+        onSubmit={handleLocalEdit}
       />
 
       <DeleteConfirmModal

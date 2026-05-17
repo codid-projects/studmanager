@@ -30,9 +30,11 @@ export interface HorseFormData {
   fatherNameAr?: string;
   fatherNameEn?: string;
   fatherStudbookId?: number;
+  fatherPedigreeSummary?: string;
   motherNameAr?: string;
   motherNameEn?: string;
   motherStudbookId?: number;
+  motherPedigreeSummary?: string;
 
   height?: string;
   color?: string;
@@ -58,8 +60,6 @@ export interface HorseFormData {
   breederEmail?: string;
   ownerEmail?: string;
 
-  video?: File | string;
-  videoPreview?: string;
   videoLink?: string;
 }
 
@@ -74,9 +74,11 @@ const emptyFormData: HorseFormData = {
   fatherNameAr: '',
   fatherNameEn: '',
   fatherStudbookId: undefined,
+  fatherPedigreeSummary: '',
   motherNameAr: '',
   motherNameEn: '',
   motherStudbookId: undefined,
+  motherPedigreeSummary: '',
   height: '',
   color: '',
   currentCountry: '',
@@ -183,7 +185,12 @@ function MarkingPicker({
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setOpen(false);
+          }}
+        >
           <div dir={direction} className="w-full max-w-3xl rounded-[24px] bg-white p-5 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-bold text-[#2b1a12]">{label}</h3>
@@ -228,12 +235,14 @@ function StudbookParentPicker({
   placeholder,
   selectedId,
   selectedName,
+  selectedDetails,
   onSelect,
 }: {
   label: string;
   placeholder: string;
   selectedId?: number;
   selectedName?: string;
+  selectedDetails?: string;
   onSelect: (horse: ExternalHorseSearchItem) => void;
 }) {
   const { direction, locale } = useLocale();
@@ -243,6 +252,20 @@ function StudbookParentPicker({
   const [results, setResults] = useState<ExternalHorseSearchItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const parentSummary = (horse: ExternalHorseSearchItem) => {
+    const father = getLocalizedName(horse.horseFatherEnglishName, horse.horseFatherArabicName, isArabic);
+    const mother = getLocalizedName(horse.horseMotherEnglishName, horse.horseMotherArabicName, isArabic);
+    const hasFather = father && father !== '-';
+    const hasMother = mother && mother !== '-';
+
+    if (!hasFather && !hasMother) return '';
+
+    return [
+      hasFather ? `${isArabic ? 'الأب' : 'Father'}: ${father}` : null,
+      hasMother ? `${isArabic ? 'الأم' : 'Mother'}: ${mother}` : null,
+    ].filter(Boolean).join(' | ');
+  };
 
   useEffect(() => {
     if (query.trim().length < 2) {
@@ -291,7 +314,10 @@ function StudbookParentPicker({
       />
       {selectedId ? (
         <div className="mt-2 rounded-xl bg-[#f1e6dd] px-3 py-2 text-xs font-semibold text-[#3b2b20]">
-          {selectedName}
+          <div>{selectedName}</div>
+          {selectedDetails ? (
+            <div className="mt-1 font-medium text-[#7a6c63]">{selectedDetails}</div>
+          ) : null}
         </div>
       ) : null}
       {loading ? <div className="mt-2 text-xs text-[#7a6c63]">{isArabic ? 'جارٍ البحث...' : 'Searching...'}</div> : null}
@@ -311,7 +337,10 @@ function StudbookParentPicker({
                 isRTL ? 'text-right' : 'text-left'
               }`}
             >
-              {getLocalizedName(horse.englishName, horse.arabicName, isArabic)}
+              <span className="block">{getLocalizedName(horse.englishName, horse.arabicName, isArabic)}</span>
+              {parentSummary(horse) ? (
+                <span className="mt-1 block text-xs font-medium text-[#7a6c63]">{parentSummary(horse)}</span>
+              ) : null}
             </button>
           ))}
         </div>
@@ -336,15 +365,13 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
   const [formData, setFormData] = useState<HorseFormData>(emptyFormData);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [videoPreview, setVideoPreview] = useState<string>('');
   const [submitError, setSubmitError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
   const birthDateInputRef = useRef<HTMLInputElement>(null);
+  const modalTitle = initialData ? t('horses.editHorse') : t('horses.addNew');
 
   const steps = [
     { id: 1, label: t('horses.step1') || 'اسم الخيل' },
@@ -365,15 +392,12 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
       });
 
       setImagePreview(typeof initialData.image === 'string' ? initialData.image : '');
-      setVideoPreview(typeof initialData.video === 'string' ? initialData.video : '');
     } else {
       setFormData(emptyFormData);
       setImagePreview('');
-      setVideoPreview('');
     }
 
     setImageFile(null);
-    setVideoFile(null);
     setSubmitError('');
     setFieldErrors({});
   }, [isOpen, initialData]);
@@ -407,12 +431,6 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
     setImagePreview(preview);
   };
 
-  const handleVideoSelected = (file: File) => {
-    const preview = URL.createObjectURL(file);
-    setVideoFile(file);
-    setVideoPreview(preview);
-  };
-
   const openBirthDatePicker = () => {
     const input = birthDateInputRef.current;
     if (!input) return;
@@ -425,7 +443,7 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
 
   const handleFileDrop = (
     e: React.DragEvent<HTMLDivElement>,
-    type: 'image' | 'video'
+    type: 'image'
   ) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
@@ -433,10 +451,6 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
 
     if (type === 'image' && file.type.startsWith('image/')) {
       handleImageSelected(file);
-    }
-
-    if (type === 'video' && file.type.startsWith('video/')) {
-      handleVideoSelected(file);
     }
   };
 
@@ -450,12 +464,25 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
       value: label.en.toUpperCase(),
       label: isRTL ? label.ar : label.en,
     }));
+  const heightOptions = Array.from({ length: 101 }, (_, index) => 100 + index);
 
   const messages = {
     required: isRTL ? 'هذا الحقل مطلوب' : 'This field is required',
     arabicOnly: isRTL ? 'يرجى إدخال الاسم باللغة العربية فقط' : 'Please enter Arabic letters only',
     invalidEmail: isRTL ? 'يرجى إدخال بريد إلكتروني صحيح' : 'Please enter a valid email',
     invalidYoutube: isRTL ? 'يرجى إدخال رابط يوتيوب صحيح' : 'Please enter a valid YouTube link',
+  };
+
+  const selectedParentSummary = (horse: ExternalHorseSearchItem) => {
+    const father = getLocalizedName(horse.horseFatherEnglishName, horse.horseFatherArabicName, isRTL);
+    const mother = getLocalizedName(horse.horseMotherEnglishName, horse.horseMotherArabicName, isRTL);
+    const hasFather = father && father !== '-';
+    const hasMother = mother && mother !== '-';
+
+    return [
+      hasFather ? `${isRTL ? 'الأب' : 'Father'}: ${father}` : null,
+      hasMother ? `${isRTL ? 'الأم' : 'Mother'}: ${mother}` : null,
+    ].filter(Boolean).join(' | ');
   };
 
   const validateStep = (step: number) => {
@@ -526,8 +553,6 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
         ...formData,
         image: imageFile || formData.image,
         imagePreview,
-        video: videoFile || formData.video,
-        videoPreview,
       });
 
       handleClose();
@@ -542,8 +567,6 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
     setFormData(emptyFormData);
     setImageFile(null);
     setImagePreview('');
-    setVideoFile(null);
-    setVideoPreview('');
     setSubmitError('');
     setFieldErrors({});
     setSubmitting(false);
@@ -579,16 +602,23 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-2 md:p-4 lg:p-6">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-2 md:p-4 lg:p-6"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) handleClose();
+      }}
+    >
       <div
         dir={direction}
         className="w-full max-w-6xl max-h-[95vh] md:max-h-[90vh] overflow-hidden rounded-[20px] md:rounded-[28px] bg-white shadow-xl flex flex-col"
       >
-        <div className={`flex items-start justify-between px-4 md:px-8 lg:px-10 pb-3 md:pb-4 pt-4 md:pt-8 shrink-0 ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-3 px-4 pb-3 pt-4 md:px-8 md:pb-4 md:pt-8 lg:px-10 shrink-0">
           <button
             type="button"
             onClick={handleClose}
-            className="text-[#5b5b5b] transition hover:text-black flex-shrink-0"
+            className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#f7f1eb] text-[#5b5b5b] transition hover:text-black ${
+              isRTL ? 'col-start-3 justify-self-end' : 'col-start-1 justify-self-start'
+            }`}
             aria-label="Close"
           >
             <svg className="h-6 w-6 md:h-7 md:w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -601,80 +631,92 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
             </svg>
           </button>
 
-         
+          <div className="col-start-2 row-start-1 min-w-0 self-center">
+            <h2 className="truncate text-center text-xl font-bold text-[#2b1a12] md:text-2xl">
+              {modalTitle}
+            </h2>
+          </div>
 
           {onBack ? (
             <button
               type="button"
               onClick={onBack}
-              className={`flex items-center gap-2 rounded-[14px] border border-[#eadfd9] bg-white px-4 py-2 text-sm font-semibold text-[#2b1a12] transition hover:bg-gray-50 ${false ? 'flex-row-reverse' : 'flex-row'}`}
+              className={`row-start-1 inline-flex items-center gap-2 rounded-2xl border-2 border-[#311C11] bg-[#fff7f1] px-3 py-2.5 text-sm font-bold text-[#311C11] shadow-[0_8px_18px_rgba(49,28,17,0.12)] transition hover:bg-[#311C11] hover:text-white focus:outline-none focus:ring-4 focus:ring-[#311C11]/15 sm:px-4 ${
+                isRTL
+                  ? 'col-start-1 flex-row-reverse justify-self-start'
+                  : 'col-start-3 flex-row justify-self-end'
+              }`}
             >
-              <span className="text-lg leading-none">{isRTL ? '→' : '←'}</span>
-              <span>{t('horses.backToStudbook')}</span>
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#311C11] text-base leading-none text-white">
+                {isRTL ? '→' : '←'}
+              </span>
+              <span className="hidden sm:inline">{t('horses.backToStudbook')}</span>
             </button>
           ) : null}
         </div>
 
-        <div className="px-4 md:px-8 lg:px-10 pb-4 md:pb-8 pt-2 flex-1 overflow-y-auto">
-          {isManual && (
-            <div className="mb-6 md:mb-10 overflow-x-auto">
-              <div className="flex min-w-max items-center justify-between gap-4 md:gap-8 px-2">
-                {steps.map((step) => {
-                  const active = step.id === currentStep;
-                  const completed = step.id < currentStep;
+        {isManual && (
+          <div className="shrink-0 border-y border-[#f1e8e1] bg-[#fbf8f4] px-4 py-3 shadow-sm md:px-8 lg:px-10">
+            <div className="overflow-x-auto">
+            <div className="flex min-w-max items-center justify-between gap-4 md:gap-8 px-2">
+              {steps.map((step) => {
+                const active = step.id === currentStep;
+                const completed = step.id < currentStep;
 
-                  return (
-                    <div key={step.id} className="flex min-w-[140px] md:min-w-[170px] flex-col items-center">
-                      <div className="flex flex-row-reverse items-center gap-2 md:gap-3">
-                        <span
-                          className={`whitespace-nowrap text-xs md:text-sm transition ${active
+                return (
+                  <div key={step.id} className="flex min-w-[140px] md:min-w-[170px] flex-col items-center">
+                    <div className="flex flex-row-reverse items-center gap-2 md:gap-3">
+                      <span
+                        className={`whitespace-nowrap text-xs md:text-sm transition ${active
+                          ? 'font-semibold text-[#2b1a12]'
+                          : completed
                             ? 'font-semibold text-[#2b1a12]'
-                            : completed
-                              ? 'font-semibold text-[#2b1a12]'
-                              : 'font-medium text-[#c7bdb7]'
-                            }`}
-                        >
-                          {step.label}
-                        </span>
+                            : 'font-medium text-[#a99d96]'
+                          }`}
+                      >
+                        {step.label}
+                      </span>
 
-                        <button
-                          type="button"
-                          onClick={() => handleGoToStep(step.id)}
-                          className={`flex h-9 w-9 md:h-11 md:w-11 items-center justify-center rounded-full border text-xs md:text-sm font-semibold transition ${active || completed
-                            ? 'border-[#3f2416] bg-[#3f2416] text-white'
-                            : 'border-[#d8cec8] bg-white text-[#b7aca6]'
-                            }`}
-                        >
-                          {completed ? (
-                            <svg
-                              className="h-4 w-4 md:h-5 md:w-5"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                            >
-                              <path
-                                d="M5 13l4 4L19 7"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          ) : (
-                            step.id
-                          )}
-                        </button>
-                      </div>
-
-                      <div className="mt-2 md:mt-3 h-[3px] md:h-[4px] w-full rounded-full bg-transparent">
-                        {active && <div className="h-full w-full rounded-full bg-[#4a2b1a]" />}
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleGoToStep(step.id)}
+                        className={`flex h-9 w-9 md:h-11 md:w-11 items-center justify-center rounded-full border text-xs md:text-sm font-semibold transition ${active || completed
+                          ? 'border-[#3f2416] bg-[#3f2416] text-white'
+                          : 'border-[#d8cec8] bg-white text-[#b7aca6]'
+                          }`}
+                      >
+                        {completed ? (
+                          <svg
+                            className="h-4 w-4 md:h-5 md:w-5"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                          >
+                            <path
+                              d="M5 13l4 4L19 7"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        ) : (
+                          step.id
+                        )}
+                      </button>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
+                    <div className="mt-2 md:mt-3 h-[3px] md:h-[4px] w-full rounded-full bg-[#e7dcd5]">
+                      {active && <div className="h-full w-full rounded-full bg-[#4a2b1a]" />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            </div>
+          </div>
+        )}
+
+        <div className="px-4 md:px-8 lg:px-10 pb-6 pt-5 flex-1 overflow-y-auto overscroll-contain">
           <form onSubmit={handleSubmit} className="space-y-6">
             {currentStep === 1 && (
               <div className="space-y-6">
@@ -757,12 +799,14 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                     placeholder={isRTL ? 'ابحث باسم الأب' : 'Search father name'}
                     selectedId={formData.fatherStudbookId}
                     selectedName={formData.fatherStudbookId ? getLocalizedName(formData.fatherNameEn, formData.fatherNameAr, isRTL) : undefined}
+                    selectedDetails={formData.fatherPedigreeSummary}
                     onSelect={(horse) => {
                       setFormData((prev) => ({
                         ...prev,
                         fatherStudbookId: horse.id,
                         fatherNameAr: horse.arabicName ?? prev.fatherNameAr,
                         fatherNameEn: horse.englishName ?? prev.fatherNameEn,
+                        fatherPedigreeSummary: selectedParentSummary(horse),
                       }));
                     }}
                   />
@@ -771,12 +815,14 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                     placeholder={isRTL ? 'ابحث باسم الأم' : 'Search mother name'}
                     selectedId={formData.motherStudbookId}
                     selectedName={formData.motherStudbookId ? getLocalizedName(formData.motherNameEn, formData.motherNameAr, isRTL) : undefined}
+                    selectedDetails={formData.motherPedigreeSummary}
                     onSelect={(horse) => {
                       setFormData((prev) => ({
                         ...prev,
                         motherStudbookId: horse.id,
                         motherNameAr: horse.arabicName ?? prev.motherNameAr,
                         motherNameEn: horse.englishName ?? prev.motherNameEn,
+                        motherPedigreeSummary: selectedParentSummary(horse),
                       }));
                     }}
                   />
@@ -840,6 +886,11 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                     <option value="" className={`${isRTL ? 'text-right' : 'text-left'}`}>
                       {t('horses.height')}
                     </option>
+                    {heightOptions.map((height) => (
+                      <option key={height} value={String(height)} className={`${isRTL ? 'text-right' : 'text-left'}`}>
+                        {isRTL ? `${height} سم` : `${height} cm`}
+                      </option>
+                    ))}
                   </select>
 
                   <select
@@ -1062,7 +1113,7 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
 
             {currentStep === 4 && (
               <div className="space-y-6 md:space-y-10">
-                <div className="grid grid-cols-1 gap-4 md:gap-6 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 md:gap-6">
                   <div
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => handleFileDrop(e, 'image')}
@@ -1097,41 +1148,6 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                       }}
                     />
                   </div>
-
-                  <div
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => handleFileDrop(e, 'video')}
-                    onClick={() => videoInputRef.current?.click()}
-                    className="group flex min-h-[140px] md:min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-[4px] bg-[#F8F7EE] px-4 md:px-6 py-6 md:py-8 text-center transition hover:bg-[#f3f1e5]"
-                  >
-                    {videoFile ? (
-                      <video
-                        src={videoPreview}
-                        controls
-                        className="h-[100px] md:h-[140px] w-full rounded-xl object-cover"
-                      />
-                    ) : (
-                      <>
-                        <UploadCloudIcon />
-                        <p className="mt-2 md:mt-4 text-sm md:text-[17px] font-bold text-[#2D2018]">
-                          {t('horses.uploadVideo')}
-                        </p>
-                        <p className="mt-1 md:mt-2 text-xs md:text-sm text-[#8B8179]">
-                          {t('horses.supportedVideos')}
-                        </p>
-                      </>
-                    )}
-                    <input
-                      ref={videoInputRef}
-                      type="file"
-                      accept="video/mp4"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleVideoSelected(file);
-                      }}
-                    />
-                  </div>
                 </div>
 
                 <input
@@ -1146,78 +1162,79 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
               </div>
             )}
 
-            <div className="flex flex-col-reverse gap-3 pt-4 md:flex-row md:items-center md:justify-between md:pt-2 md:flex-row-reverse">
-              {submitError ? (
-                <div className="rounded-xl border border-[#f2c7c7] bg-[#fff3f3] px-4 py-3 text-sm text-[#b04444]">
-                  {submitError}
-                </div>
-              ) : null}
+          </form>
+        </div>
 
-              <button
-                type="button"
-                onClick={handleClose}
-                className="w-full rounded-[16px] border border-[#eadfd9] bg-white py-3 text-gray-700 transition hover:bg-gray-50 md:hidden"
-              >
-                {t('common.cancel')}
-              </button>
+        <div className="shrink-0 border-t border-[#eadfd9] bg-white/95 px-4 py-4 shadow-[0_-14px_30px_rgba(49,28,17,0.08)] backdrop-blur md:px-8 lg:px-10">
+          {submitError ? (
+            <div className="mb-3 rounded-xl border border-[#f2c7c7] bg-[#fff3f3] px-4 py-3 text-sm text-[#b04444]">
+              {submitError}
+            </div>
+          ) : null}
 
-              <div className="flex items-center flex-row justify-center gap-2 md:justify-start md:gap-3">
-                {currentStep > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep((p) => p - 1)}
-                    className={`flex items-center gap-2 rounded-[16px] border border-[#4A2B1A] bg-white px-4 md:px-6 py-3 font-semibold text-[#2b1a12] transition hover:bg-gray-50 ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}
-                  >
-                    <span className="text-lg leading-none">{isRTL ? '→' : '←'}</span>
-                    <span className="text-sm md:text-base">{t('common.back')}</span>
-                  </button>
-                )}
+          <div className="flex flex-col-reverse gap-3 md:flex-row md:items-center md:justify-between">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="h-12 w-full rounded-2xl border border-[#eadfd9] bg-white px-6 text-sm font-semibold text-[#5f554f] transition hover:bg-[#fbf8f4] md:w-auto md:min-w-[120px]"
+            >
+              {t('common.cancel')}
+            </button>
 
+            <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse justify-start' : 'justify-end'}`}>
+              {currentStep > 1 && (
                 <button
                   type="button"
-                  onClick={() => {
-                    if (currentStep === steps.length) {
-                      handleSubmit();
-                      return;
-                    }
-                    handleNext();
-                  }}
-                  disabled={submitting}
-                  className={`flex items-center gap-2 rounded-[16px] bg-[#4a2b1a] px-4 md:px-6 py-3 font-semibold text-white transition hover:opacity-90 ${false ? 'flex-row-reverse' : 'flex-row'}`}
+                  onClick={() => setCurrentStep((p) => p - 1)}
+                  className={`inline-flex h-12 min-w-[112px] items-center justify-center gap-2 rounded-2xl border-2 border-[#4A2B1A] bg-white px-5 text-sm font-semibold text-[#2b1a12] transition hover:bg-[#fbf8f4] ${
+                    isRTL ? 'flex-row-reverse' : 'flex-row'
+                  }`}
                 >
-                  <span className="text-sm md:text-base">{submitting ? t('common.loading') : currentStep === steps.length ? t('common.save') : t('common.next')}</span>
-                  {currentStep === steps.length && (
-                    <svg
-                      className="h-4 w-4 md:h-5 md:w-5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path
-                        d="M5 20h14a1 1 0 0 0 1-1V8.5L15.5 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      <path
-                        d="M8 20v-6h8v6M8 4v5h6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  )}
+                  <span className="text-lg leading-none">{isRTL ? '→' : '←'}</span>
+                  <span>{t('common.back')}</span>
                 </button>
-              </div>
+              )}
 
               <button
                 type="button"
-                onClick={handleClose}
-                className="hidden rounded-[16px] border border-[#eadfd9] bg-white px-8 py-3 text-gray-700 transition hover:bg-gray-50 md:block"
+                onClick={() => {
+                  if (currentStep === steps.length) {
+                    handleSubmit();
+                    return;
+                  }
+                  handleNext();
+                }}
+                disabled={submitting}
+                className={`inline-flex h-12 min-w-[132px] items-center justify-center gap-2 rounded-2xl bg-[#4a2b1a] px-6 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(74,43,26,0.2)] transition hover:bg-[#321d12] disabled:cursor-not-allowed disabled:opacity-60 ${
+                  isRTL ? 'flex-row-reverse' : 'flex-row'
+                }`}
               >
-                {t('common.cancel')}
+                <span>{submitting ? t('common.loading') : currentStep === steps.length ? t('common.save') : t('common.next')}</span>
+                {currentStep === steps.length ? (
+                  <svg
+                    className="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      d="M5 20h14a1 1 0 0 0 1-1V8.5L15.5 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M8 20v-6h8v6M8 4v5h6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                ) : (
+                  <span className="text-lg leading-none">{isRTL ? '←' : '→'}</span>
+                )}
               </button>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>

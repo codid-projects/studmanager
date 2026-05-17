@@ -25,7 +25,12 @@ export function TeamMemberModal({
   useBodyScrollLock(true);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
       <div className="w-full max-w-5xl rounded-[24px] bg-white px-8 py-6 shadow-2xl mx-4" dir="rtl">
         <div className="mb-10 flex items-start justify-between">
           <div className="flex items-center gap-3">

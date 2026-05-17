@@ -15,11 +15,13 @@ import {
 } from 'lucide-react';
 import { SearchIcon } from '@/components/layout/AppIcons';
 import { useLocale, useTranslation } from '@/lib/locale-context';
-import { initialTasks, type TaskStatus } from './types';
+import type { TaskStatus, TeamTask } from './types';
 import { TeamPagination } from './TeamPagination';
 
 interface TeamTasksPanelProps {
   onBackToMembers: () => void;
+  tasks: TeamTask[];
+  showBackButton?: boolean;
 }
 
 function TaskStatusBadge({ status }: { status: TaskStatus }) {
@@ -61,7 +63,7 @@ function TaskStatCard({ label, value, icon: Icon }: TaskStatCardProps) {
   );
 }
 
-export function TeamTasksPanel({ onBackToMembers }: TeamTasksPanelProps) {
+export function TeamTasksPanel({ onBackToMembers, tasks, showBackButton = true }: TeamTasksPanelProps) {
   const { direction } = useLocale();
   const { t } = useTranslation();
   const router = useRouter();
@@ -70,17 +72,17 @@ export function TeamTasksPanel({ onBackToMembers }: TeamTasksPanelProps) {
   const [query, setQuery] = useState('');
 
   const selectedTaskId = searchParams.get('task');
-  const selectedTask = initialTasks.find((task) => task.id === selectedTaskId) ?? null;
+  const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
 
   const filteredTasks = useMemo(() => {
-    if (!query.trim()) return initialTasks;
+    if (!query.trim()) return tasks;
 
-    return initialTasks.filter((task) =>
+    return tasks.filter((task) =>
       [task.title, task.description, task.assignee, task.dueDate].some((value) =>
         value.toLowerCase().includes(query.trim().toLowerCase())
       )
     );
-  }, [query]);
+  }, [query, tasks]);
 
   const updateParams = (updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -106,9 +108,9 @@ export function TeamTasksPanel({ onBackToMembers }: TeamTasksPanelProps) {
   };
 
   const stats = {
-    total: initialTasks.length,
-    inProgress: initialTasks.filter((task) => task.status === 'inProgress').length,
-    completed: initialTasks.filter((task) => task.status === 'completed').length,
+    total: tasks.length,
+    inProgress: tasks.filter((task) => task.status === 'inProgress').length,
+    completed: tasks.filter((task) => task.status === 'completed').length,
   };
 
   const BackIcon = direction === 'rtl' ? ArrowRight : ArrowLeft;
@@ -125,12 +127,14 @@ export function TeamTasksPanel({ onBackToMembers }: TeamTasksPanelProps) {
             <BackIcon className="h-5 w-5" />
           </button>
 
-          <button
-            onClick={onBackToMembers}
-            className="rounded-full border border-[#dbcabb] bg-white px-4 py-2.5 text-sm font-semibold text-[#4b2f1a] shadow-[0_10px_24px_rgba(91,53,24,0.08)]"
-          >
-            {t('team.backToMembers')}
-          </button>
+          {showBackButton ? (
+            <button
+              onClick={onBackToMembers}
+              className="rounded-full border border-[#dbcabb] bg-white px-4 py-2.5 text-sm font-semibold text-[#4b2f1a] shadow-[0_10px_24px_rgba(91,53,24,0.08)]"
+            >
+              {t('team.backToMembers')}
+            </button>
+          ) : null}
         </div>
 
         <section className="rounded-[30px] bg-white p-4 shadow-[0_18px_44px_rgba(91,53,24,0.07)] sm:p-6 lg:p-8">
@@ -209,12 +213,14 @@ export function TeamTasksPanel({ onBackToMembers }: TeamTasksPanelProps) {
           </div>
         </div>
 
-        <button
-          onClick={onBackToMembers}
-          className="rounded-[18px] border border-[#ddcdbd] bg-white px-5 py-3 text-sm font-semibold text-[#4b2f1a] shadow-[0_12px_26px_rgba(91,53,24,0.08)]"
-        >
-          {t('team.backToMembers')}
-        </button>
+        {showBackButton ? (
+          <button
+            onClick={onBackToMembers}
+            className="rounded-[18px] border border-[#ddcdbd] bg-white px-5 py-3 text-sm font-semibold text-[#4b2f1a] shadow-[0_12px_26px_rgba(91,53,24,0.08)]"
+          >
+            {t('team.backToMembers')}
+          </button>
+        ) : null}
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

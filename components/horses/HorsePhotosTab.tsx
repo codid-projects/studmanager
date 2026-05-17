@@ -6,21 +6,11 @@ interface HorsePhotosTabProps {
   horse?: any;
 }
 
-const DUMMY_PHOTOS = [
-  "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?w=1200&h=800&fit=crop",
-  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSSH6ACmKsSXoww14vYxz-6qqqhFPatON2446yUVxRxm0QcetZGEkJl7xFsVrzkrLphGYviSb3QeZru5yQ1d7Xoc0cn9vbd7NzvNAIZ7jQJ&s=10",
-  "https://images.unsplash.com/photo-1598974357801-cbca100e65d3?w=1200&h=800&fit=crop",
-  "https://images.unsplash.com/photo-1534073737927-85f1ebff1f5d?w=1200&h=800&fit=crop",
-  "https://images.unsplash.com/photo-1551884170-09fb70a3a2ed?w=1200&h=800&fit=crop",
-  "https://images.unsplash.com/photo-1523464862212-d6631d073194?w=1200&h=800&fit=crop",
-  "https://images.unsplash.com/photo-1493246507139-91e8bef99c02?w=1200&h=800&fit=crop",
-];
-
 export const HorsePhotosTab: FC<HorsePhotosTabProps> = ({ horse }) => {
   const { direction } = useLocale();
   const { t } = useTranslation();
   const isRTL = direction === "rtl";
-  const photos = horse?.raw?.images?.length ? horse.raw.images : DUMMY_PHOTOS;
+  const photos = horse?.raw?.images?.filter(Boolean) ?? [];
   
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
@@ -63,9 +53,9 @@ export const HorsePhotosTab: FC<HorsePhotosTabProps> = ({ horse }) => {
         {isRTL ? "الصور" : "Photos"}
       </h2>
       
-      {/* Justified-style layout using Flexbox */}
-      <div className="flex flex-wrap gap-3">
-        {photos.map((photo: string, i: number) => (
+      {photos.length ? (
+        <div className="flex flex-wrap gap-3">
+          {photos.map((photo: string, i: number) => (
           <div 
             key={i} 
             onClick={() => setSelectedIdx(i)}
@@ -91,12 +81,22 @@ export const HorsePhotosTab: FC<HorsePhotosTabProps> = ({ horse }) => {
                </div>
             </div>
           </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-[#d9c8ba] bg-white p-10 text-center text-sm text-[#7a6c63]">
+          {t("common.noRecordsFound")}
+        </div>
+      )}
 
       {/* Full Screen Modal */}
       {selectedIdx !== null && (
-        <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center backdrop-blur-sm">
+        <div
+          className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelectedIdx(null);
+          }}
+        >
           {/* Close Button */}
           <button 
             onClick={() => setSelectedIdx(null)}
@@ -106,7 +106,12 @@ export const HorsePhotosTab: FC<HorsePhotosTabProps> = ({ horse }) => {
           </button>
 
           {/* Main Stage */}
-          <div className="relative w-full h-full flex items-center justify-center p-4 md:p-20">
+          <div
+            className="relative w-full h-full flex items-center justify-center p-4 md:p-20"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setSelectedIdx(null);
+            }}
+          >
             {/* Arrows */}
             <button 
               onClick={(e) => { e.stopPropagation(); isRTL ? handleNext() : handlePrev(); }}
@@ -115,11 +120,17 @@ export const HorsePhotosTab: FC<HorsePhotosTabProps> = ({ horse }) => {
               {isRTL ? <ChevronRight className="w-10 h-10" /> : <ChevronLeft className="w-10 h-10" />}
             </button>
 
-            <div className="relative w-full h-full max-w-6xl max-h-[80vh] flex items-center justify-center">
+            <div
+              className="relative w-full h-full max-w-6xl max-h-[80vh] flex items-center justify-center"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) setSelectedIdx(null);
+              }}
+            >
               <img 
                 src={photos[selectedIdx]} 
                 alt="Selected horse" 
                 className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
+                onMouseDown={(event) => event.stopPropagation()}
               />
             </div>
 

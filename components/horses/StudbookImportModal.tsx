@@ -248,7 +248,12 @@ export function StudbookImportModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/40 p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/40 p-4"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
       <div
         dir={direction}
         className="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[16px] bg-white shadow-xl sm:rounded-[28px]"

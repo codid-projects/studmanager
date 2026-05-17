@@ -200,7 +200,13 @@ export const ExpensesModals = ({
 
     if (type === "delete") {
         return (
-            <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" dir={direction}>
+            <div
+                className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+                dir={direction}
+                onMouseDown={(event) => {
+                    if (event.target === event.currentTarget) onClose();
+                }}
+            >
                 <div className="bg-white rounded-[32px] w-full max-w-sm p-10 flex flex-col items-center shadow-xl font-cairo">
                     <div className="w-24 h-24 mb-6 text-[#c53b3b]">
                         <Trash2 className="w-full h-full stroke-1" />
@@ -333,7 +339,13 @@ export const ExpensesModals = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 overflow-y-auto" dir={direction}>
+        <div
+            className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 overflow-y-auto"
+            dir={direction}
+            onMouseDown={(event) => {
+                if (event.target === event.currentTarget) onClose();
+            }}
+        >
             <div className="bg-white rounded-[28px] w-full max-w-5xl p-6 md:p-8 relative shadow-xl my-8 font-cairo">
                 <div
                     className={`flex items-center mb-8 ${isRTL ? "flex-row-reverse justify-between" : "justify-between flex-row-reverse"

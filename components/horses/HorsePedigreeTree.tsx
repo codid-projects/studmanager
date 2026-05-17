@@ -411,9 +411,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
   };
 
   return (
-    <div
-      className="mx-auto mb-8 w-full max-w-[1500px]"
-    >
+    <div className="mx-auto mb-8 w-full max-w-none">
       <div
         className="mb-4 flex flex-col items-start gap-3 px-1 sm:flex-row sm:items-center sm:justify-between"
         dir={controlsVariant === "compact" && !showTitle ? "ltr" : undefined}
@@ -493,7 +491,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
 
       {isTreeLoading ? (
         <div className="rounded-[26px] bg-[#efeae5] p-3" dir="ltr" style={{ direction: "ltr" }}>
-          <div className="relative aspect-[1600/1200] min-w-[1500px] overflow-hidden rounded-[20px] bg-[#f7f3ee] shadow-[0_10px_30px_rgba(0,0,0,0.05)]" dir="ltr" style={{ direction: "ltr" }}>
+          <div className="relative aspect-[1600/1200] w-full overflow-hidden rounded-[20px] bg-[#f7f3ee] shadow-[0_10px_30px_rgba(0,0,0,0.05)]" dir="ltr" style={{ direction: "ltr" }}>
             <div className="grid h-full grid-cols-5 gap-x-4 px-8 py-10" dir="ltr" style={{ direction: "ltr" }}>
               {[4, 3, 2, 1, 0].map((columnIndex) => (
                 <div key={columnIndex} className="flex flex-col justify-around">
@@ -548,7 +546,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
         <div
           dir="ltr"
           ref={scrollerRef}
-          className={`w-full overflow-x-auto overflow-y-hidden rounded-[22px] ${
+          className={`w-full overflow-x-hidden overflow-y-hidden rounded-[22px] ${
             isFullscreen && !isMobileViewport
               ? "flex items-center justify-center overflow-hidden"
               : ""
@@ -575,8 +573,8 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
                   : isFullscreen
                     ? `min(96vw, calc((100dvh - 72px) * ${CERTIFICATE_ASPECT}))`
                     : "100%",
-              minWidth: isFullscreen && !isMobileViewport ? undefined : `${certificateMinWidth}px`,
-              maxWidth: isFullscreen ? undefined : "1500px",
+              minWidth: isFullscreen && isMobileViewport ? `${certificateMinWidth}px` : undefined,
+              maxWidth: isFullscreen ? undefined : "100%",
             }}
           >
             <img

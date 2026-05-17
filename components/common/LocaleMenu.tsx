@@ -58,7 +58,12 @@ export function LocaleMenu({ variant = 'desktop' }: LocaleMenuProps) {
         </button>
 
         {open && createPortal(
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6 md:hidden">
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6 md:hidden"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setOpen(false);
+            }}
+          >
             <div 
               ref={containerRef}
               className="w-full max-w-[20rem] overflow-hidden rounded-[30px] bg-white p-2 shadow-2xl animate-in fade-in zoom-in duration-200"

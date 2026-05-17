@@ -26,6 +26,7 @@ type SelectedHorse = {
   name: string;
   gender: string | null;
   dateofBirth: string | null;
+  locked?: boolean;
 };
 
 function unwrapHorse(payload: ApiResult<HorseInfoDto> | HorseInfoDto | null): HorseInfoDto | null {
@@ -41,6 +42,16 @@ function toSelectedHorse(item: ExternalHorseSearchItem, isArabic: boolean): Sele
     gender: item.gender,
     dateofBirth: item.dateofBirth,
   };
+}
+
+function isFemaleHorse(gender: string | null | undefined) {
+  const value = String(gender ?? "").toLowerCase();
+  return value.includes("female") || value.includes("mare") || value.includes("filly") || value.includes("أنث");
+}
+
+function isMaleHorse(gender: string | null | undefined) {
+  const value = String(gender ?? "").toLowerCase();
+  return value.includes("male") || value.includes("stallion") || value.includes("colt") || value.includes("ذكر");
 }
 
 function SearchHorsePicker({
@@ -110,7 +121,12 @@ function SearchHorsePicker({
 
       {selected ? (
         <div className="mt-3 rounded-2xl border border-[#d9c9bc] bg-[#f8f1ea] px-3 py-2 text-sm font-semibold text-[#3b2b20]">
-          {selected.name}
+          <div>{selected.name}</div>
+          {selected.locked ? (
+            <div className="mt-1 text-xs font-medium text-[#8a776b]">
+              {isArabic ? "الخيل الحالي من Studbook" : "Current Studbook horse"}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -208,9 +224,54 @@ export default function MatingTestPage() {
 
   const canShowAnalysis = Boolean(sourceHorse?.studbookId);
 
+  useEffect(() => {
+    if (!sourceHorse) return;
+
+    setMatingTree(null);
+    setMatingError("");
+
+    if (!sourceHorse.studbookId) {
+      setFather(null);
+      setMother(null);
+      return;
+    }
+
+    const currentHorse: SelectedHorse = {
+      id: sourceHorse.studbookId,
+      name: getLocalizedName(sourceHorse.englishName, sourceHorse.arabicName, isArabic),
+      gender: sourceHorse.gender,
+      dateofBirth: sourceHorse.dateofBirth,
+      locked: true,
+    };
+
+    if (isFemaleHorse(sourceHorse.gender)) {
+      setMother(currentHorse);
+      setFather((current) => current?.locked ? null : current);
+      return;
+    }
+
+    if (isMaleHorse(sourceHorse.gender)) {
+      setFather(currentHorse);
+      setMother((current) => current?.locked ? null : current);
+      return;
+    }
+
+    setFather(currentHorse);
+    setMother((current) => current?.locked ? null : current);
+  }, [sourceHorse, isArabic]);
+
   const handleRunTestMating = async () => {
     if (!father?.id || !mother?.id) {
-      setMatingError(isArabic ? "اختر الأب والأم من سجل الخيول أولاً." : "Select father and mother from the studbook first.");
+      if (!sourceHorse?.studbookId) {
+        setMatingError(
+          isArabic
+            ? "هذا الخيل لا يحتوي على رقم Studbook لاستخدامه في اختبار التزاوج."
+            : "This horse has no Studbook id for test mating.",
+        );
+        return;
+      }
+
+      setMatingError(isArabic ? "اختر الطرف الآخر من سجل الخيول أولاً." : "Select the other parent from the studbook first.");
       return;
     }
 

@@ -1,11 +1,11 @@
 "use client";
 
-import { FC, useState } from "react";
+import { FC, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useLocale } from "@/lib/locale-context";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import horsePlaceholder from "@/app/assets/imgs/horse-placehodler.png";
-import { X } from "lucide-react";
+import { Pencil, QrCode, X } from "lucide-react";
 
 interface Horse {
   id: string;
@@ -16,15 +16,22 @@ interface Horse {
   birthDate: string;
   features: number;
   image: string;
+  raw?: Record<string, any>;
 }
 
 interface HorseProfileHeaderProps {
   horse: Horse;
+  onEdit?: () => void;
+  fatherName?: string;
+  motherName?: string;
 }
 
-export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse }) => {
+export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse, onEdit, fatherName: pedigreeFatherName, motherName: pedigreeMotherName }) => {
   const { locale, direction } = useLocale();
   const isRTL = direction === "rtl";
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [coverSrc, setCoverSrc] = useState<string | typeof horsePlaceholder>(
     horse.image || horsePlaceholder,
   );
@@ -32,9 +39,53 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse }) => {
     horse.image || horsePlaceholder,
   );
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryMode, setSummaryMode] = useState<"qr" | "summary">("summary");
+  const [profileUrl, setProfileUrl] = useState("");
 
   const horseName = locale === "ar" ? horse.nameAr : horse.nameEn;
-  const router = useRouter();
+  const raw = horse.raw ?? {};
+  const cleanValue = (value?: string | null) => {
+    const next = typeof value === "string" ? value.trim() : "";
+    return next && next.toLowerCase() !== "null" && next.toLowerCase() !== "undefined" ? next : "";
+  };
+  const localized = (ar?: string | null, en?: string | null) =>
+    locale === "ar" ? cleanValue(ar) || cleanValue(en) || "-" : cleanValue(en) || cleanValue(ar) || "-";
+  const fatherName = cleanValue(pedigreeFatherName) || localized(
+    raw.horseFatherArabicName ?? raw.fatherArabicName ?? raw.sireArabicName,
+    raw.horseFatherEnglishName ?? raw.fatherEnglishName ?? raw.sireEnglishName,
+  );
+  const motherName = cleanValue(pedigreeMotherName) || localized(
+    raw.horseMotherArabicName ?? raw.motherArabicName ?? raw.damArabicName,
+    raw.horseMotherEnglishName ?? raw.motherEnglishName ?? raw.damEnglishName,
+  );
+  const summaryUrl = useMemo(() => {
+    if (!profileUrl) return "";
+    const url = new URL(profileUrl);
+    url.searchParams.set("horseSummary", "1");
+    return url.toString();
+  }, [profileUrl]);
+  const qrImageUrl = summaryUrl
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(summaryUrl)}`
+    : "";
+
+  useEffect(() => {
+    setProfileUrl(window.location.href);
+  }, []);
+
+  useEffect(() => {
+    if (searchParams.get("horseSummary") === "1") {
+      setSummaryMode("summary");
+      setSummaryOpen(true);
+    }
+  }, [searchParams]);
+
+  const closeSummary = () => {
+    setSummaryOpen(false);
+    if (searchParams.get("horseSummary") === "1") {
+      router.replace(pathname, { scroll: false });
+    }
+  };
 
   return (
     <div className="mb-8">
@@ -100,10 +151,35 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse }) => {
         </div>
 
         {/* Action Area */}
-        <div>
+        <div className={`flex flex-wrap items-center gap-3 ${isRTL ? "flex-row-reverse" : ""}`}>
+          {onEdit ? (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="flex h-12 items-center gap-2 rounded-xl border border-[#d9c9bd] bg-white px-4 text-[#3d2a1b] transition-colors hover:bg-[#fbf8f4] font-semibold"
+              aria-label={isRTL ? "تعديل الخيل" : "Edit horse"}
+            >
+              <Pencil className="h-5 w-5" />
+              <span>{isRTL ? "تعديل" : "Edit"}</span>
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={() => {
+              setSummaryMode("qr");
+              setSummaryOpen(true);
+            }}
+            className="flex h-12 items-center gap-2 rounded-xl border border-[#d9c9bd] bg-white px-4 text-[#3d2a1b] transition-colors hover:bg-[#fbf8f4] font-semibold"
+            aria-label={isRTL ? "رمز QR" : "QR code"}
+          >
+            <QrCode className="h-5 w-5" />
+            <span>{isRTL ? "QR" : "QR"}</span>
+          </button>
+
           <button
             onClick={() => router.push(`/${locale}/horses/${horse.id}/mating-test`)}
-            className="flex items-center gap-2 px-6 py-3 bg-[#3d2a1b] text-white rounded-xl hover:bg-[#2c1f14] transition-colors font-semibold text-lg"
+            className="flex h-12 items-center gap-2 px-5 bg-[#3d2a1b] text-white rounded-xl hover:bg-[#2c1f14] transition-colors font-semibold"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="10" cy="14" r="5" />
@@ -115,6 +191,54 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse }) => {
           </button>
         </div>
       </div>
+
+      {summaryOpen ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4" onClick={closeSummary}>
+          <div
+            dir={direction}
+            className="w-full max-w-md rounded-[24px] bg-white p-5 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h3 className="text-lg font-bold text-[#2b1a12]">
+                {isRTL ? "ملخص الخيل" : "Horse Summary"}
+              </h3>
+              <button
+                type="button"
+                onClick={closeSummary}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f7f1eb] text-[#3b2b20]"
+                aria-label={isRTL ? "إغلاق" : "Close"}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center gap-4">
+              {summaryMode === "qr" && qrImageUrl ? (
+                <img
+                  src={qrImageUrl}
+                  alt={isRTL ? "رمز QR لملف الخيل" : "Horse profile QR code"}
+                  className="h-56 w-56 rounded-2xl border border-[#eadfd9] bg-white p-3"
+                />
+              ) : null}
+
+              <div className="w-full rounded-2xl bg-[#fbf8f4] p-4 text-sm">
+                {[
+                  [isRTL ? "الاسم" : "Name", horseName],
+                  [isRTL ? "تاريخ الميلاد" : "Date of Birth", horse.birthDate || "-"],
+                  [isRTL ? "الأب" : "Father", fatherName],
+                  [isRTL ? "الأم" : "Mother", motherName],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between gap-4 border-b border-[#eadfd9] py-2 last:border-b-0">
+                    <span className="font-semibold text-[#7a6c63]">{label}</span>
+                    <span className="min-w-0 truncate font-bold text-[#2b1a12]">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

@@ -120,6 +120,13 @@ export async function createHorse(payload: CreateHorsePayload | FormData) {
   });
 }
 
+export async function updateHorse(localId: string | number, payload: CreateHorsePayload | FormData) {
+  return apiFetch<ApiResult<number> | ApiResult<null> | ApiResult<boolean>>(`/api/Horses/${localId}`, {
+    method: 'PUT',
+    body: payload instanceof FormData ? payload : buildCreateHorseFormData(payload),
+  });
+}
+
 export async function deleteHorse(localId: string | number) {
   return apiFetch<ApiResult<null> | ApiResult<boolean> | null>(`/api/Horses/${localId}`, {
     method: 'DELETE',

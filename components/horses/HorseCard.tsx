@@ -1,9 +1,9 @@
 'use client';
 
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Trash2 } from 'lucide-react';
+import { MoreVertical, Pencil, Trash2, X } from 'lucide-react';
 import { useLocale, useTranslation } from '@/lib/locale-context';
 import horsePlaceholder from '@/app/assets/imgs/horse-placehodler.png';
 
@@ -27,27 +27,18 @@ interface HorseCardProps {
 
 export const HorseCard: FC<HorseCardProps> = ({
   horse,
+  onEdit,
   onDelete,
 }) => {
   const { t } = useTranslation();
   const { direction, locale } = useLocale();
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   const horseName = locale === 'ar' ? horse.nameAr : horse.nameEn;
+  const hasActions = Boolean(onEdit || onDelete);
 
   return (
     <div className="relative pt-14 sm:pt-20">
-      {onDelete ? (
-        <button
-          type="button"
-          onClick={() => onDelete(horse.id)}
-          className="absolute right-2 top-16 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-[#f4d5d2] bg-white text-[#b3261e] shadow-sm transition hover:bg-[#fff3f3] sm:right-4 sm:top-24"
-          aria-label={t('common.delete')}
-          title={t('common.delete')}
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      ) : null}
-
       {/* Image */}
       <div className="absolute left-1/2 top-0 z-10 h-24 w-24 -translate-x-1/2 overflow-hidden rounded-full bg-gray-200 ring-[10px] ring-[#faf5f2] sm:h-36 sm:w-36 sm:ring-[16px]">
         <Image
@@ -64,6 +55,60 @@ export const HorseCard: FC<HorseCardProps> = ({
           direction === 'rtl' ? 'text-right' : 'text-left'
         }`}
       >
+        {hasActions ? (
+          <div className={`absolute top-16 z-30 sm:top-24 ${direction === 'rtl' ? 'left-3 sm:left-5' : 'right-3 sm:right-5'}`}>
+            <button
+              type="button"
+              onClick={() => setActionsOpen((open) => !open)}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-[#eadfd9] bg-white text-[#3b2314] shadow-sm transition hover:bg-[#fbf8f4]"
+              aria-label={actionsOpen ? (direction === 'rtl' ? 'إغلاق القائمة' : 'Close menu') : t('common.actions')}
+              title={actionsOpen ? (direction === 'rtl' ? 'إغلاق القائمة' : 'Close menu') : t('common.actions')}
+            >
+              {actionsOpen ? <X className="h-4 w-4" /> : <MoreVertical className="h-4 w-4" />}
+            </button>
+
+            {actionsOpen ? (
+              <div
+                className={`absolute top-11 min-w-32 overflow-hidden rounded-2xl border border-[#eadfd9] bg-white py-1 shadow-lg ${
+                  direction === 'rtl' ? 'left-0' : 'right-0'
+                }`}
+              >
+                {onEdit ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionsOpen(false);
+                      onEdit(horse.id);
+                    }}
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-sm font-semibold text-[#3b2314] transition hover:bg-[#fbf8f4] ${
+                      direction === 'rtl' ? 'flex-row-reverse text-right' : 'text-left'
+                    }`}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    <span>{t('common.edit')}</span>
+                  </button>
+                ) : null}
+
+                {onDelete ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionsOpen(false);
+                      onDelete(horse.id);
+                    }}
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-sm font-semibold text-[#b3261e] transition hover:bg-[#fff3f3] ${
+                      direction === 'rtl' ? 'flex-row-reverse text-right' : 'text-left'
+                    }`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>{t('common.delete')}</span>
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         {/* Horse name */}
         <h3 className="mb-4 truncate text-center text-sm font-bold text-[#3b2314] sm:mb-6 sm:text-xl">
           {horseName}

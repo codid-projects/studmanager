@@ -15,15 +15,29 @@ import {
   HorseProfileTabs,
   HorseVideosTab,
   HorseProfileSkeleton,
+  HorseFormModal,
 } from '@/components/horses';
+import type { HorseFormData } from '@/components/horses/HorseFormModal';
 import { RelatedHorsesTable } from '@/components/horses/profile/RelatedHorsesTable';
 import { clientApiFetch } from '@/lib/api/client';
-import { getExternalHorseDashboard, getHorseOffsprings, getHorseSiblings } from '@/lib/api/external-horses';
+import { buildCreateHorseFormData } from '@/lib/api/create-horse-form-data';
+import {
+  getExternalHorseDashboard,
+  getHorseFamilyAnalysisTree,
+  getHorseOffsprings,
+  getHorsePedigree,
+  getHorseSiblings,
+  normalizePagedList,
+} from '@/lib/api/external-horses';
 import { toProfileHorseModel } from '@/lib/api/horse-formatters';
+import { getLocalizedName } from '@/lib/api/localization';
 import { isDirectApiMode } from '@/lib/api/transport';
 import type {
   ApiResult,
+  CreateHorsePayload,
+  HorseFamilyTreeItem,
   HorseInfoDto,
+  HorsePedigreeNode,
   HorseListItemDto,
   ExternalHorseDashboardInformation,
   HorseSiblingsDto,
@@ -81,6 +95,86 @@ function toHorseInfoFallback(horse: HorseListItemDto): HorseInfoDto {
   };
 }
 
+function normalizePedigreeLevels(payload: unknown): HorsePedigreeNode[][] {
+  if (Array.isArray(payload)) {
+    return payload.filter(Array.isArray) as HorsePedigreeNode[][];
+  }
+
+  if (payload && typeof payload === 'object') {
+    const record = payload as Record<string, unknown>;
+
+    if (Array.isArray(record.ancestors)) {
+      const ancestors = record.ancestors.filter(Array.isArray) as HorsePedigreeNode[][];
+      return record.root ? [[record.root as HorsePedigreeNode], ...ancestors] : ancestors;
+    }
+
+    if (Array.isArray(record.data)) return normalizePedigreeLevels(record.data);
+    if (Array.isArray(record.levels)) return normalizePedigreeLevels(record.levels);
+  }
+
+  return [];
+}
+
+function directParentsFromPedigree(payload: unknown, isRTL: boolean) {
+  const levels = normalizePedigreeLevels(payload);
+  const root = levels[0]?.[0];
+  const directParentLevel = levels.find((level) => level.length >= 2 && level !== levels[0]) ??
+    (levels[0]?.length >= 2 ? levels[0] : []);
+
+  const fatherFromRoot = root
+    ? getLocalizedName(root.horseFatherEnglishName, root.horseFatherArabicName, isRTL)
+    : '';
+  const motherFromRoot = root
+    ? getLocalizedName(root.horseMotherEnglishName, root.horseMotherArabicName, isRTL)
+    : '';
+  const fatherNode = directParentLevel[0];
+  const motherNode = directParentLevel[1];
+
+  return {
+    fatherName: cleanParentName(fatherFromRoot)
+      ? cleanParentName(fatherFromRoot)
+      : fatherNode
+        ? cleanParentName(getLocalizedName(fatherNode.englishName, fatherNode.arabicName, isRTL))
+        : '',
+    motherName: cleanParentName(motherFromRoot)
+      ? cleanParentName(motherFromRoot)
+      : motherNode
+        ? cleanParentName(getLocalizedName(motherNode.englishName, motherNode.arabicName, isRTL))
+        : '',
+  };
+}
+
+function cleanParentName(value: string | null | undefined) {
+  const next = typeof value === 'string' ? value.trim() : '';
+  return next && next.toLowerCase() !== 'null' && next.toLowerCase() !== 'undefined' && next !== '-' ? next : '';
+}
+
+function directParentsFromFamilyTree(items: HorseFamilyTreeItem[], studbookId: number | null | undefined, isRTL: boolean) {
+  const parentNameFor = (item: HorseFamilyTreeItem) => {
+    const fatherName = cleanParentName(getLocalizedName(
+      item.horseFatherEnglishName,
+      item.horseFatherArabicName,
+      isRTL,
+    ));
+    const motherName = cleanParentName(getLocalizedName(
+      item.horseMotherEnglishName,
+      item.horseMotherArabicName,
+      isRTL,
+    ));
+
+    return { fatherName, motherName };
+  };
+
+  const currentHorse = items.find((item) => item.id === studbookId);
+
+  if (currentHorse) {
+    const parents = parentNameFor(currentHorse);
+    if (parents.fatherName || parents.motherName) return parents;
+  }
+
+  return { fatherName: '', motherName: '' };
+}
+
 export function HorseProfilePageClient({
   horseId,
   horse: initialHorse,
@@ -100,9 +194,113 @@ export function HorseProfilePageClient({
   const [relatedLoading, setRelatedLoading] = useState('');
   const [relatedError, setRelatedError] = useState('');
   const [dashboard, setDashboard] = useState<ExternalHorseDashboardInformation | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [pedigreeParents, setPedigreeParents] = useState({ fatherName: '', motherName: '' });
 
   const profileHorse = horse ? toProfileHorseModel(horse, locale as LocaleCode) : null;
   const hasVideos = Boolean(horse?.videos?.some((url) => url?.trim()));
+
+  const formatFormDate = (value: string | null | undefined) => {
+    if (!value) return '';
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+
+    return date.toISOString().slice(0, 10);
+  };
+
+  const editInitialData: HorseFormData | null = horse
+    ? {
+        nameAr: horse.arabicName ?? '',
+        nameEn: horse.englishName ?? '',
+        type: horse.type ?? '',
+        gender: horse.gender ?? '',
+        birthDate: formatFormDate(horse.dateofBirth),
+        description: horse.additionalInformation ?? '',
+        color: horse.color ?? '',
+        height: horse.height ?? '',
+        currentCountry: horse.currentlyIn ?? '',
+        birthCountry: horse.bornIn ?? '',
+        ownerName: horse.owner?.studArabicName ?? horse.owner?.studName ?? '',
+        breederName: horse.breeder?.studArabicName ?? horse.breeder?.studName ?? '',
+        faceMarks: horse.faceSpecialMarkings ?? '',
+        frontLeftLeg: horse.frontLeftLeg ?? '',
+        frontRightLeg: horse.frontRightLeg ?? '',
+        backLeftLeg: horse.backLeftLeg ?? '',
+        backRightLeg: horse.backRightLeg ?? '',
+        notes: horse.specialNotes ?? '',
+        registrationNumber: horse.registrationNumber ?? '',
+        microchipId: horse.microchipID ?? '',
+        feiRegistrationNumber: horse.internationalFEIRegistrationNumber ?? '',
+        nationalRegistrationNumber: horse.nationalSportRegistrationNumber ?? '',
+        uelnNumber: horse.uelnNumber ?? '',
+        passportNumber: horse.passportNumber ?? '',
+        breederPhoneNumber: horse.breeder?.primaryPhoneNumber ?? '',
+        ownerPhoneNumber: horse.owner?.primaryPhoneNumber ?? '',
+        breederEmail: horse.breeder?.studEmail ?? '',
+        ownerEmail: horse.owner?.studEmail ?? '',
+        image: horse.horseProfileImage ?? undefined,
+        imagePreview: horse.horseProfileImage ?? undefined,
+        videoLink: horse.videos?.[0] ?? '',
+      }
+    : null;
+
+  const toUpdatePayload = (data: HorseFormData): CreateHorsePayload => ({
+    EnglishName: data.nameEn,
+    ArabicName: data.nameAr,
+    DateofBirth: data.birthDate,
+    Gender: data.gender,
+    BornIn: data.birthCountry,
+    CurrentlyIn: data.currentCountry,
+    Color: data.color,
+    Height: data.height,
+    AdditionalInformation: data.description,
+    FaceSpecialMarkings: data.faceMarks,
+    FrontRightLeg: data.frontRightLeg,
+    FrontLeftLeg: data.frontLeftLeg,
+    BackRightLeg: data.backRightLeg,
+    BackLeftLeg: data.backLeftLeg,
+    SpecialNotes: data.notes,
+    RegistrationNumber: data.registrationNumber,
+    MicrochipID: data.microchipId,
+    UELNNumber: data.uelnNumber,
+    InternationalFEIRegistrationNumber: data.feiRegistrationNumber,
+    NationalSportRegistrationNumber: data.nationalRegistrationNumber,
+    PassportNumber: data.passportNumber,
+    HorseProfileImage: data.image instanceof File ? data.image : null,
+    Videos: data.videoLink ? [data.videoLink] : [],
+    HorseFatherStudbookId: data.fatherStudbookId,
+    HorseMotherStudbookId: data.motherStudbookId,
+    IsStallion: data.gender === 'Male',
+    IsMare: data.gender === 'Female',
+  });
+
+  const handleProfileEdit = async (data: HorseFormData) => {
+    if (!horseId) return;
+
+    const result = await clientApiFetch<ApiResult<number> | ApiResult<null> | ApiResult<boolean>>({
+      method: 'PUT',
+      backendPath: `/api/Horses/${horseId}`,
+      nextPath: `/api/horses/${horseId}`,
+      nextQuery: { locale },
+      locale: locale as LocaleCode,
+      body: buildCreateHorseFormData(toUpdatePayload(data)),
+    });
+
+    if (result?.succeeded === false) {
+      throw new Error(result.message || t('common.error'));
+    }
+
+    const refreshed = await clientApiFetch<ApiResult<HorseInfoDto> | HorseInfoDto>({
+      backendPath: `/api/Horses/${horseId}`,
+      nextPath: `/api/horses/${horseId}`,
+      nextQuery: { locale },
+      locale: locale as LocaleCode,
+    });
+
+    setHorse(unwrapResult(refreshed));
+    setIsEditOpen(false);
+  };
 
   useEffect(() => {
     if (isDirectApiMode) return;
@@ -205,6 +403,56 @@ export function HorseProfilePageClient({
   }, [horseId]);
 
   useEffect(() => {
+    if (!profileHorse?.studbookId) {
+      setPedigreeParents({ fatherName: '', motherName: '' });
+      return;
+    }
+
+    let mounted = true;
+
+    async function loadFamilyTreeParents() {
+      try {
+        const familyResult = await getHorseFamilyAnalysisTree({
+          studbookId: profileHorse?.studbookId as number,
+          levels: 1,
+          pageNumber: 1,
+          pageSize: 20,
+        });
+
+        if (!mounted) return;
+
+        const familyParents = directParentsFromFamilyTree(
+          normalizePagedList(familyResult).items,
+          profileHorse?.studbookId,
+          isRTL,
+        );
+
+        if (
+          (familyParents.fatherName && familyParents.fatherName !== '-') ||
+          (familyParents.motherName && familyParents.motherName !== '-')
+        ) {
+          setPedigreeParents(familyParents);
+          return;
+        }
+
+        const pedigreeResult = await getHorsePedigree({ studbookId: profileHorse?.studbookId as number, levels: 2 });
+
+        if (mounted) {
+          setPedigreeParents(directParentsFromPedigree(pedigreeResult.data, isRTL));
+        }
+      } catch {
+        if (mounted) setPedigreeParents({ fatherName: '', motherName: '' });
+      }
+    }
+
+    loadFamilyTreeParents();
+
+    return () => {
+      mounted = false;
+    };
+  }, [profileHorse?.studbookId, isRTL]);
+
+  useEffect(() => {
     if (activeTab === 'videos' && !hasVideos) {
       setActiveTab('info');
     }
@@ -304,7 +552,12 @@ export function HorseProfilePageClient({
           </div>
         ) : (
           <>
-            <HorseProfileHeader horse={profileHorse} />
+            <HorseProfileHeader
+              horse={profileHorse}
+              fatherName={pedigreeParents.fatherName}
+              motherName={pedigreeParents.motherName}
+              onEdit={() => setIsEditOpen(true)}
+            />
             <HorsePedigreeStats
               loading={!dashboard}
               horse={{
@@ -348,6 +601,14 @@ export function HorseProfilePageClient({
               )
             )}
             {activeTab === 'competition' && <HorseCompetitionTab horse={profileHorse} />}
+
+            <HorseFormModal
+              isOpen={isEditOpen}
+              isManual
+              initialData={editInitialData}
+              onClose={() => setIsEditOpen(false)}
+              onSubmit={handleProfileEdit}
+            />
           </>
         )}
       </div>

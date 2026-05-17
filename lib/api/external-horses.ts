@@ -67,6 +67,41 @@ function unwrap<T>(result: ApiResult<T> | T): ApiResult<T> {
   };
 }
 
+function normalizeTreePayload<T>(payload: unknown): T[][] {
+  const record = payload && typeof payload === 'object' ? payload as Record<string, unknown> : null;
+  const data = record?.data;
+  const dataRecord = data && typeof data === 'object' ? data as Record<string, unknown> : null;
+  const resultRecord = record?.result && typeof record.result === 'object' ? record.result as Record<string, unknown> : null;
+  const candidate =
+    dataRecord?.result ??
+    dataRecord?.data ??
+    data ??
+    resultRecord?.data ??
+    record?.result ??
+    payload;
+
+  if (Array.isArray(candidate)) {
+    if (candidate.every((level) => Array.isArray(level))) return candidate as T[][];
+    return [candidate as T[]];
+  }
+
+  if (candidate && typeof candidate === 'object') {
+    const candidateRecord = candidate as Record<string, unknown>;
+    const levelKeys = Object.keys(candidateRecord).filter((key) => /^level\d+$/i.test(key));
+
+    if (levelKeys.length) {
+      return levelKeys
+        .sort((a, b) => Number(a.replace(/\D/g, '')) - Number(b.replace(/\D/g, '')))
+        .map((key) => candidateRecord[key])
+        .filter(Array.isArray) as T[][];
+    }
+
+    return [[candidate as T]];
+  }
+
+  return [];
+}
+
 export const searchExternalHorses = async ({
   searchTerm,
   pageNumber = 1,
@@ -189,12 +224,20 @@ export const getTestMatingTree = async ({
   horseMotherStudbookId?: number;
   horseFatherStudbookId?: number;
   levels?: number;
-}): Promise<ApiResult<ExternalTreeNode[][]>> =>
-  clientApiFetch<ApiResult<ExternalTreeNode[][]>>({
-    backendPath: '/api/ExternalHorses/testmating',
-    nextPath: '/api/external-horses/testmating',
-    query: { horseMotherStudbookId, horseFatherStudbookId, levels },
+}): Promise<ApiResult<ExternalTreeNode[][]>> => {
+  const response = await clientApiFetch<ApiResult<ExternalTreeNode[][]> | ExternalTreeNode[][] | unknown>({
+    backendPath: '/api/Horses/TestMating',
+    nextPath: '/api/horses/testmating',
+    query: { horseMotherId: horseMotherStudbookId, horseFotherId: horseFatherStudbookId, levels },
   });
+
+  return {
+    succeeded: true,
+    message: null,
+    statusCode: 200,
+    data: normalizeTreePayload<ExternalTreeNode>(response),
+  };
+};
 
 export const getHorseEvents = async ({
   localHorseId,

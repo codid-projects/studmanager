@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import { useLocale, useTranslation } from '@/lib/locale-context';
 import { DashboardIcon } from './AppIcons';
 import { LocaleMenu } from '@/components/common/LocaleMenu';
@@ -29,12 +29,14 @@ interface SidebarItemProps {
   item: (typeof sidebarItems)[0];
   isActive: boolean;
   href: string;
+  collapsed?: boolean;
 }
 
-function SidebarItem({ item, isActive, href }: SidebarItemProps) {
+function SidebarItem({ item, isActive, href, collapsed = false }: SidebarItemProps) {
   const { t } = useTranslation();
   const { direction } = useLocale();
   const iconClassName = `h-5 w-5 flex-shrink-0 ${isActive ? 'text-[#4b2f1a]' : 'text-[#2b2330]'}`;
+  const label = t(`sidebar.${item.key}`);
 
   const renderIcon = () => {
     switch (item.key) {
@@ -154,9 +156,9 @@ function SidebarItem({ item, isActive, href }: SidebarItemProps) {
   };
 
   return (
-    <Link href={href} className="block">
+    <Link href={href} className="block" title={collapsed ? label : undefined}>
       <div
-        className={`relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-300 ${direction === 'rtl'
+        className={`relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-300 ${collapsed ? 'md:justify-center md:gap-0 md:px-0' : ''} ${direction === 'rtl'
           ? 'flex-row-reverse justify-end text-right'
           : 'flex-row justify-start text-left'
           } ${isActive
@@ -165,7 +167,13 @@ function SidebarItem({ item, isActive, href }: SidebarItemProps) {
           }`}
       >
         {direction !== 'rtl' && <span>{renderIcon()}</span>}
-        <span className="text-[0.82rem] font-semibold leading-tight">{t(`sidebar.${item.key}`)}</span>
+        <span
+          className={`overflow-hidden whitespace-nowrap text-[0.82rem] font-semibold leading-tight transition-all duration-300 ${
+            collapsed ? 'md:max-w-0 md:opacity-0' : 'md:max-w-[12rem] md:opacity-100'
+          }`}
+        >
+          {label}
+        </span>
         {direction === 'rtl' && <span>{renderIcon()}</span>}
       </div>
     </Link>
@@ -175,14 +183,23 @@ function SidebarItem({ item, isActive, href }: SidebarItemProps) {
 interface SidebarProps {
   open?: boolean;
   onClose?: () => void;
+  collapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
-export function Sidebar({ open = true, onClose }: SidebarProps) {
+export function Sidebar({ open = true, onClose, collapsed = false, onCollapsedChange }: SidebarProps) {
   const { locale, direction } = useLocale();
   const { t } = useTranslation();
   const pathname = usePathname();
   const router = useRouter();
   const isRTL = direction === 'rtl';
+  const ToggleIcon = isRTL
+    ? collapsed
+      ? ChevronLeft
+      : ChevronRight
+    : collapsed
+      ? ChevronRight
+      : ChevronLeft;
 
   const handleLogout = () => {
     clearAuthCookie();
@@ -192,17 +209,32 @@ export function Sidebar({ open = true, onClose }: SidebarProps) {
 
   return (
     <aside
-      className={`fixed z-50 flex h-full w-[17rem] flex-col overflow-y-auto rounded-none bg-white px-4 py-5 shadow-[0_20px_40px_rgba(96,56,23,0.08)] transition-transform duration-300 ease-in-out
-        md:top-8 md:z-20 md:h-[calc(100vh-4rem)] md:w-[17.5rem] md:rounded-[28px] md:px-5 md:py-6 md:translate-x-0
+      className={`fixed z-50 flex h-full w-[17rem] flex-col overflow-y-auto rounded-none bg-white px-4 py-5 shadow-[0_20px_40px_rgba(96,56,23,0.08)] transition-all duration-300 ease-in-out
+        md:top-8 md:z-20 md:h-[calc(100vh-4rem)] ${collapsed ? 'md:w-[5.5rem] md:px-3' : 'md:w-[17.5rem] md:px-5'} md:rounded-[28px] md:py-6 md:translate-x-0
         ${isRTL
           ? `top-0 right-0 md:right-10 ${open ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`
           : `top-0 left-0 md:left-10 ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`
         }`}
     >
-      <div className="mb-6 md:mb-8 flex justify-center">
+      <div className={`mb-6 flex items-center gap-3 md:mb-8 ${collapsed ? 'md:flex-col md:justify-center md:gap-2' : 'justify-between'}`}>
         <Link href={`/${locale}/dashboard`}>
-          <img src="/brand/logo.png" alt="StudManager" className="h-10 w-auto object-contain sm:h-12 md:h-16 cursor-pointer" />
+          <img
+            src={collapsed ? '/brand/icon.png' : '/brand/logo.png'}
+            alt="StudManager"
+            className={`h-10 w-auto cursor-pointer object-contain transition-all duration-300 sm:h-12 ${
+              collapsed ? 'md:h-10' : 'md:h-16'
+            }`}
+          />
         </Link>
+        <button
+          type="button"
+          onClick={() => onCollapsedChange?.(!collapsed)}
+          className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-[#eadfd6] bg-[#fbf8f4] text-[#4b2f1a] shadow-sm transition hover:bg-[#f8efe7] md:flex"
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <ToggleIcon className="h-4 w-4" />
+        </button>
       </div>
 
       <nav className="flex-1 space-y-1">
@@ -212,7 +244,7 @@ export function Sidebar({ open = true, onClose }: SidebarProps) {
           const isActive = pathname.startsWith(href);
           return (
             <div key={item.key} onClick={onClose}>
-              <SidebarItem item={item} isActive={isActive} href={href} />
+              <SidebarItem item={item} isActive={isActive} href={href} collapsed={collapsed} />
             </div>
           );
         })}
@@ -222,10 +254,19 @@ export function Sidebar({ open = true, onClose }: SidebarProps) {
             onClick={handleLogout}
             className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[#8d3a2a] transition-all duration-300 hover:bg-[#fff1ea] ${
               direction === 'rtl' ? 'flex-row-reverse justify-end text-right' : 'flex-row justify-start text-left'
+            } ${
+              collapsed ? 'md:justify-center md:gap-0 md:px-0' : ''
             }`}
+            title={collapsed ? t('common.logout') : undefined}
           >
             <LogOut className="h-5 w-5 flex-shrink-0" />
-            <span className="text-[0.82rem] font-semibold leading-tight">{t('common.logout')}</span>
+            <span
+              className={`overflow-hidden whitespace-nowrap text-[0.82rem] font-semibold leading-tight transition-all duration-300 ${
+                collapsed ? 'md:max-w-0 md:opacity-0' : 'md:max-w-[12rem] md:opacity-100'
+              }`}
+            >
+              {t('common.logout')}
+            </span>
           </button>
         </div>
 

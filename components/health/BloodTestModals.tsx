@@ -26,7 +26,13 @@ export const BloodTestModals = ({ isOpen, type, onClose, recordData, categoryTit
   // Handle Delete Modal specifically which has a very different layout
   if (type === "delete") {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 p-3 sm:p-4" dir={direction}>
+      <div
+        className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/40 p-3 sm:p-4"
+        dir={direction}
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) onClose();
+        }}
+      >
         <div className="relative flex w-full max-w-sm flex-col items-center rounded-[28px] bg-white p-6 shadow-xl sm:rounded-[32px] sm:p-10">
           <div className="mb-5 h-20 w-20 text-[#c53b3b] sm:mb-6 sm:h-24 sm:w-24">
              <Trash2 className="w-full h-full stroke-1" />
@@ -57,7 +63,13 @@ export const BloodTestModals = ({ isOpen, type, onClose, recordData, categoryTit
   const modalTitle = type === "add" ? `سجل جديد ل${fallbackTitle}` : `تعديل سجل ${fallbackTitle}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-3 sm:p-4" dir={direction}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-3 sm:p-4"
+      dir={direction}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
       <div className="relative my-3 flex max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] bg-white font-cairo shadow-xl sm:my-8 sm:max-h-[calc(100dvh-4rem)] sm:rounded-3xl">
         
         {/* Header */}
