@@ -27,6 +27,7 @@ export const HORSE_COLOR_TRANSLATIONS: Record<string, { en: string; ar: string }
 };
 
 export const COUNTRY_TRANSLATIONS: Record<string, { en: string; ar: string }> = {
+  egy: { en: 'Egypt', ar: 'مصر' },
   egypt: { en: 'Egypt', ar: 'مصر' },
   'saudi arabia': { en: 'Saudi Arabia', ar: 'السعودية' },
   libya: { en: 'Libya', ar: 'ليبيا' },

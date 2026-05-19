@@ -50,6 +50,7 @@ export interface LoginRequestDto {
 
 export interface HorseListItemDto {
   id: number;
+  localId?: number | null;
   englishName: string | null;
   arabicName: string | null;
   knownAs: string | null;
@@ -57,6 +58,7 @@ export interface HorseListItemDto {
   gender: string | null;
   color: string | null;
   horseProfileImage: string | null;
+  images?: Array<string | HorseAttachmentDto> | null;
   strainEn: string | null;
   strainAr: string | null;
   specialEn: string | null;
@@ -74,6 +76,11 @@ export interface StudDto {
   registrationNumber: string | null;
   video: string | null;
   studProfileImage: string | null;
+}
+
+export interface HorseAttachmentDto {
+  id: number;
+  url: string | null;
 }
 
 export interface HorseInfoDto extends HorseListItemDto {
@@ -95,8 +102,8 @@ export interface HorseInfoDto extends HorseListItemDto {
   internationalFEIRegistrationNumber: string | null;
   nationalSportRegistrationNumber: string | null;
   passportNumber: string | null;
-  images: string[] | null;
-  videos: string[] | null;
+  images: Array<string | HorseAttachmentDto> | null;
+  videos: Array<string | HorseAttachmentDto> | null;
   isStallion: boolean;
   isMare: boolean;
   isStrain: boolean;
@@ -111,6 +118,7 @@ export interface StudbookHorseDto {
   arabicName: string | null;
   knownAs: string | null;
   horseProfileImage: string | null;
+  images?: Array<string | HorseAttachmentDto> | null;
   horseFatherId: number | null;
   horseMotherId: number | null;
   horseFatherArabicName: string | null;
@@ -152,6 +160,7 @@ export type CreateHorsePayload = {
   ArabicName?: string;
   KnownAs?: string;
   HorseProfileImage?: UploadFilePayload | File | null;
+  ClearHorseProfileImage?: boolean;
   StrainEn?: string;
   StrainAr?: string;
   SpecialEn?: string;
@@ -177,6 +186,10 @@ export type CreateHorsePayload = {
   PassportNumber?: string;
   Images?: Array<UploadFilePayload | File>;
   Videos?: string[];
+  RemoveImageIds?: number[];
+  NewImages?: Array<UploadFilePayload | File>;
+  RemoveVideoIds?: number[];
+  NewVideos?: string[];
   HorseFatherStudbookId?: number;
   HorseMotherStudbookId?: number;
   OwnerStudbookId?: number;
@@ -185,6 +198,7 @@ export type CreateHorsePayload = {
   IsMare?: boolean;
   IsStrain?: boolean;
   IsSpecial?: boolean;
+  Box?: string;
 };
 
 export type ExternalCountsDto = {
@@ -208,6 +222,45 @@ export type HorsePedigreeNode = {
   horseMotherId: number | null;
   horseMotherEnglishName: string | null;
   horseMotherArabicName: string | null;
+  gender?: string | null;
+  dateofBirth?: string | null;
+  generationLevel?: number | null;
+  isStrain?: boolean | null;
+  isSpecial?: boolean | null;
+};
+
+export type ExternalHorseSummaryItem = {
+  id: number;
+  englishName: string | null;
+  arabicName: string | null;
+  knownAs?: string | null;
+  gender: string | null;
+  dateofBirth: string | null;
+  bornIn?: string | null;
+  currentlyIn?: string | null;
+  color?: string | null;
+  height?: string | null;
+  additionalInformation?: string | null;
+  horseProfileImage?: string | null;
+  images?: Array<string | HorseAttachmentDto> | null;
+  videos?: Array<string | HorseAttachmentDto> | null;
+  horseFatherId: number | null;
+  horseMotherId: number | null;
+  horseFatherEnglishName?: string | null;
+  horseFatherArabicName?: string | null;
+  horseMotherEnglishName?: string | null;
+  horseMotherArabicName?: string | null;
+  ownerId?: number | null;
+  breederId?: number | null;
+  isStallion?: boolean | null;
+  isMare?: boolean | null;
+  isVerified?: boolean | null;
+  isActive?: boolean | null;
+  studBreeder?: string | StudDto | null;
+  studOwner?: string | StudDto | null;
+  generationLevel?: number | null;
+  isStrain?: boolean | null;
+  isSpecial?: boolean | null;
 };
 
 export type HorseFamilyTreeItem = {

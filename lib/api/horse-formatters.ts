@@ -22,6 +22,15 @@ function firstPresent(...values: Array<string | null | undefined>) {
   return values.find((value) => value && value.trim()) ?? null;
 }
 
+export function mediaUrl(value: string | { url?: string | null } | null | undefined) {
+  if (typeof value === 'string') return value;
+  return value?.url ?? null;
+}
+
+export function mediaUrls(values: Array<string | { url?: string | null }> | null | undefined) {
+  return (values ?? []).map(mediaUrl).filter((url): url is string => Boolean(url?.trim()));
+}
+
 function horseMeta(
   locale: LocaleCode,
   candidates: Array<{ labelAr: string; labelEn: string; value: string | null | undefined }>,
@@ -75,6 +84,7 @@ export function horseDisplayName(
 }
 
 export function toHorseCardModel(horse: HorseListItemDto, locale: LocaleCode) {
+  const localId = horse.localId ?? horse.id;
   const meta = horseMeta(locale, [
     { labelAr: 'اللون', labelEn: 'Color', value: horse.color ? localizeColor(horse.color, locale) : null },
     { labelAr: 'السلالة', labelEn: 'Strain', value: firstPresent(horse.strainAr, horse.strainEn) },
@@ -82,13 +92,13 @@ export function toHorseCardModel(horse: HorseListItemDto, locale: LocaleCode) {
   ]);
 
   return {
-    id: String(horse.id),
+    id: String(localId),
     nameAr: horse.arabicName ?? horse.englishName ?? '-',
     nameEn: horse.englishName ?? horse.arabicName ?? '-',
     type: localizeGender(horse.gender, locale),
     birthDate: formatDate(horse.dateofBirth),
     ...meta,
-    image: horse.horseProfileImage || DEFAULT_HORSE_IMAGE,
+    image: horse.horseProfileImage || mediaUrl(horse.images?.[0]) || DEFAULT_HORSE_IMAGE,
     gender: horse.gender ?? '',
   };
 }
@@ -108,7 +118,7 @@ export function toStudbookCardModel(horse: StudbookHorseDto, locale: LocaleCode)
     nameEn: horse.englishName ?? horse.arabicName ?? '-',
     type: localizeGender(horse.gender, locale),
     birthDate: formatDate(horse.dateofBirth),
-    image: horse.horseProfileImage || DEFAULT_HORSE_IMAGE,
+    image: horse.horseProfileImage || mediaUrl(horse.images?.[0]) || DEFAULT_HORSE_IMAGE,
     ...meta,
     strain: horse.strain,
     specialLine: horse.specialLine,
@@ -118,8 +128,11 @@ export function toStudbookCardModel(horse: StudbookHorseDto, locale: LocaleCode)
 }
 
 export function toProfileHorseModel(horse: HorseInfoDto, locale: LocaleCode) {
+  const localId = horse.localId ?? horse.id;
+
   return {
-    id: String(horse.id),
+    id: String(localId),
+    localId,
     studbookId: horse.studbookId,
     nameAr: horse.arabicName ?? horse.englishName ?? '-',
     nameEn: horse.englishName ?? horse.arabicName ?? '-',

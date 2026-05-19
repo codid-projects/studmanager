@@ -57,11 +57,13 @@ function isMaleHorse(gender: string | null | undefined) {
 function SearchHorsePicker({
   label,
   placeholder,
+  gender,
   selected,
   onSelect,
 }: {
   label: string;
   placeholder: string;
+  gender: "Male" | "Female";
   selected: SelectedHorse | null;
   onSelect: (horse: SelectedHorse) => void;
 }) {
@@ -70,15 +72,15 @@ function SearchHorsePicker({
   const isRTL = direction === "rtl";
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ExternalHorseSearchItem[]>([]);
+  const [open, setOpen] = useState(false);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (query.trim().length < 2) {
-      setResults([]);
-      setError("");
-      return;
-    }
+    if (!open) return;
 
     const timeout = window.setTimeout(async () => {
       setLoading(true);
@@ -86,11 +88,15 @@ function SearchHorsePicker({
 
       try {
         const response = await searchExternalHorses({
-          searchTerm: query.trim(),
-          pageNumber: 1,
+          searchTerm: query.trim() || undefined,
+          gender,
+          pageNumber,
           pageSize: 8,
         });
-        setResults(normalizePagedList(response).items);
+        const page = normalizePagedList(response);
+        setResults(page.items);
+        setTotalPages(page.totalPages);
+        setTotalCount(page.totalCount);
       } catch (requestError) {
         setError(
           requestError instanceof Error
@@ -105,19 +111,23 @@ function SearchHorsePicker({
     }, 350);
 
     return () => window.clearTimeout(timeout);
-  }, [query, isArabic]);
+  }, [open, query, gender, pageNumber, isArabic]);
 
   return (
     <div className="rounded-[20px] border border-[#d8c9bd] bg-white/80 p-4 shadow-sm">
       <label className="mb-2 block text-sm font-bold text-[#3b2b20]">{label}</label>
-      <input
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder={selected ? selected.name : placeholder}
-        className={`h-12 w-full rounded-2xl border border-[#cdbfb3] bg-white px-4 text-sm font-semibold text-[#45342b] outline-none transition placeholder:text-[#8c7d72] focus:border-[#3b2b20] ${
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true);
+          setPageNumber(1);
+        }}
+        className={`h-12 w-full rounded-2xl border border-[#cdbfb3] bg-white px-4 text-sm font-semibold text-[#45342b] outline-none transition hover:bg-[#faf6f1] ${
           isRTL ? "text-right" : "text-left"
         }`}
-      />
+      >
+        {selected ? selected.name : placeholder}
+      </button>
 
       {selected ? (
         <div className="mt-3 rounded-2xl border border-[#d9c9bc] bg-[#f8f1ea] px-3 py-2 text-sm font-semibold text-[#3b2b20]">
@@ -130,35 +140,73 @@ function SearchHorsePicker({
         </div>
       ) : null}
 
-      {loading ? (
-        <div className="mt-3 text-sm text-[#7a6c63]">{isArabic ? "جارٍ البحث..." : "Searching..."}</div>
-      ) : null}
-      {error ? <div className="mt-3 text-sm text-[#b04444]">{error}</div> : null}
-
-      {results.length ? (
-        <div className="mt-3 max-h-64 overflow-y-auto rounded-2xl border border-[#eadfd9] bg-white">
-          {results.map((horse) => {
-            const name = getLocalizedName(horse.englishName, horse.arabicName, isArabic);
-            return (
-              <button
-                key={horse.id}
-                type="button"
-                onClick={() => {
-                  onSelect(toSelectedHorse(horse, isArabic));
-                  setQuery("");
-                  setResults([]);
-                }}
-                className={`flex w-full items-center justify-between gap-3 border-b border-[#f1e8e1] px-4 py-3 text-sm transition last:border-b-0 hover:bg-[#faf6f1] ${
-                  isRTL ? "text-right" : "text-left"
-                }`}
-              >
-                <span className="font-semibold text-[#2f2740]">{name}</span>
-                <span className="shrink-0 text-xs text-[#8a776b]">
-                  {horse.dateofBirth?.slice(0, 4) || "-"}
-                </span>
+      {open ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setOpen(false);
+          }}
+        >
+          <div dir={direction} className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-[24px] bg-white p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-[#2b1a12]">{label}</h3>
+                <p className="mt-1 text-xs text-[#7a6c63]">
+                  {totalCount ? `${totalCount} ${isArabic ? "نتيجة" : "results"}` : placeholder}
+                </p>
+              </div>
+              <button type="button" onClick={() => setOpen(false)} className="h-9 w-9 rounded-full bg-[#f7f1eb] text-xl text-[#3b2b20]">×</button>
+            </div>
+            <input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPageNumber(1);
+              }}
+              placeholder={placeholder}
+              className={`mb-3 h-11 rounded-xl border border-[#d8cec8] bg-white px-3 text-sm outline-none focus:border-[#5a3b25] ${isRTL ? "text-right" : "text-left"}`}
+            />
+            {loading ? <div className="py-8 text-center text-sm text-[#7a6c63]">{isArabic ? "جارٍ التحميل..." : "Loading..."}</div> : null}
+            {error ? <div className="mb-3 rounded-xl bg-[#fff3f3] px-3 py-2 text-xs text-[#b04444]">{error}</div> : null}
+            {!loading ? (
+              <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-[#eadfd9]">
+                {results.length ? results.map((horse) => {
+                  const name = getLocalizedName(horse.englishName, horse.arabicName, isArabic);
+                  return (
+                    <button
+                      key={horse.id}
+                      type="button"
+                      onClick={() => {
+                        onSelect(toSelectedHorse(horse, isArabic));
+                        setOpen(false);
+                        setQuery("");
+                        setResults([]);
+                      }}
+                      className={`flex w-full items-center justify-between gap-3 border-b border-[#f1e8e1] px-4 py-3 text-sm transition last:border-b-0 hover:bg-[#faf6f1] ${
+                        isRTL ? "text-right" : "text-left"
+                      }`}
+                    >
+                      <span className="font-semibold text-[#2f2740]">{name}</span>
+                      <span className="shrink-0 text-xs text-[#8a776b]">
+                        {horse.dateofBirth?.slice(0, 4) || "-"}
+                      </span>
+                    </button>
+                  );
+                }) : (
+                  <div className="py-8 text-center text-sm text-[#7a6c63]">{isArabic ? "لا توجد نتائج" : "No results found"}</div>
+                )}
+              </div>
+            ) : null}
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <button type="button" disabled={pageNumber <= 1 || loading} onClick={() => setPageNumber((page) => Math.max(1, page - 1))} className="rounded-xl border border-[#eadfd9] px-4 py-2 text-sm font-semibold text-[#3b2b20] disabled:opacity-40">
+                {isArabic ? "السابق" : "Previous"}
               </button>
-            );
-          })}
+              <span className="text-xs font-semibold text-[#7a6c63]">{pageNumber} / {Math.max(1, totalPages)}</span>
+              <button type="button" disabled={pageNumber >= totalPages || loading} onClick={() => setPageNumber((page) => page + 1)} className="rounded-xl border border-[#eadfd9] px-4 py-2 text-sm font-semibold text-[#3b2b20] disabled:opacity-40">
+                {isArabic ? "التالي" : "Next"}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>
@@ -222,7 +270,7 @@ export default function MatingTestPage() {
     return getLocalizedName(sourceHorse.englishName, sourceHorse.arabicName, isArabic);
   }, [sourceHorse, isArabic]);
 
-  const canShowAnalysis = Boolean(sourceHorse?.studbookId);
+  const canShowAnalysis = Boolean(localHorseId);
 
   useEffect(() => {
     if (!sourceHorse) return;
@@ -388,12 +436,14 @@ export default function MatingTestPage() {
               <SearchHorsePicker
                 label={t("database.fatherName")}
                 placeholder={isArabic ? "ابحث عن الأب في سجل الخيول" : "Search father in studbook"}
+                gender="Male"
                 selected={father}
                 onSelect={setFather}
               />
               <SearchHorsePicker
                 label={t("database.motherName")}
                 placeholder={isArabic ? "ابحث عن الأم في سجل الخيول" : "Search mother in studbook"}
+                gender="Female"
                 selected={mother}
                 onSelect={setMother}
               />
@@ -444,7 +494,7 @@ export default function MatingTestPage() {
                 <span className="text-[#3b2b20]">{sourceName || "-"}</span>
               </p>
             </div>
-            <HorseAnalyticsTab studbookId={sourceHorse?.studbookId} />
+            <HorseAnalyticsTab localId={localHorseId} />
           </div>
         ) : null}
       </div>

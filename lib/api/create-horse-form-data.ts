@@ -52,6 +52,7 @@ export const buildCreateHorseFormData = (payload: CreateHorsePayload) => {
   appendValue(formData, 'ArabicName', payload.ArabicName);
   appendValue(formData, 'KnownAs', payload.KnownAs);
   appendFile(formData, 'HorseProfileImage', payload.HorseProfileImage);
+  appendValue(formData, 'ClearHorseProfileImage', payload.ClearHorseProfileImage);
 
   appendValue(formData, 'StrainEn', payload.StrainEn);
   appendValue(formData, 'StrainAr', payload.StrainAr);
@@ -81,7 +82,11 @@ export const buildCreateHorseFormData = (payload: CreateHorsePayload) => {
   appendValue(formData, 'PassportNumber', payload.PassportNumber);
 
   payload.Images?.forEach((image) => appendFile(formData, 'Images', image));
+  payload.NewImages?.forEach((image) => appendFile(formData, 'NewImages', image));
+  payload.RemoveImageIds?.forEach((id) => appendValue(formData, 'RemoveImageIds', id));
   payload.Videos?.forEach((video) => appendValue(formData, 'Videos', video));
+  payload.NewVideos?.forEach((video) => appendValue(formData, 'NewVideos', video));
+  payload.RemoveVideoIds?.forEach((id) => appendValue(formData, 'RemoveVideoIds', id));
 
   appendValue(formData, 'HorseFatherStudbookId', payload.HorseFatherStudbookId);
   appendValue(formData, 'HorseMotherStudbookId', payload.HorseMotherStudbookId);
@@ -92,6 +97,7 @@ export const buildCreateHorseFormData = (payload: CreateHorsePayload) => {
   appendValue(formData, 'IsMare', payload.IsMare);
   appendValue(formData, 'IsStrain', payload.IsStrain);
   appendValue(formData, 'IsSpecial', payload.IsSpecial);
+  appendValue(formData, 'Box', payload.Box);
 
   return formData;
 };

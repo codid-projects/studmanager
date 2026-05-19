@@ -3,9 +3,9 @@
 import { FC, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslation } from '@/lib/locale-context';
 import { COUNTRY_TRANSLATIONS, HORSE_COLOR_TRANSLATIONS } from '@/lib/api/localization';
-import { normalizePagedList, searchExternalHorses } from '@/lib/api/external-horses';
+import { normalizePagedList, searchExternalHorses, searchExternalStuds } from '@/lib/api/external-horses';
 import { getLocalizedName } from '@/lib/api/localization';
-import type { ExternalHorseSearchItem } from '@/lib/api/types';
+import type { ExternalHorseSearchItem, ExternalStudSearchItem } from '@/lib/api/types';
 
 interface HorseFormModalProps {
   isOpen: boolean;
@@ -19,6 +19,7 @@ interface HorseFormModalProps {
 export interface HorseFormData {
   nameAr: string;
   nameEn: string;
+  knownAs?: string;
   type: string;
   gender: string;
   birthDate: string;
@@ -26,6 +27,9 @@ export interface HorseFormData {
   description?: string;
   image?: File | string;
   imagePreview?: string;
+  existingImages?: Array<{ id: number; url: string }>;
+  newImages?: File[];
+  removeImageIds?: number[];
 
   fatherNameAr?: string;
   fatherNameEn?: string;
@@ -41,7 +45,9 @@ export interface HorseFormData {
   currentCountry?: string;
   birthCountry?: string;
   ownerName?: string;
+  ownerStudbookId?: number;
   breederName?: string;
+  breederStudbookId?: number;
   faceMarks?: string;
   frontLeftLeg?: string;
   frontRightLeg?: string;
@@ -55,10 +61,6 @@ export interface HorseFormData {
   nationalRegistrationNumber?: string;
   uelnNumber?: string;
   passportNumber?: string;
-  breederPhoneNumber?: string;
-  ownerPhoneNumber?: string;
-  breederEmail?: string;
-  ownerEmail?: string;
 
   videoLink?: string;
 }
@@ -66,6 +68,7 @@ export interface HorseFormData {
 const emptyFormData: HorseFormData = {
   nameAr: '',
   nameEn: '',
+  knownAs: '',
   type: '',
   gender: '',
   birthDate: '',
@@ -84,7 +87,9 @@ const emptyFormData: HorseFormData = {
   currentCountry: '',
   birthCountry: '',
   ownerName: '',
+  ownerStudbookId: undefined,
   breederName: '',
+  breederStudbookId: undefined,
   faceMarks: '',
   frontLeftLeg: '',
   frontRightLeg: '',
@@ -97,11 +102,10 @@ const emptyFormData: HorseFormData = {
   nationalRegistrationNumber: '',
   uelnNumber: '',
   passportNumber: '',
-  breederPhoneNumber: '',
-  ownerPhoneNumber: '',
-  breederEmail: '',
-  ownerEmail: '',
   videoLink: '',
+  existingImages: [],
+  newImages: [],
+  removeImageIds: [],
 };
 
 type MarkingOption = {
@@ -139,7 +143,6 @@ const BACK_LEG_OPTIONS: MarkingOption[] = [
 ];
 
 const ARABIC_ONLY_REGEX = /^[\u0600-\u06FF\s]+$/;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const YOUTUBE_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/i;
 
 function FieldError({ message }: { message?: string }) {
@@ -233,6 +236,7 @@ function MarkingPicker({
 function StudbookParentPicker({
   label,
   placeholder,
+  gender,
   selectedId,
   selectedName,
   selectedDetails,
@@ -240,6 +244,7 @@ function StudbookParentPicker({
 }: {
   label: string;
   placeholder: string;
+  gender?: 'Male' | 'Female';
   selectedId?: number;
   selectedName?: string;
   selectedDetails?: string;
@@ -250,6 +255,10 @@ function StudbookParentPicker({
   const isArabic = locale === 'ar';
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ExternalHorseSearchItem[]>([]);
+  const [open, setOpen] = useState(false);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -268,11 +277,7 @@ function StudbookParentPicker({
   };
 
   useEffect(() => {
-    if (query.trim().length < 2) {
-      setResults([]);
-      setError('');
-      return;
-    }
+    if (!open) return;
 
     const timer = window.setTimeout(async () => {
       setLoading(true);
@@ -280,11 +285,15 @@ function StudbookParentPicker({
 
       try {
         const result = await searchExternalHorses({
-          searchTerm: query.trim(),
-          pageNumber: 1,
+          searchTerm: query.trim() || undefined,
+          gender,
+          pageNumber,
           pageSize: 6,
         });
-        setResults(normalizePagedList(result).items);
+        const page = normalizePagedList(result);
+        setResults(page.items);
+        setTotalPages(page.totalPages);
+        setTotalCount(page.totalCount);
       } catch (requestError) {
         setError(
           requestError instanceof Error
@@ -299,19 +308,23 @@ function StudbookParentPicker({
     }, 350);
 
     return () => window.clearTimeout(timer);
-  }, [query, isArabic]);
+  }, [open, query, gender, pageNumber, isArabic]);
 
   return (
     <div className="rounded-2xl border border-[#eadfd9] bg-[#fffaf6] p-3">
       <label className="mb-2 block text-xs font-bold text-[#4a2b1a]">{label}</label>
-      <input
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder={selectedName || placeholder}
-        className={`h-11 w-full rounded-xl border border-[#d8cec8] bg-white px-3 text-sm outline-none focus:border-[#5a3b25] ${
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true);
+          setPageNumber(1);
+        }}
+        className={`h-11 w-full rounded-xl border border-[#d8cec8] bg-white px-3 text-sm font-semibold text-[#3b2b20] outline-none transition hover:bg-[#faf7f2] ${
           isRTL ? 'text-right' : 'text-left'
         }`}
-      />
+      >
+        {selectedName || placeholder}
+      </button>
       {selectedId ? (
         <div className="mt-2 rounded-xl bg-[#f1e6dd] px-3 py-2 text-xs font-semibold text-[#3b2b20]">
           <div>{selectedName}</div>
@@ -320,29 +333,217 @@ function StudbookParentPicker({
           ) : null}
         </div>
       ) : null}
-      {loading ? <div className="mt-2 text-xs text-[#7a6c63]">{isArabic ? 'جارٍ البحث...' : 'Searching...'}</div> : null}
-      {error ? <div className="mt-2 text-xs text-[#b04444]">{error}</div> : null}
-      {results.length ? (
-        <div className="mt-2 max-h-52 overflow-y-auto rounded-xl border border-[#eadfd9] bg-white">
-          {results.map((horse) => (
-            <button
-              key={horse.id}
-              type="button"
-              onClick={() => {
-                onSelect(horse);
-                setQuery('');
-                setResults([]);
+
+      {open ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setOpen(false);
+        }}>
+          <div dir={direction} className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-[24px] bg-white p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-[#2b1a12]">{label}</h3>
+                <p className="mt-1 text-xs text-[#7a6c63]">
+                  {totalCount ? `${totalCount} ${isArabic ? 'نتيجة' : 'results'}` : placeholder}
+                </p>
+              </div>
+              <button type="button" onClick={() => setOpen(false)} className="h-9 w-9 rounded-full bg-[#f7f1eb] text-xl text-[#3b2b20]">×</button>
+            </div>
+            <input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPageNumber(1);
               }}
-              className={`block w-full border-b border-[#f1e8e1] px-3 py-2 text-sm font-semibold text-[#2f2740] transition last:border-b-0 hover:bg-[#faf7f2] ${
-                isRTL ? 'text-right' : 'text-left'
-              }`}
-            >
-              <span className="block">{getLocalizedName(horse.englishName, horse.arabicName, isArabic)}</span>
-              {parentSummary(horse) ? (
-                <span className="mt-1 block text-xs font-medium text-[#7a6c63]">{parentSummary(horse)}</span>
-              ) : null}
-            </button>
-          ))}
+              placeholder={placeholder}
+              className={`mb-3 h-11 rounded-xl border border-[#d8cec8] bg-white px-3 text-sm outline-none focus:border-[#5a3b25] ${isRTL ? 'text-right' : 'text-left'}`}
+            />
+            {loading ? <div className="py-8 text-center text-sm text-[#7a6c63]">{isArabic ? 'جارٍ التحميل...' : 'Loading...'}</div> : null}
+            {error ? <div className="mb-3 rounded-xl bg-[#fff3f3] px-3 py-2 text-xs text-[#b04444]">{error}</div> : null}
+            {!loading ? (
+              <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-[#eadfd9]">
+                {results.length ? results.map((horse) => (
+                  <button
+                    key={horse.id}
+                    type="button"
+                    onClick={() => {
+                      onSelect(horse);
+                      setOpen(false);
+                      setQuery('');
+                      setResults([]);
+                    }}
+                    className={`block w-full border-b border-[#f1e8e1] px-3 py-3 text-sm font-semibold text-[#2f2740] transition last:border-b-0 hover:bg-[#faf7f2] ${
+                      isRTL ? 'text-right' : 'text-left'
+                    }`}
+                  >
+                    <span className="block">{getLocalizedName(horse.englishName, horse.arabicName, isArabic)}</span>
+                    {parentSummary(horse) ? (
+                      <span className="mt-1 block text-xs font-medium text-[#7a6c63]">{parentSummary(horse)}</span>
+                    ) : null}
+                  </button>
+                )) : (
+                  <div className="py-8 text-center text-sm text-[#7a6c63]">{isArabic ? 'لا توجد نتائج' : 'No results found'}</div>
+                )}
+              </div>
+            ) : null}
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <button type="button" disabled={pageNumber <= 1 || loading} onClick={() => setPageNumber((page) => Math.max(1, page - 1))} className="rounded-xl border border-[#eadfd9] px-4 py-2 text-sm font-semibold text-[#3b2b20] disabled:opacity-40">
+                {isArabic ? 'السابق' : 'Previous'}
+              </button>
+              <span className="text-xs font-semibold text-[#7a6c63]">{pageNumber} / {Math.max(1, totalPages)}</span>
+              <button type="button" disabled={pageNumber >= totalPages || loading} onClick={() => setPageNumber((page) => page + 1)} className="rounded-xl border border-[#eadfd9] px-4 py-2 text-sm font-semibold text-[#3b2b20] disabled:opacity-40">
+                {isArabic ? 'التالي' : 'Next'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function StudPicker({
+  label,
+  placeholder,
+  selectedId,
+  selectedName,
+  onSelect,
+}: {
+  label: string;
+  placeholder: string;
+  selectedId?: number;
+  selectedName?: string;
+  onSelect: (stud: ExternalStudSearchItem) => void;
+}) {
+  const { direction, locale } = useLocale();
+  const isRTL = direction === 'rtl';
+  const isArabic = locale === 'ar';
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<ExternalStudSearchItem[]>([]);
+  const [open, setOpen] = useState(false);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+
+    const timer = window.setTimeout(async () => {
+      setLoading(true);
+      setError('');
+
+      try {
+        const result = await searchExternalStuds({
+          searchTerm: query.trim() || undefined,
+          pageNumber,
+          pageSize: 6,
+        });
+        const page = normalizePagedList(result);
+        setResults(page.items);
+        setTotalPages(page.totalPages);
+        setTotalCount(page.totalCount);
+      } catch (requestError) {
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : isArabic
+              ? 'تعذر البحث في المربط'
+              : 'Failed to search studs',
+        );
+      } finally {
+        setLoading(false);
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [open, query, pageNumber, isArabic]);
+
+  const studName = (stud: ExternalStudSearchItem) =>
+    getLocalizedName(stud.studName, stud.studArabicName, isArabic);
+
+  return (
+    <div className="rounded-2xl border border-[#eadfd9] bg-[#fffaf6] p-3">
+      <label className="mb-2 block text-xs font-bold text-[#4a2b1a]">{label}</label>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true);
+          setPageNumber(1);
+        }}
+        className={`h-11 w-full rounded-xl border border-[#d8cec8] bg-white px-3 text-sm font-semibold text-[#3b2b20] outline-none transition hover:bg-[#faf7f2] ${
+          isRTL ? 'text-right' : 'text-left'
+        }`}
+      >
+        {selectedName || placeholder}
+      </button>
+      {selectedId ? (
+        <div className="mt-2 rounded-xl bg-[#f1e6dd] px-3 py-2 text-xs font-semibold text-[#3b2b20]">
+          {selectedName}
+        </div>
+      ) : null}
+
+      {open ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setOpen(false);
+        }}>
+          <div dir={direction} className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-[24px] bg-white p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-[#2b1a12]">{label}</h3>
+                <p className="mt-1 text-xs text-[#7a6c63]">
+                  {totalCount ? `${totalCount} ${isArabic ? 'نتيجة' : 'results'}` : placeholder}
+                </p>
+              </div>
+              <button type="button" onClick={() => setOpen(false)} className="h-9 w-9 rounded-full bg-[#f7f1eb] text-xl text-[#3b2b20]">×</button>
+            </div>
+            <input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPageNumber(1);
+              }}
+              placeholder={placeholder}
+              className={`mb-3 h-11 rounded-xl border border-[#d8cec8] bg-white px-3 text-sm outline-none focus:border-[#5a3b25] ${isRTL ? 'text-right' : 'text-left'}`}
+            />
+            {loading ? <div className="py-8 text-center text-sm text-[#7a6c63]">{isArabic ? 'جارٍ التحميل...' : 'Loading...'}</div> : null}
+            {error ? <div className="mb-3 rounded-xl bg-[#fff3f3] px-3 py-2 text-xs text-[#b04444]">{error}</div> : null}
+            {!loading ? (
+              <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-[#eadfd9]">
+                {results.length ? results.map((stud) => (
+                  <button
+                    key={stud.id}
+                    type="button"
+                    onClick={() => {
+                      onSelect(stud);
+                      setOpen(false);
+                      setQuery('');
+                      setResults([]);
+                    }}
+                    className={`block w-full border-b border-[#f1e8e1] px-3 py-3 text-sm font-semibold text-[#2f2740] transition last:border-b-0 hover:bg-[#faf7f2] ${
+                      isRTL ? 'text-right' : 'text-left'
+                    }`}
+                  >
+                    <span className="block">{studName(stud)}</span>
+                    {stud.country ? (
+                      <span className="mt-1 block text-xs font-medium text-[#7a6c63]">{stud.country}</span>
+                    ) : null}
+                  </button>
+                )) : (
+                  <div className="py-8 text-center text-sm text-[#7a6c63]">{isArabic ? 'لا توجد نتائج' : 'No results found'}</div>
+                )}
+              </div>
+            ) : null}
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <button type="button" disabled={pageNumber <= 1 || loading} onClick={() => setPageNumber((page) => Math.max(1, page - 1))} className="rounded-xl border border-[#eadfd9] px-4 py-2 text-sm font-semibold text-[#3b2b20] disabled:opacity-40">
+                {isArabic ? 'السابق' : 'Previous'}
+              </button>
+              <span className="text-xs font-semibold text-[#7a6c63]">{pageNumber} / {Math.max(1, totalPages)}</span>
+              <button type="button" disabled={pageNumber >= totalPages || loading} onClick={() => setPageNumber((page) => page + 1)} className="rounded-xl border border-[#eadfd9] px-4 py-2 text-sm font-semibold text-[#3b2b20] disabled:opacity-40">
+                {isArabic ? 'التالي' : 'Next'}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>
@@ -370,7 +571,9 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const birthDateInputRef = useRef<HTMLInputElement>(null);
+  const objectImagePreviewRef = useRef<string | null>(null);
   const modalTitle = initialData ? t('horses.editHorse') : t('horses.addNew');
 
   const steps = [
@@ -391,7 +594,12 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
         ...initialData,
       });
 
-      setImagePreview(typeof initialData.image === 'string' ? initialData.image : '');
+      setImagePreview(
+        initialData.imagePreview ||
+        (typeof initialData.image === 'string' ? initialData.image : '') ||
+        initialData.existingImages?.[0]?.url ||
+        '',
+      );
     } else {
       setFormData(emptyFormData);
       setImagePreview('');
@@ -401,6 +609,14 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
     setSubmitError('');
     setFieldErrors({});
   }, [isOpen, initialData]);
+
+  useEffect(() => {
+    return () => {
+      if (objectImagePreviewRef.current) {
+        URL.revokeObjectURL(objectImagePreviewRef.current);
+      }
+    };
+  }, []);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -426,9 +642,52 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
   };
 
   const handleImageSelected = (file: File) => {
+    if (objectImagePreviewRef.current) {
+      URL.revokeObjectURL(objectImagePreviewRef.current);
+    }
+
     const preview = URL.createObjectURL(file);
+    objectImagePreviewRef.current = preview;
     setImageFile(file);
     setImagePreview(preview);
+    setFormData((prev) => ({ ...prev, image: file, imagePreview: preview }));
+  };
+
+  const handleClearProfileImage = () => {
+    if (objectImagePreviewRef.current) {
+      URL.revokeObjectURL(objectImagePreviewRef.current);
+      objectImagePreviewRef.current = null;
+    }
+
+    setImageFile(null);
+    setImagePreview('');
+    setFormData((prev) => ({ ...prev, image: undefined, imagePreview: '' }));
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
+
+  const handleGalleryImagesSelected = (files: FileList | File[]) => {
+    const nextFiles = Array.from(files).filter((file) => file.type.startsWith('image/'));
+    if (!nextFiles.length) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      newImages: [...(prev.newImages ?? []), ...nextFiles],
+    }));
+  };
+
+  const handleRemoveExistingImage = (imageId: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      existingImages: (prev.existingImages ?? []).filter((image) => image.id !== imageId),
+      removeImageIds: [...(prev.removeImageIds ?? []), imageId],
+    }));
+  };
+
+  const handleRemoveNewImage = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      newImages: (prev.newImages ?? []).filter((_, imageIndex) => imageIndex !== index),
+    }));
   };
 
   const openBirthDatePicker = () => {
@@ -443,13 +702,19 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
 
   const handleFileDrop = (
     e: React.DragEvent<HTMLDivElement>,
-    type: 'image'
+    type: 'image' | 'gallery'
   ) => {
     e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
+    const files = e.dataTransfer.files;
+    if (!files?.length) return;
 
-    if (type === 'image' && file.type.startsWith('image/')) {
+    if (type === 'gallery') {
+      handleGalleryImagesSelected(files);
+      return;
+    }
+
+    const file = files[0];
+    if (file.type.startsWith('image/')) {
       handleImageSelected(file);
     }
   };
@@ -499,11 +764,6 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
       if (!formData.gender) errors.gender = messages.required;
     }
 
-    if (step === 3) {
-      if (formData.breederEmail && !EMAIL_REGEX.test(formData.breederEmail)) errors.breederEmail = messages.invalidEmail;
-      if (formData.ownerEmail && !EMAIL_REGEX.test(formData.ownerEmail)) errors.ownerEmail = messages.invalidEmail;
-    }
-
     if (step === 4) {
       if (formData.videoLink && !YOUTUBE_REGEX.test(formData.videoLink)) errors.videoLink = messages.invalidYoutube;
     }
@@ -549,9 +809,11 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
     setSubmitting(true);
 
     try {
+      const nextImage = imageFile || formData.image;
+
       await onSubmit({
         ...formData,
-        image: imageFile || formData.image,
+        image: nextImage instanceof File ? nextImage : imagePreview ? nextImage : undefined,
         imagePreview,
       });
 
@@ -724,11 +986,53 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                   {t('horses.image')}
                 </p>
 
-                <div className="flex w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[#d5ccc6] bg-[#faf7f2] py-6 md:py-10 transition hover:bg-[#f5ede7] px-4">
-                  <UploadCloudIcon />
-                  <p className="text-sm font-medium text-[#3a2c24]">
-                    {t('horses.dragDropImage')}
-                  </p>
+                <div
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => handleFileDrop(e, 'image')}
+                  onClick={() => imageInputRef.current?.click()}
+                  className="flex w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[#d5ccc6] bg-[#faf7f2] px-4 py-6 transition hover:bg-[#f5ede7] md:py-10"
+                >
+                  {imagePreview ? (
+                    <div className="relative h-[180px] w-full overflow-hidden rounded-xl md:h-[240px]">
+                      <img
+                        src={imagePreview}
+                        alt="Horse"
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute inset-x-4 bottom-4 flex items-center justify-between gap-2">
+                        <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white">
+                          {isRTL ? 'تغيير الصورة' : 'Change photo'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleClearProfileImage();
+                          }}
+                          className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#8a2c22] shadow-sm transition hover:bg-[#fff5f3]"
+                        >
+                          {isRTL ? 'إزالة' : 'Remove'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <UploadCloudIcon />
+                      <p className="text-sm font-medium text-[#3a2c24]">
+                        {t('horses.dragDropImage')}
+                      </p>
+                    </>
+                  )}
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageSelected(file);
+                    }}
+                  />
                 </div>
 
                 <div className={"grid grid-cols-1 gap-4 md:grid-cols-2"}>
@@ -756,47 +1060,24 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                     <FieldError message={fieldErrors.nameEn} />
                   </div>
 
-                  <input
-                    dir="rtl"
-                    name="fatherNameAr"
-                    value={formData.fatherNameAr}
-                    onChange={handleInputChange}
-                    placeholder={t('horses.horseFatherNameAr')}
-                    className={`rounded-xl border border-[#eadfd9] bg-white px-4 py-3 text-right text-sm focus:border-[#5a3b25] focus:outline-none focus:ring-2 focus:ring-[#5a3b25]/10 ${isRTL ? 'placeholder:text-right' : 'placeholder:text-left'}`}
-                  />
-
-                  <input
-                    dir="ltr"
-                    name="fatherNameEn"
-                    value={formData.fatherNameEn}
-                    onChange={handleInputChange}
-                    placeholder={t('horses.horseFatherNameEn')}
-                    className={`rounded-xl border border-[#eadfd9] bg-white px-4 py-3 text-left text-sm focus:border-[#5a3b25] focus:outline-none focus:ring-2 focus:ring-[#5a3b25]/10 ${isRTL ? 'placeholder:text-right' : 'placeholder:text-left'}`}
-                  />
-
-                  <input
-                    dir="rtl"
-                    name="motherNameAr"
-                    value={formData.motherNameAr}
-                    onChange={handleInputChange}
-                    placeholder={t('horses.horseMotherNameAr')}
-                    className={`rounded-xl border border-[#eadfd9] bg-white px-4 py-3 text-right text-sm focus:border-[#5a3b25] focus:outline-none focus:ring-2 focus:ring-[#5a3b25]/10 ${isRTL ? 'placeholder:text-right' : 'placeholder:text-left'}`}
-                  />
-
-                  <input
-                    dir="ltr"
-                    name="motherNameEn"
-                    value={formData.motherNameEn}
-                    onChange={handleInputChange}
-                    placeholder={t('horses.horseMotherNameEn')}
-                    className={`rounded-xl border border-[#eadfd9] bg-white px-4 py-3 text-left text-sm focus:border-[#5a3b25] focus:outline-none focus:ring-2 focus:ring-[#5a3b25]/10 ${isRTL ? 'placeholder:text-right' : 'placeholder:text-left'}`}
-                  />
                 </div>
+
+                <input
+                  dir={isRTL ? 'rtl' : 'ltr'}
+                  name="knownAs"
+                  value={formData.knownAs ?? ''}
+                  onChange={handleInputChange}
+                  placeholder={isRTL ? 'الاسم المعروف به' : 'Known as'}
+                  className={`w-full rounded-xl border border-[#eadfd9] bg-white px-4 py-3 text-sm focus:border-[#5a3b25] focus:outline-none focus:ring-2 focus:ring-[#5a3b25]/10 ${
+                    isRTL ? 'text-right placeholder:text-right' : 'text-left placeholder:text-left'
+                  }`}
+                />
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <StudbookParentPicker
                     label={isRTL ? 'اختيار الأب من Studbook' : 'Select father from studbook'}
                     placeholder={isRTL ? 'ابحث باسم الأب' : 'Search father name'}
+                    gender="Male"
                     selectedId={formData.fatherStudbookId}
                     selectedName={formData.fatherStudbookId ? getLocalizedName(formData.fatherNameEn, formData.fatherNameAr, isRTL) : undefined}
                     selectedDetails={formData.fatherPedigreeSummary}
@@ -813,6 +1094,7 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                   <StudbookParentPicker
                     label={isRTL ? 'اختيار الأم من Studbook' : 'Select mother from studbook'}
                     placeholder={isRTL ? 'ابحث باسم الأم' : 'Search mother name'}
+                    gender="Female"
                     selectedId={formData.motherStudbookId}
                     selectedName={formData.motherStudbookId ? getLocalizedName(formData.motherNameEn, formData.motherNameAr, isRTL) : undefined}
                     selectedDetails={formData.motherPedigreeSummary}
@@ -948,22 +1230,32 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <input
-                    dir="rtl"
-                    name="ownerName"
-                    value={formData.ownerName}
-                    onChange={handleInputChange}
-                    placeholder={t('horses.ownerName')}
-                    className={`  rounded-xl border border-[#eadfd9] bg-white px-4 py-2.5 text-right text-sm focus:border-[#5a3b25] focus:outline-none focus:ring-2 focus:ring-[#5a3b25]/10 ${isRTL ? 'placeholder:text-right' : 'placeholder:text-left'}`}
+                  <StudPicker
+                    label={t('horses.ownerName')}
+                    placeholder={isRTL ? 'ابحث باسم المالك' : 'Search owner stud'}
+                    selectedId={formData.ownerStudbookId}
+                    selectedName={formData.ownerName}
+                    onSelect={(stud) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        ownerStudbookId: stud.id,
+                        ownerName: getLocalizedName(stud.studName, stud.studArabicName, isRTL),
+                      }));
+                    }}
                   />
 
-                  <input
-                    dir="rtl"
-                    name="breederName"
-                    value={formData.breederName}
-                    onChange={handleInputChange}
-                    placeholder={t('horses.breederName')}
-                    className={`  rounded-xl border border-[#eadfd9] bg-white px-4 py-2.5 text-right text-sm focus:border-[#5a3b25] focus:outline-none focus:ring-2 focus:ring-[#5a3b25]/10 ${isRTL ? 'placeholder:text-right' : 'placeholder:text-left'}`}
+                  <StudPicker
+                    label={t('horses.breederName')}
+                    placeholder={isRTL ? 'ابحث باسم المربي' : 'Search breeder stud'}
+                    selectedId={formData.breederStudbookId}
+                    selectedName={formData.breederName}
+                    onSelect={(stud) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        breederStudbookId: stud.id,
+                        breederName: getLocalizedName(stud.studName, stud.studArabicName, isRTL),
+                      }));
+                    }}
                   />
                 </div>
 
@@ -1069,44 +1361,6 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                     placeholder={t('horses.passportNumber')}
                     className="h-[50px] rounded-[18px] border border-[#bfb6b1] bg-white px-5 text-sm text-[#2b1a12] outline-none transition placeholder:text-[#6f625c] focus:border-[#5a3b25] focus:ring-2 focus:ring-[#5a3b25]/10"
                   />
-                  <input
-                    dir={isRTL ? 'rtl' : 'ltr'}
-                    name="breederPhoneNumber"
-                    value={formData.breederPhoneNumber ?? ''}
-                    onChange={handleInputChange}
-                    placeholder={t('horses.breederPhoneNumber')}
-                    className="h-[50px] rounded-[18px] border border-[#bfb6b1] bg-white px-5 text-sm text-[#2b1a12] outline-none transition placeholder:text-[#6f625c] focus:border-[#5a3b25] focus:ring-2 focus:ring-[#5a3b25]/10"
-                  />
-                  <div>
-                    <input
-                      dir={isRTL ? 'rtl' : 'ltr'}
-                      name="breederEmail"
-                      value={formData.breederEmail ?? ''}
-                      onChange={handleInputChange}
-                      placeholder={t('horses.breederEmail')}
-                      className={`h-[50px] w-full rounded-[18px] border bg-white px-5 text-sm text-[#2b1a12] outline-none transition placeholder:text-[#6f625c] focus:border-[#5a3b25] focus:ring-2 focus:ring-[#5a3b25]/10 ${fieldErrors.breederEmail ? 'border-[#d36b6b]' : 'border-[#bfb6b1]'}`}
-                    />
-                    <FieldError message={fieldErrors.breederEmail} />
-                  </div>
-                  <input
-                    dir={isRTL ? 'rtl' : 'ltr'}
-                    name="ownerPhoneNumber"
-                    value={formData.ownerPhoneNumber ?? ''}
-                    onChange={handleInputChange}
-                    placeholder={t('horses.ownerPhoneNumber')}
-                    className="h-[50px] rounded-[18px] border border-[#bfb6b1] bg-white px-5 text-sm text-[#2b1a12] outline-none transition placeholder:text-[#6f625c] focus:border-[#5a3b25] focus:ring-2 focus:ring-[#5a3b25]/10"
-                  />
-                  <div>
-                    <input
-                      dir={isRTL ? 'rtl' : 'ltr'}
-                      name="ownerEmail"
-                      value={formData.ownerEmail ?? ''}
-                      onChange={handleInputChange}
-                      placeholder={t('horses.ownerEmail')}
-                      className={`h-[50px] w-full rounded-[18px] border bg-white px-5 text-sm text-[#2b1a12] outline-none transition placeholder:text-[#6f625c] focus:border-[#5a3b25] focus:ring-2 focus:ring-[#5a3b25]/10 ${fieldErrors.ownerEmail ? 'border-[#d36b6b]' : 'border-[#bfb6b1]'}`}
-                    />
-                    <FieldError message={fieldErrors.ownerEmail} />
-                  </div>
                 </div>
               </div>
             )}
@@ -1121,11 +1375,28 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                     className="group flex min-h-[140px] md:min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-[4px] bg-[#F8F7EE] px-4 md:px-6 py-6 md:py-8 text-center transition hover:bg-[#f3f1e5]"
                   >
                     {imagePreview ? (
-                      <img
-                        src={imagePreview}
-                        alt="Horse"
-                        className="h-[100px] md:h-[140px] w-full rounded-xl object-cover"
-                      />
+                      <div className="relative h-[120px] w-full md:h-[160px]">
+                        <img
+                          src={imagePreview}
+                          alt="Horse"
+                          className="h-full w-full rounded-xl object-cover"
+                        />
+                        <div className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-2">
+                          <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white">
+                            {isRTL ? 'تغيير الصورة' : 'Change photo'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleClearProfileImage();
+                            }}
+                            className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#8a2c22] shadow-sm transition hover:bg-[#fff5f3]"
+                          >
+                            {isRTL ? 'إزالة' : 'Remove'}
+                          </button>
+                        </div>
+                      </div>
                     ) : (
                       <>
                         <UploadCloudIcon />
@@ -1159,6 +1430,65 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                   className={`h-[44px] md:h-[52px] w-full rounded-[18px] border bg-white px-4 md:px-5 text-sm text-[#2b1a12] outline-none transition placeholder:text-[#5F554F] focus:border-[#5a3b25] focus:ring-2 focus:ring-[#5a3b25]/10 ${fieldErrors.videoLink ? 'border-[#d36b6b]' : 'border-[#bfb6b1]'}`}
                 />
                 <FieldError message={fieldErrors.videoLink} />
+
+                <div className="space-y-3">
+                  <div
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => handleFileDrop(e, 'gallery')}
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="group flex min-h-[110px] cursor-pointer flex-col items-center justify-center rounded-[4px] border border-dashed border-[#d5ccc6] bg-[#F8F7EE] px-4 py-6 text-center transition hover:bg-[#f3f1e5]"
+                  >
+                    <UploadCloudIcon />
+                    <p className="mt-2 text-sm font-bold text-[#2D2018]">
+                      {isRTL ? 'إضافة صور إضافية' : 'Add additional images'}
+                    </p>
+                    <p className="mt-1 text-xs text-[#8B8179]">
+                      {t('horses.supportedImages')}
+                    </p>
+                    <input
+                      ref={galleryInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files) handleGalleryImagesSelected(e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+                  </div>
+
+                  {(formData.existingImages?.length || formData.newImages?.length) ? (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {(formData.existingImages ?? []).map((image) => (
+                        <div key={image.id} className="relative overflow-hidden rounded-xl border border-[#eadfd9] bg-white">
+                          <img src={image.url} alt="" className="h-24 w-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveExistingImage(image.id)}
+                            className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[#b04444] shadow"
+                            aria-label={isRTL ? 'حذف الصورة' : 'Remove image'}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      {(formData.newImages ?? []).map((file, index) => (
+                        <div key={`${file.name}-${index}`} className="relative overflow-hidden rounded-xl border border-[#eadfd9] bg-white">
+                          <img src={URL.createObjectURL(file)} alt="" className="h-24 w-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveNewImage(index)}
+                            className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[#b04444] shadow"
+                            aria-label={isRTL ? 'حذف الصورة' : 'Remove image'}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             )}
 

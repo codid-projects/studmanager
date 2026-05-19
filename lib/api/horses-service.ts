@@ -20,6 +20,10 @@ function unwrapResult<T>(payload: T | ApiResult<T>): T {
   return payload as T;
 }
 
+function getHorseLocalId(horse: HorseListItemDto) {
+  return horse.localId ?? horse.id;
+}
+
 export async function getHorses(params: {
   pageNumber?: number;
   pageSize?: number;
@@ -80,7 +84,7 @@ export async function getHorseWithListFallback(localId: string | number) {
     if (!Number.isFinite(id)) throw error;
 
     const horses = await getHorses({ pageNumber: 1, pageSize: 100 });
-    const fallback = horses.data.find((horse) => horse.id === id);
+    const fallback = horses.data.find((horse) => getHorseLocalId(horse) === id);
 
     if (!fallback) throw error;
 
@@ -90,6 +94,7 @@ export async function getHorseWithListFallback(localId: string | number) {
 
 export async function searchStudbookHorses(params: {
   searchTerm?: string;
+  gender?: string;
   pageNumber?: number;
   pageSize?: number;
 } = {}) {
@@ -98,6 +103,7 @@ export async function searchStudbookHorses(params: {
   >('/api/ExternalHorses/search-external-horses', {
     query: {
       SearchTerm: params.searchTerm,
+      Gender: params.gender,
       PageNumber: params.pageNumber ?? 1,
       PageSize: params.pageSize ?? 12,
     },

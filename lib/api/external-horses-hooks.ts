@@ -108,7 +108,7 @@ function useMutation<TPayload, TResult>(
 }
 
 export function useSearchExternalHorses(params: Parameters<typeof searchExternalHorses>[0], locale?: LocaleCode) {
-  const fetcher = useCallback(() => searchExternalHorses(params), [params.searchTerm, params.pageNumber, params.pageSize]);
+  const fetcher = useCallback(() => searchExternalHorses(params), [params.searchTerm, params.gender, params.pageNumber, params.pageSize]);
   return useApiQuery(fetcher, [fetcher], { locale });
 }
 
@@ -127,23 +127,23 @@ export function useExternalHorseDashboard(localId?: number, locale?: LocaleCode)
 }
 
 export function useHorsePedigree(params: Parameters<typeof getHorsePedigree>[0] | null, locale?: LocaleCode) {
-  const fetcher = useCallback(() => getHorsePedigree(params as Parameters<typeof getHorsePedigree>[0]), [params?.studbookId, params?.levels]);
-  return useApiQuery(fetcher, [fetcher], { enabled: Boolean(params?.studbookId), locale });
+  const fetcher = useCallback(() => getHorsePedigree(params as Parameters<typeof getHorsePedigree>[0]), [params?.localId, params?.levels]);
+  return useApiQuery(fetcher, [fetcher], { enabled: Boolean(params?.localId), locale });
 }
 
 export function useHorseFamilyAnalysisTree(params: Parameters<typeof getHorseFamilyAnalysisTree>[0] | null, locale?: LocaleCode) {
-  const fetcher = useCallback(() => getHorseFamilyAnalysisTree(params as Parameters<typeof getHorseFamilyAnalysisTree>[0]), [params?.studbookId, params?.levels, params?.pageNumber, params?.pageSize]);
-  return useApiQuery(fetcher, [fetcher], { enabled: Boolean(params?.studbookId), locale });
+  const fetcher = useCallback(() => getHorseFamilyAnalysisTree(params as Parameters<typeof getHorseFamilyAnalysisTree>[0]), [params?.localId, params?.levels, params?.pageNumber, params?.pageSize]);
+  return useApiQuery(fetcher, [fetcher], { enabled: Boolean(params?.localId), locale });
 }
 
 export function useTailMale(params: Parameters<typeof getTailMale>[0] | null, locale?: LocaleCode) {
-  const fetcher = useCallback(() => getTailMale(params as Parameters<typeof getTailMale>[0]), [params?.studbookId, params?.levels, params?.pageNumber, params?.pageSize]);
-  return useApiQuery(fetcher, [fetcher], { enabled: Boolean(params?.studbookId), locale });
+  const fetcher = useCallback(() => getTailMale(params as Parameters<typeof getTailMale>[0]), [params?.localId, params?.levels, params?.pageNumber, params?.pageSize]);
+  return useApiQuery(fetcher, [fetcher], { enabled: Boolean(params?.localId), locale });
 }
 
 export function useTailFemale(params: Parameters<typeof getTailFemale>[0] | null, locale?: LocaleCode) {
-  const fetcher = useCallback(() => getTailFemale(params as Parameters<typeof getTailFemale>[0]), [params?.studbookId, params?.levels, params?.pageNumber, params?.pageSize]);
-  return useApiQuery(fetcher, [fetcher], { enabled: Boolean(params?.studbookId), locale });
+  const fetcher = useCallback(() => getTailFemale(params as Parameters<typeof getTailFemale>[0]), [params?.localId, params?.levels, params?.pageNumber, params?.pageSize]);
+  return useApiQuery(fetcher, [fetcher], { enabled: Boolean(params?.localId), locale });
 }
 
 export function useTestMatingTree(params: Parameters<typeof getTestMatingTree>[0], locale?: LocaleCode) {

@@ -1,6 +1,7 @@
 import { FC, useState, useEffect } from "react";
 import { useLocale, useTranslation } from "@/lib/locale-context";
 import { X, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
+import { mediaUrls } from "@/lib/api/horse-formatters";
 
 interface HorsePhotosTabProps {
   horse?: any;
@@ -10,7 +11,7 @@ export const HorsePhotosTab: FC<HorsePhotosTabProps> = ({ horse }) => {
   const { direction } = useLocale();
   const { t } = useTranslation();
   const isRTL = direction === "rtl";
-  const photos = horse?.raw?.images?.filter(Boolean) ?? [];
+  const photos = mediaUrls(horse?.raw?.images);
   
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 

@@ -4,11 +4,14 @@ import { FC, useEffect, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { useLocale } from "@/lib/locale-context";
 import { X } from "lucide-react";
-import { getHorsePedigree } from "@/lib/api/external-horses";
-import { getLocalizedName } from "@/lib/api/localization";
+import { getExternalHorseSummary, getHorsePedigree } from "@/lib/api/external-horses";
+import { getLocalizedName, localizeColor, localizeCountry } from "@/lib/api/localization";
+import { DEFAULT_HORSE_IMAGE, formatDate, mediaUrl } from "@/lib/api/horse-formatters";
+import type { ExternalHorseSummaryItem } from "@/lib/api/types";
 
 interface Horse {
   id?: string;
+  localId?: number | string | null;
   studbookId?: number | null;
   name?: string;
   pedigreeImage?: string;
@@ -26,13 +29,23 @@ type ParentRole = "Root" | "Mother" | "Father";
 
 type PedigreeNode = {
   id: string;
+  studbookId: number | null;
   name: string;
   role: ParentRole;
+  englishName?: string | null;
+  arabicName?: string | null;
+  gender?: string | null;
+  dateofBirth?: string | null;
+  fatherName?: string;
+  motherName?: string;
+  isStrain?: boolean | null;
+  isSpecial?: boolean | null;
   duplicateColor?: { background: string; border: string };
 };
 
-const NODE_HEIGHT_PX = 28;
+const NODE_HEIGHT_PX = 32;
 const CERTIFICATE_ASPECT = 1600 / 1200;
+const MIN_COLUMN_WIDTH_PX = 220;
 const DUPLICATE_ANCESTOR_COLORS = [
   { background: "#FEE2E2", border: "#DC2626" },
   { background: "#CCFBF1", border: "#0F766E" },
@@ -112,11 +125,28 @@ const mapPedigreeLevels = (levels: unknown[][], isRTL: boolean): PedigreeNode[][
 
       return {
         id: String(node.id ?? `${generationIndex}-${nodeIndex}`),
+        studbookId: typeof node.id === "number" ? node.id : Number(node.id) || null,
+        englishName: typeof node.englishName === "string" ? node.englishName : null,
+        arabicName: typeof node.arabicName === "string" ? node.arabicName : null,
         name: getLocalizedName(
           typeof node.englishName === "string" ? node.englishName : null,
           typeof node.arabicName === "string" ? node.arabicName : null,
           isRTL,
         ),
+        gender: typeof node.gender === "string" ? node.gender : null,
+        dateofBirth: typeof node.dateofBirth === "string" ? node.dateofBirth : null,
+        fatherName: getLocalizedName(
+          typeof node.horseFatherEnglishName === "string" ? node.horseFatherEnglishName : null,
+          typeof node.horseFatherArabicName === "string" ? node.horseFatherArabicName : null,
+          isRTL,
+        ),
+        motherName: getLocalizedName(
+          typeof node.horseMotherEnglishName === "string" ? node.horseMotherEnglishName : null,
+          typeof node.horseMotherArabicName === "string" ? node.horseMotherArabicName : null,
+          isRTL,
+        ),
+        isStrain: typeof node.isStrain === "boolean" ? node.isStrain : null,
+        isSpecial: typeof node.isSpecial === "boolean" ? node.isSpecial : null,
         role: (generationIndex === 0 ? "Root" : nodeIndex % 2 === 0 ? "Father" : "Mother") as ParentRole,
       };
     }),
@@ -130,6 +160,23 @@ const mapPedigreeLevels = (levels: unknown[][], isRTL: boolean): PedigreeNode[][
       duplicateColor: duplicateColors.get(node.id),
     })),
   );
+};
+
+const normalizeSummaryPayload = (payload: unknown): ExternalHorseSummaryItem | null => {
+  if (!payload || typeof payload !== "object") return null;
+
+  const record = payload as Record<string, unknown>;
+  if (Array.isArray(record.data)) {
+    return (record.data[0] as ExternalHorseSummaryItem | undefined) ?? null;
+  }
+
+  return payload as ExternalHorseSummaryItem;
+};
+
+const studName = (value: ExternalHorseSummaryItem["studOwner"] | ExternalHorseSummaryItem["studBreeder"]) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  return value.studName ?? value.studArabicName ?? "";
 };
 
 const waitForRenderableImages = async (container: HTMLElement) => {
@@ -192,7 +239,15 @@ const ExpandIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
   </svg>
 );
 
-const PedigreeBox = ({ node, top }: { node: PedigreeNode; top: number }) => {
+const PedigreeBox = ({
+  node,
+  top,
+  onClick,
+}: {
+  node: PedigreeNode;
+  top: number;
+  onClick: (node: PedigreeNode) => void;
+}) => {
   return (
     <div
       dir="ltr"
@@ -202,8 +257,10 @@ const PedigreeBox = ({ node, top }: { node: PedigreeNode; top: number }) => {
         height: `${NODE_HEIGHT_PX}px`,
       }}
     >
-      <div
-        className="flex h-full w-full items-center justify-center gap-1 rounded-[8px] border border-dashed border-[#bbb3aa] bg-[#f7f3ee]/80 px-2 text-center font-serif text-[11px] leading-none text-[#2c3953] shadow-[0_1px_0_rgba(0,0,0,0.02)] sm:text-[12px] md:text-[13px] lg:text-[14px] xl:text-[15px]"
+      <button
+        type="button"
+        onClick={() => onClick(node)}
+        className="flex h-full w-full items-center justify-center gap-1 rounded-[8px] border border-dashed border-[#bbb3aa] bg-[#f7f3ee]/80 px-2 text-center font-serif text-[13px] leading-none text-[#2c3953] shadow-[0_1px_0_rgba(0,0,0,0.02)] transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#4a2b1a]/30 sm:text-[12px] md:text-[13px] lg:text-[14px] xl:text-[15px]"
         style={node.duplicateColor ? {
           backgroundColor: node.duplicateColor.background,
           borderColor: node.duplicateColor.border,
@@ -218,7 +275,7 @@ const PedigreeBox = ({ node, top }: { node: PedigreeNode; top: number }) => {
         <span className="block min-w-0 truncate whitespace-nowrap">
           {node.name}
         </span>
-      </div>
+      </button>
     </div>
   );
 };
@@ -233,6 +290,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
   const { direction } = useLocale();
   const isRTL = direction === "rtl";
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
 
   const fullscreenRef = useRef<HTMLDivElement | null>(null);
   const exportRef = useRef<HTMLDivElement | null>(null);
@@ -241,8 +299,17 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
   const [isDownloading, setIsDownloading] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [apiColumns, setApiColumns] = useState<PedigreeNode[][]>([]);
-  const [isTreeLoading, setIsTreeLoading] = useState(Boolean(horse.studbookId) || loading);
+  const horseLocalId = horse.localId ?? horse.id;
+  const numericLocalId =
+    typeof horseLocalId === "number" ? horseLocalId : Number(horseLocalId);
+  const hasLocalId = Number.isFinite(numericLocalId) && numericLocalId > 0;
+  const [isTreeLoading, setIsTreeLoading] = useState(hasLocalId || loading);
   const [treeError, setTreeError] = useState("");
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryNode, setSummaryNode] = useState<PedigreeNode | null>(null);
+  const [summaryHorse, setSummaryHorse] = useState<ExternalHorseSummaryItem | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState("");
 
   const orderedColumns = useMemo(() => [...apiColumns].reverse(), [apiColumns]);
   const maxLeafCount = useMemo(
@@ -250,7 +317,9 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
     [apiColumns],
   );
   const hasPedigree = apiColumns.length > 0;
-  const certificateMinWidth = Math.max(1500, apiColumns.length * 240);
+  const certificateMinWidth = Math.max(1550, apiColumns.length * MIN_COLUMN_WIDTH_PX);
+  const certificateScrollableHeight = Math.max(900, Math.round(certificateMinWidth / CERTIFICATE_ASPECT));
+  const shouldUseScrollableCanvas = isNarrowViewport || isMobileViewport;
 
   useEffect(() => {
     if (pedigreeData !== undefined) {
@@ -264,7 +333,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
       return;
     }
 
-    if (!horse.studbookId) {
+    if (!hasLocalId) {
       setApiColumns([]);
       setIsTreeLoading(false);
       setTreeError("");
@@ -279,7 +348,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
       setApiColumns([]);
 
       try {
-        const result = await getHorsePedigree({ studbookId: horse.studbookId as number, levels: 6 });
+        const result = await getHorsePedigree({ localId: numericLocalId, levels: 6 });
         const levels = normalizePedigreeLevels(result.data);
         if (mounted) {
           setApiColumns(mapPedigreeLevels(levels, isRTL));
@@ -304,15 +373,23 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
     return () => {
       mounted = false;
     };
-  }, [horse.studbookId, isRTL, pedigreeData, loading]);
+  }, [hasLocalId, numericLocalId, isRTL, pedigreeData, loading]);
 
   useEffect(() => {
-    const media = window.matchMedia("(max-width: 767px)");
-    const apply = () => setIsMobileViewport(media.matches);
+    const mobileMedia = window.matchMedia("(max-width: 767px)");
+    const narrowMedia = window.matchMedia("(max-width: 1549px)");
+    const apply = () => {
+      setIsMobileViewport(mobileMedia.matches);
+      setIsNarrowViewport(narrowMedia.matches);
+    };
 
     apply();
-    media.addEventListener("change", apply);
-    return () => media.removeEventListener("change", apply);
+    mobileMedia.addEventListener("change", apply);
+    narrowMedia.addEventListener("change", apply);
+    return () => {
+      mobileMedia.removeEventListener("change", apply);
+      narrowMedia.removeEventListener("change", apply);
+    };
   }, []);
 
   useEffect(() => {
@@ -409,6 +486,53 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
       setIsDownloading(false);
     }
   };
+
+  const handleNodeClick = async (node: PedigreeNode) => {
+    setSummaryNode(node);
+    setSummaryOpen(true);
+    setSummaryHorse(null);
+    setSummaryError("");
+
+    if (!node.studbookId) {
+      setSummaryError(isRTL ? "لا يوجد رقم Studbook لهذا الخيل." : "No studbook id is available for this horse.");
+      return;
+    }
+
+    try {
+      setSummaryLoading(true);
+      const result = await getExternalHorseSummary(node.studbookId);
+      setSummaryHorse(normalizeSummaryPayload(result.data));
+    } catch (requestError) {
+      setSummaryError(
+        requestError instanceof Error
+          ? requestError.message
+          : isRTL
+            ? "تعذر تحميل بيانات الخيل."
+            : "Failed to load horse summary.",
+      );
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  const summaryName = summaryHorse
+    ? getLocalizedName(summaryHorse.englishName, summaryHorse.arabicName, isRTL)
+    : summaryNode?.name ?? "";
+  const summaryFather = summaryHorse
+    ? getLocalizedName(summaryHorse.horseFatherEnglishName, summaryHorse.horseFatherArabicName, isRTL)
+    : summaryNode?.fatherName ?? "";
+  const summaryMother = summaryHorse
+    ? getLocalizedName(summaryHorse.horseMotherEnglishName, summaryHorse.horseMotherArabicName, isRTL)
+    : summaryNode?.motherName ?? "";
+  const summaryImage = summaryHorse
+    ? summaryHorse.horseProfileImage || mediaUrl(summaryHorse.images?.[0]) || DEFAULT_HORSE_IMAGE
+    : DEFAULT_HORSE_IMAGE;
+  const summaryKnownAs = summaryHorse?.knownAs?.trim();
+  const summaryBornIn = summaryHorse?.bornIn ? localizeCountry(summaryHorse.bornIn, isRTL ? "ar" : "en") : "-";
+  const summaryCurrentlyIn = summaryHorse?.currentlyIn ? localizeCountry(summaryHorse.currentlyIn, isRTL ? "ar" : "en") : "-";
+  const summaryColor = summaryHorse?.color ? localizeColor(summaryHorse.color, isRTL ? "ar" : "en") : "-";
+  const summaryOwner = studName(summaryHorse?.studOwner);
+  const summaryBreeder = studName(summaryHorse?.studBreeder);
 
   return (
     <div className="mx-auto mb-8 w-full max-w-none">
@@ -508,13 +632,13 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
         </div>
       ) : !hasPedigree ? (
         <div className="rounded-[26px] border border-dashed border-[#d9c8ba] bg-white p-10 text-center text-sm text-[#7a6c63]">
-          {horse.studbookId
+          {hasLocalId
             ? isRTL
               ? "لا توجد بيانات نسب متاحة لهذا الخيل."
               : "No pedigree data is available for this horse."
             : isRTL
-              ? "لا يوجد رقم Studbook لهذا الخيل لعرض شهادة النسب."
-              : "No studbook id is available for this horse pedigree."}
+              ? "لا يوجد رقم محلي لهذا الخيل لعرض شهادة النسب."
+              : "No local id is available for this horse pedigree."}
         </div>
       ) : (
 
@@ -546,20 +670,24 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
         <div
           dir="ltr"
           ref={scrollerRef}
-          className={`w-full overflow-x-hidden overflow-y-hidden rounded-[22px] ${
-            isFullscreen && !isMobileViewport
+          className={`w-full rounded-[22px] ${
+            isFullscreen && !shouldUseScrollableCanvas
               ? "flex items-center justify-center overflow-hidden"
               : ""
           } ${
-            isFullscreen && isMobileViewport ? "h-full overflow-auto" : ""
+            isFullscreen && shouldUseScrollableCanvas
+              ? "h-full overflow-auto"
+              : shouldUseScrollableCanvas
+                ? "overflow-x-auto"
+                : "overflow-x-auto"
           }`}
           style={{
             WebkitOverflowScrolling: "touch",
-            overscrollBehaviorX: "contain",
-            overscrollBehaviorY: isFullscreen ? "contain" : "auto",
-            touchAction: isFullscreen && isMobileViewport
+            overscrollBehavior: isFullscreen ? "contain" : "auto",
+            touchAction: isFullscreen && shouldUseScrollableCanvas
               ? "pan-x pan-y pinch-zoom"
-              : "pan-y pan-x",
+              : "auto",
+            maxHeight: undefined,
           }}
         >
           <div
@@ -568,13 +696,14 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
             style={{
               aspectRatio: `${CERTIFICATE_ASPECT}`,
               width:
-                isFullscreen && isMobileViewport
+                shouldUseScrollableCanvas
                   ? `${certificateMinWidth}px`
                   : isFullscreen
                     ? `min(96vw, calc((100dvh - 72px) * ${CERTIFICATE_ASPECT}))`
                     : "100%",
-              minWidth: isFullscreen && isMobileViewport ? `${certificateMinWidth}px` : undefined,
-              maxWidth: isFullscreen ? undefined : "100%",
+              minWidth: shouldUseScrollableCanvas ? `${certificateMinWidth}px` : undefined,
+              height: shouldUseScrollableCanvas ? `${certificateScrollableHeight}px` : undefined,
+              maxWidth: shouldUseScrollableCanvas || isFullscreen ? undefined : "100%",
             }}
           >
             <img
@@ -618,6 +747,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
                         key={node.id}
                         node={node}
                         top={getTopPercent(column.length, nodeIndex, maxLeafCount)}
+                        onClick={handleNodeClick}
                       />
                     ))}
                   </div>
@@ -643,6 +773,105 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
         </div>
       </div>
       )}
+      {summaryOpen ? (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSummaryOpen(false);
+          }}
+        >
+          <div dir={direction} className="w-full max-w-lg rounded-[24px] bg-white p-5 shadow-xl">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <img
+                  src={summaryImage}
+                  alt={summaryName || (isRTL ? "صورة الخيل" : "Horse image")}
+                  className="h-16 w-16 shrink-0 rounded-2xl object-cover"
+                />
+                <div className="min-w-0">
+                  <h3 className="truncate text-lg font-bold text-[#2b1a12]">{summaryName || (isRTL ? "بيانات الخيل" : "Horse details")}</h3>
+                  {summaryKnownAs ? (
+                    <p className="mt-0.5 text-sm font-semibold text-[#4f4037]">{summaryKnownAs}</p>
+                  ) : null}
+                  <p className="mt-1 text-xs font-semibold text-[#7a6c63]">
+                    {summaryNode?.studbookId ? `Studbook ID: ${summaryNode.studbookId}` : ""}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSummaryOpen(false)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f7f1eb] text-[#3b2b20]"
+                aria-label={isRTL ? "إغلاق" : "Close"}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {summaryLoading ? (
+              <div className="rounded-2xl bg-[#fbf8f4] px-4 py-8 text-center text-sm text-[#7a6c63]">
+                {isRTL ? "جارٍ التحميل..." : "Loading..."}
+              </div>
+            ) : summaryError ? (
+              <div className="rounded-2xl border border-[#f2c7c7] bg-[#fff3f3] px-4 py-3 text-sm text-[#b04444]">
+                {summaryError}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 text-sm text-[#3b2b20] sm:grid-cols-2">
+                <div className="rounded-2xl bg-[#fbf8f4] p-3">
+                  <span className="block text-xs font-semibold text-[#7a6c63]">{isRTL ? "النوع" : "Gender"}</span>
+                  <span className="mt-1 block font-bold">{summaryHorse?.gender ?? summaryNode?.gender ?? "-"}</span>
+                </div>
+                <div className="rounded-2xl bg-[#fbf8f4] p-3">
+                  <span className="block text-xs font-semibold text-[#7a6c63]">{isRTL ? "تاريخ الميلاد" : "Date of birth"}</span>
+                  <span className="mt-1 block font-bold">{formatDate(summaryHorse?.dateofBirth ?? summaryNode?.dateofBirth)}</span>
+                </div>
+                <div className="rounded-2xl bg-[#fbf8f4] p-3">
+                  <span className="block text-xs font-semibold text-[#7a6c63]">{isRTL ? "اللون" : "Color"}</span>
+                  <span className="mt-1 block font-bold">{summaryColor}</span>
+                </div>
+                <div className="rounded-2xl bg-[#fbf8f4] p-3">
+                  <span className="block text-xs font-semibold text-[#7a6c63]">{isRTL ? "ولد في" : "Born in"}</span>
+                  <span className="mt-1 block font-bold">{summaryBornIn}</span>
+                </div>
+                <div className="rounded-2xl bg-[#fbf8f4] p-3">
+                  <span className="block text-xs font-semibold text-[#7a6c63]">{isRTL ? "الأب" : "Father"}</span>
+                  <span className="mt-1 block font-bold">{summaryFather && summaryFather !== "-" ? summaryFather : "-"}</span>
+                </div>
+                <div className="rounded-2xl bg-[#fbf8f4] p-3">
+                  <span className="block text-xs font-semibold text-[#7a6c63]">{isRTL ? "الأم" : "Mother"}</span>
+                  <span className="mt-1 block font-bold">{summaryMother && summaryMother !== "-" ? summaryMother : "-"}</span>
+                </div>
+                <div className="rounded-2xl bg-[#fbf8f4] p-3">
+                  <span className="block text-xs font-semibold text-[#7a6c63]">{isRTL ? "حالياً في" : "Currently in"}</span>
+                  <span className="mt-1 block font-bold">{summaryCurrentlyIn}</span>
+                </div>
+                <div className="rounded-2xl bg-[#fbf8f4] p-3">
+                  <span className="block text-xs font-semibold text-[#7a6c63]">{isRTL ? "مستوى الجيل" : "Generation"}</span>
+                  <span className="mt-1 block font-bold">{summaryHorse?.generationLevel ?? "-"}</span>
+                </div>
+                <div className="rounded-2xl bg-[#fbf8f4] p-3">
+                  <span className="block text-xs font-semibold text-[#7a6c63]">{isRTL ? "المالك" : "Owner"}</span>
+                  <span className="mt-1 block font-bold">{summaryOwner || "-"}</span>
+                </div>
+                <div className="rounded-2xl bg-[#fbf8f4] p-3">
+                  <span className="block text-xs font-semibold text-[#7a6c63]">{isRTL ? "المربي" : "Breeder"}</span>
+                  <span className="mt-1 block font-bold">{summaryBreeder || "-"}</span>
+                </div>
+                <div className="rounded-2xl bg-[#fbf8f4] p-3">
+                  <span className="block text-xs font-semibold text-[#7a6c63]">{isRTL ? "العلامات" : "Flags"}</span>
+                  <span className="mt-1 block font-bold">
+                    {[
+                      summaryHorse?.isStrain || summaryNode?.isStrain ? (isRTL ? "سلالة" : "Strain") : null,
+                      summaryHorse?.isSpecial || summaryNode?.isSpecial ? (isRTL ? "خاص" : "Special") : null,
+                    ].filter(Boolean).join(" / ") || "-"}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

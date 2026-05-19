@@ -4,6 +4,7 @@ import { clientApiFetch } from './client';
 import type {
   ApiResult,
   ExternalHorseDashboardInformation,
+  ExternalHorseSummaryItem,
   ExternalHorseSearchItem,
   ExternalStudSearchItem,
   ExternalTailNode,
@@ -19,13 +20,20 @@ import type {
   PagedResponse,
 } from './types';
 
-export const normalizePagedList = <T>(result?: ApiResult<PagedResponse<T>>) => ({
-  items: result?.data?.data ?? [],
-  hasNextPage: result?.data?.hasNextPage ?? false,
-  currentPage: result?.data?.currentPage ?? 1,
-  totalPages: result?.data?.totalPages ?? 1,
-  totalCount: result?.data?.totalCount ?? 0,
-});
+export const normalizePagedList = <T>(result?: ApiResult<PagedResponse<T>> | PagedResponse<T>) => {
+  const page = result && typeof result === 'object' && Array.isArray((result as PagedResponse<T>).data)
+    ? result as PagedResponse<T>
+    : (result as ApiResult<PagedResponse<T>> | undefined)?.data;
+
+  return {
+    items: page?.data ?? [],
+    hasNextPage: page?.hasNextPage ?? false,
+    hasPreviousPage: page?.hasPreviousPage ?? false,
+    currentPage: page?.currentPage ?? 1,
+    totalPages: page?.totalPages ?? 1,
+    totalCount: page?.totalCount ?? 0,
+  };
+};
 
 export const externalHorseQueryKeys = {
   searchHorses: (searchTerm?: string, pageNumber = 1, pageSize = 20) =>
@@ -33,13 +41,14 @@ export const externalHorseQueryKeys = {
   searchStuds: (searchTerm?: string, pageNumber = 1, pageSize = 20) =>
     ['external-studs', 'search', searchTerm, pageNumber, pageSize] as const,
   dashboard: (localId: number) => ['horse', localId, 'dashboard'] as const,
-  pedigree: (studbookId: number, levels = 6) => ['horse', studbookId, 'pedigree', levels] as const,
-  analysisTree: (studbookId: number, levels = 12, pageNumber = 1, pageSize = 20) =>
-    ['horse', studbookId, 'analysis-tree', levels, pageNumber, pageSize] as const,
-  tailMale: (studbookId: number, levels = 12, pageNumber = 1, pageSize = 20) =>
-    ['horse', studbookId, 'tail-male', levels, pageNumber, pageSize] as const,
-  tailFemale: (studbookId: number, levels = 12, pageNumber = 1, pageSize = 20) =>
-    ['horse', studbookId, 'tail-female', levels, pageNumber, pageSize] as const,
+  summary: (studbookId: number) => ['external-horse', studbookId, 'summary'] as const,
+  pedigree: (localId: number, levels = 6) => ['horse', localId, 'pedigree', levels] as const,
+  analysisTree: (localId: number, levels = 12, pageNumber = 1, pageSize = 20) =>
+    ['horse', localId, 'analysis-tree', levels, pageNumber, pageSize] as const,
+  tailMale: (localId: number, levels = 12, pageNumber = 1, pageSize = 20) =>
+    ['horse', localId, 'tail-male', levels, pageNumber, pageSize] as const,
+  tailFemale: (localId: number, levels = 12, pageNumber = 1, pageSize = 20) =>
+    ['horse', localId, 'tail-female', levels, pageNumber, pageSize] as const,
   testMating: (horseMotherStudbookId?: number, horseFatherStudbookId?: number, levels = 6) =>
     ['horse', horseMotherStudbookId, horseFatherStudbookId, 'test-mating', levels] as const,
   events: (localHorseId: number, pageNumber = 1, pageSize = 20) =>
@@ -104,10 +113,12 @@ function normalizeTreePayload<T>(payload: unknown): T[][] {
 
 export const searchExternalHorses = async ({
   searchTerm,
+  gender,
   pageNumber = 1,
   pageSize = 20,
 }: {
   searchTerm?: string;
+  gender?: string;
   pageNumber?: number;
   pageSize?: number;
 }): Promise<ApiResult<PagedResponse<ExternalHorseSearchItem>>> =>
@@ -115,8 +126,8 @@ export const searchExternalHorses = async ({
     await clientApiFetch<ApiResult<PagedResponse<ExternalHorseSearchItem>> | PagedResponse<ExternalHorseSearchItem>>({
       backendPath: '/api/ExternalHorses/search-external-horses',
       nextPath: '/api/horses/studbook',
-      backendQuery: { SearchTerm: searchTerm, PageNumber: pageNumber, PageSize: pageSize },
-      nextQuery: { search: searchTerm, pageNumber, pageSize },
+      backendQuery: { SearchTerm: searchTerm, Gender: gender, PageNumber: pageNumber, PageSize: pageSize },
+      nextQuery: { search: searchTerm, gender, pageNumber, pageSize },
     }),
   );
 
@@ -152,67 +163,75 @@ export const getExternalHorseDashboard = async (
     nextPath: `/api/external-horses/${localId}/dashboard`,
   });
 
+export const getExternalHorseSummary = async (
+  studbookId: number,
+): Promise<ApiResult<ExternalHorseSummaryItem>> =>
+  clientApiFetch<ApiResult<ExternalHorseSummaryItem>>({
+    backendPath: `/api/ExternalHorses/${studbookId}/summary`,
+    nextPath: `/api/external-horses/${studbookId}/summary`,
+  });
+
 export const getHorsePedigree = async ({
-  studbookId,
+  localId,
   levels = 6,
 }: {
-  studbookId: number;
+  localId: number;
   levels?: number;
 }): Promise<ApiResult<HorsePedigreeNode[][]>> =>
   clientApiFetch<ApiResult<HorsePedigreeNode[][]>>({
-    backendPath: `/api/ExternalHorses/${studbookId}/pedigree`,
-    nextPath: `/api/external-horses/${studbookId}/pedigree`,
+    backendPath: `/api/ExternalHorses/${localId}/pedigree`,
+    nextPath: `/api/external-horses/${localId}/pedigree`,
     query: { levels },
   });
 
 export const getHorseFamilyAnalysisTree = async ({
-  studbookId,
+  localId,
   levels = 12,
   pageNumber = 1,
   pageSize = 20,
 }: {
-  studbookId: number;
+  localId: number;
   levels?: number;
   pageNumber?: number;
   pageSize?: number;
 }): Promise<ApiResult<PagedResponse<HorseFamilyTreeItem>>> =>
   clientApiFetch<ApiResult<PagedResponse<HorseFamilyTreeItem>>>({
-    backendPath: `/api/ExternalHorses/${studbookId}/analysis-tree`,
-    nextPath: `/api/external-horses/${studbookId}/analysis-tree`,
+    backendPath: `/api/ExternalHorses/${localId}/analysis-tree`,
+    nextPath: `/api/external-horses/${localId}/analysis-tree`,
     query: { levels, pageNumber, pageSize },
   });
 
 export const getTailMale = async ({
-  studbookId,
+  localId,
   levels = 12,
   pageNumber = 1,
   pageSize = 20,
 }: {
-  studbookId: number;
+  localId: number;
   levels?: number;
   pageNumber?: number;
   pageSize?: number;
 }): Promise<ApiResult<PagedResponse<ExternalTailNode>>> =>
   clientApiFetch<ApiResult<PagedResponse<ExternalTailNode>>>({
-    backendPath: `/api/ExternalHorses/${studbookId}/tail-male`,
-    nextPath: `/api/external-horses/${studbookId}/tail-male`,
+    backendPath: `/api/ExternalHorses/${localId}/tail-male`,
+    nextPath: `/api/external-horses/${localId}/tail-male`,
     query: { levels, pageNumber, pageSize },
   });
 
 export const getTailFemale = async ({
-  studbookId,
+  localId,
   levels = 12,
   pageNumber = 1,
   pageSize = 20,
 }: {
-  studbookId: number;
+  localId: number;
   levels?: number;
   pageNumber?: number;
   pageSize?: number;
 }): Promise<ApiResult<PagedResponse<ExternalTailNode>>> =>
   clientApiFetch<ApiResult<PagedResponse<ExternalTailNode>>>({
-    backendPath: `/api/ExternalHorses/${studbookId}/tail-female`,
-    nextPath: `/api/external-horses/${studbookId}/tail-female`,
+    backendPath: `/api/ExternalHorses/${localId}/tail-female`,
+    nextPath: `/api/external-horses/${localId}/tail-female`,
     query: { levels, pageNumber, pageSize },
   });
 
@@ -226,9 +245,9 @@ export const getTestMatingTree = async ({
   levels?: number;
 }): Promise<ApiResult<ExternalTreeNode[][]>> => {
   const response = await clientApiFetch<ApiResult<ExternalTreeNode[][]> | ExternalTreeNode[][] | unknown>({
-    backendPath: '/api/Horses/TestMating',
+    backendPath: '/api/ExternalHorses/testmating',
     nextPath: '/api/horses/testmating',
-    query: { horseMotherId: horseMotherStudbookId, horseFotherId: horseFatherStudbookId, levels },
+    query: { horseMotherStudbookId, horseFatherStudbookId, levels },
   });
 
   return {

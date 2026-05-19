@@ -2,11 +2,12 @@
 
 import { FC } from "react";
 import { useLocale } from "@/lib/locale-context";
+import { mediaUrls } from "@/lib/api/horse-formatters";
 
 interface HorseVideosTabProps {
   horse?: {
     raw?: {
-      videos?: string[] | null;
+      videos?: Array<string | { url?: string | null }> | null;
     };
   };
 }
@@ -52,7 +53,7 @@ function videoTitle(url: string, index: number, isRTL: boolean) {
 export const HorseVideosTab: FC<HorseVideosTabProps> = ({ horse }) => {
   const { direction } = useLocale();
   const isRTL = direction === "rtl";
-  const videos = (horse?.raw?.videos ?? []).filter((url): url is string => Boolean(url?.trim()));
+  const videos = mediaUrls(horse?.raw?.videos);
 
   if (!videos.length) return null;
 

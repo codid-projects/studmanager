@@ -7,7 +7,7 @@ import type { ExternalTailNode, HorseFamilyTreeItem } from '@/lib/api/types';
 import { useLocale } from '@/lib/locale-context';
 
 interface HorseAnalyticsTabProps {
-  studbookId?: number | null;
+  localId?: number | string | null;
 }
 
 function Chips({ values }: { values?: number[] | null }) {
@@ -45,18 +45,20 @@ function TailList({ title, rows }: { title: string; rows: ExternalTailNode[] }) 
   );
 }
 
-export function HorseAnalyticsTab({ studbookId }: HorseAnalyticsTabProps) {
+export function HorseAnalyticsTab({ localId }: HorseAnalyticsTabProps) {
   const { locale, direction } = useLocale();
   const isRTL = direction === 'rtl';
   const isArabic = locale === 'ar';
+  const numericLocalId = typeof localId === 'number' ? localId : Number(localId);
+  const hasLocalId = Number.isFinite(numericLocalId) && numericLocalId > 0;
   const [analysis, setAnalysis] = useState<HorseFamilyTreeItem[]>([]);
   const [tailMale, setTailMale] = useState<ExternalTailNode[]>([]);
   const [tailFemale, setTailFemale] = useState<ExternalTailNode[]>([]);
-  const [loading, setLoading] = useState(Boolean(studbookId));
+  const [loading, setLoading] = useState(hasLocalId);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!studbookId) return;
+    if (!hasLocalId) return;
 
     let mounted = true;
 
@@ -66,9 +68,9 @@ export function HorseAnalyticsTab({ studbookId }: HorseAnalyticsTabProps) {
 
       try {
         const [analysisResult, tailMaleResult, tailFemaleResult] = await Promise.all([
-          getHorseFamilyAnalysisTree({ studbookId: studbookId as number, levels: 12, pageNumber: 1, pageSize: 20 }),
-          getTailMale({ studbookId: studbookId as number, levels: 12, pageNumber: 1, pageSize: 20 }),
-          getTailFemale({ studbookId: studbookId as number, levels: 12, pageNumber: 1, pageSize: 20 }),
+          getHorseFamilyAnalysisTree({ localId: numericLocalId, levels: 12, pageNumber: 1, pageSize: 20 }),
+          getTailMale({ localId: numericLocalId, levels: 12, pageNumber: 1, pageSize: 20 }),
+          getTailFemale({ localId: numericLocalId, levels: 12, pageNumber: 1, pageSize: 20 }),
         ]);
 
         if (!mounted) return;
@@ -87,12 +89,12 @@ export function HorseAnalyticsTab({ studbookId }: HorseAnalyticsTabProps) {
     return () => {
       mounted = false;
     };
-  }, [studbookId, isArabic]);
+  }, [hasLocalId, numericLocalId, isArabic]);
 
-  if (!studbookId) {
+  if (!hasLocalId) {
     return (
       <div className="rounded-2xl bg-white p-10 text-center text-sm text-[#7a6c63]">
-        {isArabic ? 'لا يوجد رقم Studbook لهذا الخيل' : 'No studbook id is available for this horse.'}
+        {isArabic ? 'لا يوجد رقم محلي لهذا الخيل' : 'No local id is available for this horse.'}
       </div>
     );
   }

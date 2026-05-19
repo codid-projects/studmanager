@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
   try {
     const result = await searchStudbookHorses({
       searchTerm: searchParams.get('search') ?? undefined,
+      gender: searchParams.get('gender') ?? undefined,
       pageNumber: Number(searchParams.get('pageNumber') ?? 1),
       pageSize: Number(searchParams.get('pageSize') ?? 12),
     });

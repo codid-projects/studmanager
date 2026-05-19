@@ -7,19 +7,28 @@ import { HorseCard } from '@/components/horses/HorseCard';
 import { HorseFormModal, type HorseFormData } from '@/components/horses/HorseFormModal';
 import { StudbookImportModal } from '@/components/horses/StudbookImportModal';
 import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
-import { toHorseCardModel } from '@/lib/api/horse-formatters';
+import { mediaUrl, toHorseCardModel } from '@/lib/api/horse-formatters';
 import { clientApiFetch } from '@/lib/api/client';
+import { buildCreateHorseFormData } from '@/lib/api/create-horse-form-data';
 import { createHorse } from '@/lib/api/create-horse';
 import { localizeApiMessage } from '@/lib/api/errors';
 import { isDirectApiMode } from '@/lib/api/transport';
 import type { CreateHorsePayload } from '@/lib/api/types';
-import type { HorseListItemDto, LocaleCode, PagedResponse, StudbookHorseDto } from '@/lib/api/types';
+import type { ApiResult, HorseInfoDto, HorseListItemDto, LocaleCode, PagedResponse, StudbookHorseDto } from '@/lib/api/types';
 import { useLocale, useTranslation } from '@/lib/locale-context';
 
 interface HorsesPageClientProps {
   initialHorses: PagedResponse<HorseListItemDto>;
   initialStudbook: PagedResponse<StudbookHorseDto>;
   initialError?: string;
+}
+
+function unwrapApiResult<T>(payload: T | ApiResult<T>): T | undefined {
+  if (payload && typeof payload === 'object' && 'statusCode' in payload) {
+    return (payload as ApiResult<T>).data;
+  }
+
+  return payload as T;
 }
 
 export function HorsesPageClient({
@@ -118,7 +127,7 @@ export function HorsesPageClient({
   });
 
   const editingHorse = editingHorseId
-    ? horses.find((horse) => horse.id === Number(editingHorseId)) ?? null
+    ? horses.find((horse) => (horse.localId ?? horse.id) === Number(editingHorseId)) ?? null
     : null;
 
   const formatFormDate = (value: string | null | undefined) => {
@@ -131,16 +140,29 @@ export function HorsesPageClient({
   };
 
   const editInitialData: HorseFormData | null = editingHorse
-    ? {
-        nameAr: editingHorse.arabicName ?? '',
-        nameEn: editingHorse.englishName ?? '',
-        type: '',
-        gender: editingHorse.gender ?? '',
-        birthDate: formatFormDate(editingHorse.dateofBirth),
-        color: editingHorse.color ?? '',
-        image: editingHorse.horseProfileImage ?? undefined,
-        imagePreview: editingHorse.horseProfileImage ?? undefined,
-      }
+    ? (() => {
+        const profileImage = editingHorse.horseProfileImage ?? mediaUrl(editingHorse.images?.[0]) ?? undefined;
+
+        return {
+          nameAr: editingHorse.arabicName ?? '',
+          nameEn: editingHorse.englishName ?? '',
+          knownAs: editingHorse.knownAs ?? '',
+          type: '',
+          gender: editingHorse.gender ?? '',
+          birthDate: formatFormDate(editingHorse.dateofBirth),
+          color: editingHorse.color ?? '',
+          image: profileImage,
+          imagePreview: profileImage,
+          existingImages: (editingHorse.images ?? [])
+            .map((image, index) => {
+              if (typeof image === 'string') return { id: -(index + 1), url: image };
+              return image.url ? { id: image.id, url: image.url } : null;
+            })
+            .filter((image): image is { id: number; url: string } => Boolean(image)),
+          newImages: [],
+          removeImageIds: [],
+        };
+      })()
     : null;
 
   const handleImported = () => {
@@ -164,7 +186,7 @@ export function HorsesPageClient({
       });
 
       const deletedId = Number(horseIdToDelete);
-      setHorses((current) => current.filter((horse) => horse.id !== deletedId));
+      setHorses((current) => current.filter((horse) => (horse.localId ?? horse.id) !== deletedId));
       setHorseIdToDelete(null);
     } catch (requestError) {
       const status = typeof requestError === 'object' && requestError && 'status' in requestError
@@ -187,9 +209,10 @@ export function HorsesPageClient({
     }
   };
 
-  const toCreatePayload = (data: HorseFormData): CreateHorsePayload => ({
+  const toHorsePayload = (data: HorseFormData, mode: 'create' | 'update' = 'create'): CreateHorsePayload => ({
     EnglishName: data.nameEn,
     ArabicName: data.nameAr,
+    KnownAs: data.knownAs,
     DateofBirth: data.birthDate,
     Gender: data.gender,
     BornIn: data.birthCountry,
@@ -210,16 +233,24 @@ export function HorsesPageClient({
     NationalSportRegistrationNumber: data.nationalRegistrationNumber,
     PassportNumber: data.passportNumber,
     HorseProfileImage: data.image instanceof File ? data.image : null,
-    Videos: data.videoLink ? [data.videoLink] : [],
+    ClearHorseProfileImage:
+      mode === 'update' && Boolean(editingHorse?.horseProfileImage) && !data.image && !data.imagePreview,
+    RemoveImageIds: mode === 'update' ? data.removeImageIds?.filter((id) => id > 0) : undefined,
+    NewImages: mode === 'update' ? data.newImages : undefined,
+    Images: mode === 'create' ? data.newImages : undefined,
+    Videos: mode === 'create' && data.videoLink ? [data.videoLink] : [],
+    NewVideos: mode === 'update' && data.videoLink ? [data.videoLink] : [],
     HorseFatherStudbookId: data.fatherStudbookId,
     HorseMotherStudbookId: data.motherStudbookId,
+    OwnerStudbookId: data.ownerStudbookId,
+    BreederStudbookId: data.breederStudbookId,
     IsStallion: data.gender === 'Male',
     IsMare: data.gender === 'Female',
   });
 
   const handleManualCreate = async (data: HorseFormData) => {
     try {
-      const result = await createHorse(toCreatePayload(data));
+      const result = await createHorse(toHorsePayload(data, 'create'));
 
       if (!result.succeeded) {
         throw new Error(localizeApiMessage(result.message, locale as LocaleCode));
@@ -243,30 +274,63 @@ export function HorsesPageClient({
     }
   };
 
-  const handleLocalEdit = (data: HorseFormData) => {
+  const handleLocalEdit = async (data: HorseFormData) => {
     if (!editingHorseId) return;
 
-    setHorses((current) =>
-      current.map((horse) => {
-        if (horse.id !== Number(editingHorseId)) return horse;
+    try {
+      const result = await clientApiFetch<ApiResult<number> | ApiResult<null> | ApiResult<boolean>>({
+        method: 'PUT',
+        backendPath: `/api/Horses/${editingHorseId}`,
+        nextPath: `/api/horses/${editingHorseId}`,
+        nextQuery: { locale },
+        locale: locale as LocaleCode,
+        body: buildCreateHorseFormData(toHorsePayload(data, 'update')),
+      });
 
-        return {
-          ...horse,
-          englishName: data.nameEn,
-          arabicName: data.nameAr,
-          dateofBirth: data.birthDate,
-          gender: data.gender,
-          color: data.color ?? horse.color,
-          horseProfileImage:
-            typeof data.imagePreview === 'string' && data.imagePreview
-              ? data.imagePreview
-              : typeof data.image === 'string'
-                ? data.image
-                : horse.horseProfileImage,
-        };
-      }),
-    );
-    setEditingHorseId(null);
+      if (result?.succeeded === false) {
+        throw new Error(localizeApiMessage(result.message, locale as LocaleCode));
+      }
+
+      const refreshed = await clientApiFetch<ApiResult<HorseInfoDto> | HorseInfoDto>({
+        backendPath: `/api/Horses/${editingHorseId}`,
+        nextPath: `/api/horses/${editingHorseId}`,
+        nextQuery: { locale },
+        locale: locale as LocaleCode,
+      });
+      const refreshedHorse = unwrapApiResult(refreshed);
+
+      setHorses((current) =>
+        current.map((horse) => {
+          if ((horse.localId ?? horse.id) !== Number(editingHorseId)) return horse;
+
+          return {
+            ...horse,
+            ...refreshedHorse,
+            id: horse.id,
+            localId: refreshedHorse?.localId ?? horse.localId,
+            englishName: refreshedHorse?.englishName ?? data.nameEn,
+            arabicName: refreshedHorse?.arabicName ?? data.nameAr,
+            dateofBirth: refreshedHorse?.dateofBirth ?? data.birthDate,
+            gender: refreshedHorse?.gender ?? data.gender,
+            color: refreshedHorse?.color ?? data.color ?? horse.color,
+            horseProfileImage:
+              refreshedHorse?.horseProfileImage ??
+              (typeof data.imagePreview === 'string' && data.imagePreview
+                ? data.imagePreview
+                : typeof data.image === 'string'
+                  ? data.image
+                  : horse.horseProfileImage ?? mediaUrl(refreshedHorse?.images?.[0])),
+          };
+        }),
+      );
+      setEditingHorseId(null);
+    } catch (requestError) {
+      throw new Error(
+        requestError instanceof Error
+          ? localizeApiMessage(requestError.message, locale as LocaleCode)
+          : t('common.error'),
+      );
+    }
   };
 
   return (

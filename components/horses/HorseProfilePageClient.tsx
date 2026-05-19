@@ -29,7 +29,7 @@ import {
   getHorseSiblings,
   normalizePagedList,
 } from '@/lib/api/external-horses';
-import { toProfileHorseModel } from '@/lib/api/horse-formatters';
+import { mediaUrl, mediaUrls, toProfileHorseModel } from '@/lib/api/horse-formatters';
 import { getLocalizedName } from '@/lib/api/localization';
 import { isDirectApiMode } from '@/lib/api/transport';
 import type {
@@ -149,7 +149,7 @@ function cleanParentName(value: string | null | undefined) {
   return next && next.toLowerCase() !== 'null' && next.toLowerCase() !== 'undefined' && next !== '-' ? next : '';
 }
 
-function directParentsFromFamilyTree(items: HorseFamilyTreeItem[], studbookId: number | null | undefined, isRTL: boolean) {
+function directParentsFromFamilyTree(items: HorseFamilyTreeItem[], localId: number | null | undefined, isRTL: boolean) {
   const parentNameFor = (item: HorseFamilyTreeItem) => {
     const fatherName = cleanParentName(getLocalizedName(
       item.horseFatherEnglishName,
@@ -165,7 +165,7 @@ function directParentsFromFamilyTree(items: HorseFamilyTreeItem[], studbookId: n
     return { fatherName, motherName };
   };
 
-  const currentHorse = items.find((item) => item.id === studbookId);
+  const currentHorse = items.find((item) => item.id === localId) ?? items[0];
 
   if (currentHorse) {
     const parents = parentNameFor(currentHorse);
@@ -198,7 +198,7 @@ export function HorseProfilePageClient({
   const [pedigreeParents, setPedigreeParents] = useState({ fatherName: '', motherName: '' });
 
   const profileHorse = horse ? toProfileHorseModel(horse, locale as LocaleCode) : null;
-  const hasVideos = Boolean(horse?.videos?.some((url) => url?.trim()));
+  const hasVideos = mediaUrls(horse?.videos).length > 0;
 
   const formatFormDate = (value: string | null | undefined) => {
     if (!value) return '';
@@ -209,10 +209,18 @@ export function HorseProfilePageClient({
     return date.toISOString().slice(0, 10);
   };
 
+  const formExistingImages = (horse?.images ?? [])
+    .map((image, index) => {
+      if (typeof image === 'string') return { id: -(index + 1), url: image };
+      return image.url ? { id: image.id, url: image.url } : null;
+    })
+    .filter((image): image is { id: number; url: string } => Boolean(image));
+
   const editInitialData: HorseFormData | null = horse
     ? {
         nameAr: horse.arabicName ?? '',
         nameEn: horse.englishName ?? '',
+        knownAs: horse.knownAs ?? '',
         type: horse.type ?? '',
         gender: horse.gender ?? '',
         birthDate: formatFormDate(horse.dateofBirth),
@@ -222,7 +230,9 @@ export function HorseProfilePageClient({
         currentCountry: horse.currentlyIn ?? '',
         birthCountry: horse.bornIn ?? '',
         ownerName: horse.owner?.studArabicName ?? horse.owner?.studName ?? '',
+        ownerStudbookId: horse.owner?.id,
         breederName: horse.breeder?.studArabicName ?? horse.breeder?.studName ?? '',
+        breederStudbookId: horse.breeder?.id,
         faceMarks: horse.faceSpecialMarkings ?? '',
         frontLeftLeg: horse.frontLeftLeg ?? '',
         frontRightLeg: horse.frontRightLeg ?? '',
@@ -235,19 +245,23 @@ export function HorseProfilePageClient({
         nationalRegistrationNumber: horse.nationalSportRegistrationNumber ?? '',
         uelnNumber: horse.uelnNumber ?? '',
         passportNumber: horse.passportNumber ?? '',
-        breederPhoneNumber: horse.breeder?.primaryPhoneNumber ?? '',
-        ownerPhoneNumber: horse.owner?.primaryPhoneNumber ?? '',
-        breederEmail: horse.breeder?.studEmail ?? '',
-        ownerEmail: horse.owner?.studEmail ?? '',
-        image: horse.horseProfileImage ?? undefined,
-        imagePreview: horse.horseProfileImage ?? undefined,
-        videoLink: horse.videos?.[0] ?? '',
+        image: horse.horseProfileImage ?? mediaUrl(horse.images?.[0]) ?? undefined,
+        imagePreview: horse.horseProfileImage ?? mediaUrl(horse.images?.[0]) ?? undefined,
+        existingImages: formExistingImages,
+        newImages: [],
+        removeImageIds: [],
+        videoLink: mediaUrl(horse.videos?.[0]) ?? '',
       }
     : null;
 
   const toUpdatePayload = (data: HorseFormData): CreateHorsePayload => ({
     EnglishName: data.nameEn,
     ArabicName: data.nameAr,
+    KnownAs: data.knownAs,
+    StrainEn: horse?.strainEn ?? undefined,
+    StrainAr: horse?.strainAr ?? undefined,
+    SpecialEn: horse?.specialEn ?? undefined,
+    SpecialAr: horse?.specialAr ?? undefined,
     DateofBirth: data.birthDate,
     Gender: data.gender,
     BornIn: data.birthCountry,
@@ -268,11 +282,18 @@ export function HorseProfilePageClient({
     NationalSportRegistrationNumber: data.nationalRegistrationNumber,
     PassportNumber: data.passportNumber,
     HorseProfileImage: data.image instanceof File ? data.image : null,
-    Videos: data.videoLink ? [data.videoLink] : [],
+    ClearHorseProfileImage: Boolean(horse?.horseProfileImage) && !data.image && !data.imagePreview,
+    RemoveImageIds: data.removeImageIds?.filter((id) => id > 0),
+    NewImages: data.newImages,
+    NewVideos: data.videoLink ? [data.videoLink] : [],
     HorseFatherStudbookId: data.fatherStudbookId,
     HorseMotherStudbookId: data.motherStudbookId,
+    OwnerStudbookId: data.ownerStudbookId,
+    BreederStudbookId: data.breederStudbookId,
     IsStallion: data.gender === 'Male',
     IsMare: data.gender === 'Female',
+    IsStrain: horse?.isStrain,
+    IsSpecial: horse?.isSpecial,
   });
 
   const handleProfileEdit = async (data: HorseFormData) => {
@@ -306,7 +327,7 @@ export function HorseProfilePageClient({
     if (isDirectApiMode) return;
     if (!horse) return;
 
-    const localId = horse.id;
+    const localId = horse.localId ?? horse.id;
     const now = new Date().toLocaleTimeString();
 
     window.dispatchEvent(
@@ -357,7 +378,7 @@ export function HorseProfilePageClient({
             nextQuery: { pageNumber: 1, pageSize: 100, locale },
             locale: locale as LocaleCode,
           });
-          const fallbackHorse = listPayload.data.find((item) => item.id === Number(horseId));
+          const fallbackHorse = listPayload.data.find((item) => (item.localId ?? item.id) === Number(horseId));
 
           if (!fallbackHorse) throw detailError;
           horseDetail = toHorseInfoFallback(fallbackHorse);
@@ -403,7 +424,9 @@ export function HorseProfilePageClient({
   }, [horseId]);
 
   useEffect(() => {
-    if (!profileHorse?.studbookId) {
+    const localId = Number(profileHorse?.id);
+
+    if (!Number.isFinite(localId) || localId <= 0) {
       setPedigreeParents({ fatherName: '', motherName: '' });
       return;
     }
@@ -413,7 +436,7 @@ export function HorseProfilePageClient({
     async function loadFamilyTreeParents() {
       try {
         const familyResult = await getHorseFamilyAnalysisTree({
-          studbookId: profileHorse?.studbookId as number,
+          localId,
           levels: 1,
           pageNumber: 1,
           pageSize: 20,
@@ -423,7 +446,7 @@ export function HorseProfilePageClient({
 
         const familyParents = directParentsFromFamilyTree(
           normalizePagedList(familyResult).items,
-          profileHorse?.studbookId,
+          localId,
           isRTL,
         );
 
@@ -435,7 +458,7 @@ export function HorseProfilePageClient({
           return;
         }
 
-        const pedigreeResult = await getHorsePedigree({ studbookId: profileHorse?.studbookId as number, levels: 2 });
+        const pedigreeResult = await getHorsePedigree({ localId, levels: 2 });
 
         if (mounted) {
           setPedigreeParents(directParentsFromPedigree(pedigreeResult.data, isRTL));
@@ -450,7 +473,7 @@ export function HorseProfilePageClient({
     return () => {
       mounted = false;
     };
-  }, [profileHorse?.studbookId, isRTL]);
+  }, [profileHorse?.id, isRTL]);
 
   useEffect(() => {
     if (activeTab === 'videos' && !hasVideos) {
@@ -574,7 +597,7 @@ export function HorseProfilePageClient({
             />
 
             {activeTab === 'pedigree' && <HorsePedigreeTree horse={profileHorse} />}
-            {activeTab === 'analytics' && <HorseAnalyticsTab studbookId={profileHorse.studbookId} />}
+            {activeTab === 'analytics' && <HorseAnalyticsTab localId={profileHorse.id} />}
             {activeTab === 'info' && <HorseInfoTab horse={profileHorse} />}
             {activeTab === 'photos' && <HorsePhotosTab horse={profileHorse} />}
             {activeTab === 'videos' && <HorseVideosTab horse={profileHorse} />}
