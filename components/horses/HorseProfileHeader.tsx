@@ -9,6 +9,7 @@ import { Pencil, QrCode, X } from "lucide-react";
 
 interface Horse {
   id: string;
+  studbookId?: number | null;
   nameAr: string;
   nameEn: string;
   type: string;
@@ -41,10 +42,17 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse, onEdit,
   const [previewOpen, setPreviewOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryMode, setSummaryMode] = useState<"qr" | "summary">("summary");
-  const [profileUrl, setProfileUrl] = useState("");
 
   const horseName = locale === "ar" ? horse.nameAr : horse.nameEn;
   const raw = horse.raw ?? {};
+  const rawStudbookId = raw.studbookId ?? raw.StudbookId;
+  const studbookId =
+    typeof horse.studbookId === "number"
+      ? horse.studbookId
+      : typeof rawStudbookId === "number"
+        ? rawStudbookId
+        : Number(rawStudbookId) || null;
+  const hasStudbookId = Boolean(studbookId);
   const cleanValue = (value?: string | null) => {
     const next = typeof value === "string" ? value.trim() : "";
     return next && next.toLowerCase() !== "null" && next.toLowerCase() !== "undefined" ? next : "";
@@ -59,19 +67,13 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse, onEdit,
     raw.horseMotherArabicName ?? raw.motherArabicName ?? raw.damArabicName,
     raw.horseMotherEnglishName ?? raw.motherEnglishName ?? raw.damEnglishName,
   );
-  const summaryUrl = useMemo(() => {
-    if (!profileUrl) return "";
-    const url = new URL(profileUrl);
-    url.searchParams.set("horseSummary", "1");
-    return url.toString();
-  }, [profileUrl]);
+  const summaryUrl = useMemo(
+    () => (studbookId ? `https://studbook-web-next-js.vercel.app/horses/${studbookId}` : ""),
+    [studbookId],
+  );
   const qrImageUrl = summaryUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(summaryUrl)}`
     : "";
-
-  useEffect(() => {
-    setProfileUrl(window.location.href);
-  }, []);
 
   useEffect(() => {
     if (searchParams.get("horseSummary") === "1") {
@@ -164,18 +166,20 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse, onEdit,
             </button>
           ) : null}
 
-          <button
-            type="button"
-            onClick={() => {
-              setSummaryMode("qr");
-              setSummaryOpen(true);
-            }}
-            className="flex h-12 items-center gap-2 rounded-xl border border-[#d9c9bd] bg-white px-4 text-[#3d2a1b] transition-colors hover:bg-[#fbf8f4] font-semibold"
-            aria-label={isRTL ? "رمز QR" : "QR code"}
-          >
-            <QrCode className="h-5 w-5" />
-            <span>{isRTL ? "QR" : "QR"}</span>
-          </button>
+          {hasStudbookId ? (
+            <button
+              type="button"
+              onClick={() => {
+                setSummaryMode("qr");
+                setSummaryOpen(true);
+              }}
+              className="flex h-12 items-center gap-2 rounded-xl border border-[#d9c9bd] bg-white px-4 text-[#3d2a1b] transition-colors hover:bg-[#fbf8f4] font-semibold"
+              aria-label={isRTL ? "رمز QR" : "QR code"}
+            >
+              <QrCode className="h-5 w-5" />
+              <span>{isRTL ? "QR" : "QR"}</span>
+            </button>
+          ) : null}
 
           <button
             onClick={() => router.push(`/${locale}/horses/${horse.id}/mating-test`)}
