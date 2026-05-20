@@ -28,12 +28,14 @@ export async function getHorses(params: {
   pageNumber?: number;
   pageSize?: number;
   search?: string;
+  gender?: string;
 } = {}) {
   return apiFetch<PagedResponse<HorseListItemDto>>('/api/Horses', {
     query: {
       pageNumber: params.pageNumber ?? 1,
       pageSize: params.pageSize ?? 24,
       search: params.search,
+      gender: params.gender,
     },
   });
 }

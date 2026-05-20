@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { HorseCard } from '@/components/horses/HorseCard';
@@ -23,6 +23,8 @@ interface HorsesPageClientProps {
   initialError?: string;
 }
 
+const HORSES_PAGE_SIZE = 24;
+
 function unwrapApiResult<T>(payload: T | ApiResult<T>): T | undefined {
   if (payload && typeof payload === 'object' && 'statusCode' in payload) {
     return (payload as ApiResult<T>).data;
@@ -44,11 +46,31 @@ export function HorsesPageClient({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingHorseId, setEditingHorseId] = useState<string | null>(null);
   const [mainSearchQuery, setMainSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [genderFilter, setGenderFilter] = useState('');
   const [horses, setHorses] = useState(initialHorses.data);
   const [error, setError] = useState(initialError);
   const [loading, setLoading] = useState(isDirectApiMode && !initialHorses.data.length);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [pageInfo, setPageInfo] = useState({
+    currentPage: initialHorses.currentPage || 1,
+    totalPages: initialHorses.totalPages || 0,
+    totalCount: initialHorses.totalCount || 0,
+    hasNextPage: initialHorses.hasNextPage || false,
+  });
   const [horseIdToDelete, setHorseIdToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const requestSeqRef = useRef(0);
+  const appendInFlightRef = useRef(false);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearchQuery(mainSearchQuery.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [mainSearchQuery]);
 
   useEffect(() => {
     if (isDirectApiMode) return;
@@ -79,52 +101,88 @@ export function HorsesPageClient({
     );
   }, [initialError, initialHorses, locale]);
 
-  useEffect(() => {
-    if (!isDirectApiMode) return;
+  const loadHorsesPage = useCallback(
+    async (pageNumber: number, append = false) => {
+      if (append && appendInFlightRef.current) return;
 
-    let mounted = true;
+      const requestId = ++requestSeqRef.current;
+      const search = debouncedSearchQuery || undefined;
+      const gender = genderFilter || undefined;
 
-    async function loadHorses() {
-      setLoading(true);
+      if (append) {
+        appendInFlightRef.current = true;
+        setLoadingMore(true);
+      } else {
+        appendInFlightRef.current = false;
+        setLoading(true);
+      }
       setError('');
 
       try {
         const payload = await clientApiFetch<PagedResponse<HorseListItemDto>>({
           backendPath: '/api/Horses',
           nextPath: '/api/horses',
-          backendQuery: { pageNumber: 1, pageSize: 24 },
-          nextQuery: { pageNumber: 1, pageSize: 24, locale },
+          backendQuery: { pageNumber, pageSize: HORSES_PAGE_SIZE, search, gender },
+          nextQuery: { pageNumber, pageSize: HORSES_PAGE_SIZE, search, gender, locale },
           locale: locale as LocaleCode,
         });
 
-        if (!mounted) return;
-        setHorses(payload.data ?? []);
+        if (requestId !== requestSeqRef.current) return;
+
+        setHorses((current) => (append ? [...current, ...(payload.data ?? [])] : payload.data ?? []));
+        setPageInfo({
+          currentPage: payload.currentPage || pageNumber,
+          totalPages: payload.totalPages || 0,
+          totalCount: payload.totalCount || 0,
+          hasNextPage: Boolean(payload.hasNextPage),
+        });
       } catch (requestError) {
-        if (!mounted) return;
+        if (requestId !== requestSeqRef.current) return;
         setError(requestError instanceof Error ? requestError.message : t('common.error'));
       } finally {
-        if (mounted) setLoading(false);
+        if (append) appendInFlightRef.current = false;
+
+        if (requestId === requestSeqRef.current) {
+          if (append) {
+            setLoadingMore(false);
+          } else {
+            setLoading(false);
+          }
+        }
       }
-    }
+    },
+    [debouncedSearchQuery, genderFilter, locale, t],
+  );
 
-    loadHorses();
+  useEffect(() => {
+    loadHorsesPage(1);
+  }, [loadHorsesPage]);
 
-    return () => {
-      mounted = false;
-    };
-  }, [locale, t]);
+  const loadNextPage = useCallback(() => {
+    if (loading || loadingMore || !pageInfo.hasNextPage) return;
+    loadHorsesPage(pageInfo.currentPage + 1, true);
+  }, [loadHorsesPage, loading, loadingMore, pageInfo.currentPage, pageInfo.hasNextPage]);
+
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node || !pageInfo.hasNextPage) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadNextPage();
+      },
+      { rootMargin: '320px 0px' },
+    );
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [loadNextPage, pageInfo.hasNextPage]);
 
   const cards = useMemo(
     () => horses.map((horse) => toHorseCardModel(horse, locale as LocaleCode)),
     [horses, locale],
   );
-
-  const filteredHorses = cards.filter((horse) => {
-    if (!mainSearchQuery.trim()) return true;
-    const query = mainSearchQuery.toLowerCase();
-
-    return horse.nameAr.includes(mainSearchQuery) || horse.nameEn.toLowerCase().includes(query);
-  });
 
   const editingHorse = editingHorseId
     ? horses.find((horse) => (horse.localId ?? horse.id) === Number(editingHorseId)) ?? null
@@ -335,33 +393,48 @@ export function HorsesPageClient({
 
   return (
     <MainLayout>
-      <div className={`rounded-[16px] p-4 sm:rounded-[28px] sm:p-6 ${isRTL ? 'text-right' : 'text-left'}`}>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-          <h1 className="text-lg font-semibold text-text-dark sm:text-2xl">{t('horses.title')}</h1>
+      <div className={`p-4 sm:p-6 ${isRTL ? 'text-right' : 'text-left'}`}>
+        <div className="flex flex-col gap-4 rounded-[18px] border border-[#eee3da] bg-white/90 p-4 shadow-[0_12px_30px_rgba(49,28,17,0.06)] sm:rounded-[24px] sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+          <h1 className="shrink-0 text-lg font-semibold text-text-dark sm:text-2xl">{t('horses.title')}</h1>
 
-          <div className="relative w-full sm:max-w-[30rem] sm:flex-1">
-            <input
-              type="search"
-              value={mainSearchQuery}
-              onChange={(event) => setMainSearchQuery(event.target.value)}
-              placeholder={t('common.search')}
-              className={`h-10 w-full rounded-lg border border-[#ece2da] bg-white text-xs text-[#2c2330] outline-none transition placeholder:text-[#d9cfc5] focus:border-[#5a3b25] focus:ring-2 focus:ring-[#5a3b25]/10 sm:h-11 sm:rounded-2xl sm:text-sm ${
-                isRTL ? 'pr-10 text-right sm:pr-12' : 'pl-10 text-left sm:pl-12'
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:max-w-[46rem]">
+            <div className="relative min-w-0 flex-1">
+              <input
+                type="search"
+                value={mainSearchQuery}
+                onChange={(event) => setMainSearchQuery(event.target.value)}
+                placeholder={t('common.search')}
+                className={`h-11 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] text-sm text-[#2c2330] outline-none transition placeholder:text-[#b9ada4] focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 ${
+                  isRTL ? 'pr-11 text-right' : 'pl-11 text-left'
+                }`}
+              />
+              <span className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 text-[#6a5548] ${isRTL ? 'right-4' : 'left-4'}`}>
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 10.5a7.5 7.5 0 0012.15 6.15z" />
+                </svg>
+              </span>
+            </div>
+
+            <select
+              value={genderFilter}
+              onChange={(event) => setGenderFilter(event.target.value)}
+              aria-label={t('horses.gender')}
+              className={`h-11 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] px-4 text-sm font-medium text-[#2c2330] outline-none transition focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 sm:w-40 ${
+                isRTL ? 'text-right' : 'text-left'
               }`}
-            />
-            <span className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 text-[#5a473d] ${isRTL ? 'right-3 sm:right-4' : 'left-3 sm:left-4'}`}>
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 10.5a7.5 7.5 0 0012.15 6.15z" />
-              </svg>
-            </span>
-          </div>
+            >
+              <option value="">{t('common.all')}</option>
+              <option value="Male">{t('horses.male')}</option>
+              <option value="Female">{t('horses.female')}</option>
+            </select>
 
-          <button
-            onClick={() => setIsStudbookOpen(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-[16px] bg-[#311C11] px-4 py-2 text-xs font-medium text-primary-light transition-all hover:bg-opacity-90 sm:w-auto sm:px-6 sm:text-sm"
-          >
-            + {t('horses.addNew')}
-          </button>
+            <button
+              onClick={() => setIsStudbookOpen(true)}
+              className="flex h-11 w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-[#311C11] px-5 text-sm font-semibold text-primary-light shadow-[0_10px_22px_rgba(49,28,17,0.18)] transition hover:bg-[#442819] sm:w-auto"
+            >
+              + {t('horses.addNew')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -372,21 +445,29 @@ export function HorsesPageClient({
       ) : null}
 
       <div className="p-4 sm:p-6">
-        {loading ? (
+        {loading && !horses.length ? (
           <div className="rounded-2xl bg-white p-10 text-center text-sm text-[#7a6c63]">
             {t('common.loading')}
           </div>
-        ) : filteredHorses.length ? (
-          <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
-            {filteredHorses.map((horse) => (
-              <HorseCard
-                key={horse.id}
-                horse={horse}
-                onEdit={setEditingHorseId}
-                onDelete={setHorseIdToDelete}
-              />
-            ))}
-          </div>
+        ) : cards.length ? (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
+              {cards.map((horse) => (
+                <HorseCard
+                  key={horse.id}
+                  horse={horse}
+                  onEdit={setEditingHorseId}
+                  onDelete={setHorseIdToDelete}
+                />
+              ))}
+            </div>
+            <div ref={loadMoreRef} className="h-8" aria-hidden="true" />
+            {loadingMore ? (
+              <div className="rounded-2xl bg-white p-4 text-center text-sm text-[#7a6c63]">
+                {t('common.loading')}
+              </div>
+            ) : null}
+          </>
         ) : (
           <div className="rounded-2xl bg-white p-10 text-center text-sm text-[#7a6c63]">
             {t('common.noRecordsFound')}

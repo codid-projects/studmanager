@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
       pageNumber: Number(searchParams.get('pageNumber') ?? 1),
       pageSize: Number(searchParams.get('pageSize') ?? 24),
       search: searchParams.get('search') ?? undefined,
+      gender: searchParams.get('gender') ?? undefined,
     });
 
     return NextResponse.json(result);
