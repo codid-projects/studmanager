@@ -3,6 +3,7 @@
 import { clientApiFetch } from './client';
 import type {
   ApiResult,
+  DefaultStudDto,
   ExternalHorseDashboardInformation,
   ExternalHorseSummaryItem,
   ExternalHorseSearchItem,
@@ -61,6 +62,7 @@ export const externalHorseQueryKeys = {
     ['horse', localId, 'siblings', search, pageNumber, pageSize] as const,
   offsprings: (localId: number, search?: string, pageNumber = 1, pageSize = 20) =>
     ['horse', localId, 'offsprings', search, pageNumber, pageSize] as const,
+  defaultStud: () => ['default-stud'] as const,
 };
 
 function unwrap<T>(result: ApiResult<T> | T): ApiResult<T> {
@@ -145,6 +147,12 @@ export const searchExternalStuds = async ({
     nextPath: '/api/external-horses/studs',
     backendQuery: { SearchTerm: searchTerm, PageNumber: pageNumber, PageSize: pageSize },
     nextQuery: { search: searchTerm, pageNumber, pageSize },
+  });
+
+export const getDefaultStud = async (): Promise<ApiResult<DefaultStudDto>> =>
+  clientApiFetch<ApiResult<DefaultStudDto>>({
+    backendPath: '/default',
+    nextPath: '/api/default',
   });
 
 export const importExternalHorse = async (payload: ImportHorsePayload): Promise<ApiResult<number>> =>

@@ -3,9 +3,9 @@
 import { FC, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslation } from '@/lib/locale-context';
 import { COUNTRY_TRANSLATIONS, HORSE_COLOR_TRANSLATIONS } from '@/lib/api/localization';
-import { normalizePagedList, searchExternalHorses, searchExternalStuds } from '@/lib/api/external-horses';
+import { getDefaultStud, normalizePagedList, searchExternalHorses, searchExternalStuds } from '@/lib/api/external-horses';
 import { getLocalizedName } from '@/lib/api/localization';
-import type { ExternalHorseSearchItem, ExternalStudSearchItem } from '@/lib/api/types';
+import type { DefaultStudDto, ExternalHorseSearchItem, ExternalStudSearchItem } from '@/lib/api/types';
 
 interface HorseFormModalProps {
   isOpen: boolean;
@@ -406,14 +406,21 @@ function StudPicker({
   placeholder,
   selectedId,
   selectedName,
+  defaultStudName,
+  defaultStudLoading = false,
+  onUseDefault,
   onSelect,
 }: {
   label: string;
   placeholder: string;
   selectedId?: number;
   selectedName?: string;
+  defaultStudName?: string;
+  defaultStudLoading?: boolean;
+  onUseDefault?: () => void;
   onSelect: (stud: ExternalStudSearchItem) => void;
 }) {
+  const { t } = useTranslation();
   const { direction, locale } = useLocale();
   const isRTL = direction === 'rtl';
   const isArabic = locale === 'ar';
@@ -465,18 +472,31 @@ function StudPicker({
   return (
     <div className="rounded-2xl border border-[#eadfd9] bg-[#fffaf6] p-3">
       <label className="mb-2 block text-xs font-bold text-[#4a2b1a]">{label}</label>
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(true);
-          setPageNumber(1);
-        }}
-        className={`h-11 w-full rounded-xl border border-[#d8cec8] bg-white px-3 text-sm font-semibold text-[#3b2b20] outline-none transition hover:bg-[#faf7f2] ${
-          isRTL ? 'text-right' : 'text-left'
-        }`}
-      >
-        {selectedName || placeholder}
-      </button>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(true);
+            setPageNumber(1);
+          }}
+          className={`h-11 min-w-0 flex-1 rounded-xl border border-[#d8cec8] bg-white px-3 text-sm font-semibold text-[#3b2b20] outline-none transition hover:bg-[#faf7f2] ${
+            isRTL ? 'text-right' : 'text-left'
+          }`}
+        >
+          <span className="block truncate">{selectedName || placeholder}</span>
+        </button>
+        {onUseDefault ? (
+          <button
+            type="button"
+            onClick={onUseDefault}
+            disabled={defaultStudLoading || !defaultStudName}
+            title={defaultStudName}
+            className="h-11 shrink-0 rounded-xl border border-[#cdb8a7] bg-white px-3 text-xs font-bold text-[#4a2b1a] transition hover:bg-[#f7f0e8] disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {defaultStudLoading ? t('common.loading') : t('horses.useDefault')}
+          </button>
+        ) : null}
+      </div>
       {selectedId ? (
         <div className="mt-2 rounded-xl bg-[#f1e6dd] px-3 py-2 text-xs font-semibold text-[#3b2b20]">
           {selectedName}
@@ -559,8 +579,9 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
   onSubmit,
 }) => {
   const { t } = useTranslation();
-  const { direction } = useLocale();
+  const { direction, locale } = useLocale();
   const isRTL = direction === 'rtl';
+  const isArabic = locale === 'ar';
 
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<HorseFormData>(emptyFormData);
@@ -569,12 +590,27 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
   const [submitError, setSubmitError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [defaultStud, setDefaultStud] = useState<DefaultStudDto | null>(null);
+  const [defaultStudLoading, setDefaultStudLoading] = useState(false);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const birthDateInputRef = useRef<HTMLInputElement>(null);
   const objectImagePreviewRef = useRef<string | null>(null);
   const modalTitle = initialData ? t('horses.editHorse') : t('horses.addNew');
+  const defaultStudName = defaultStud
+    ? getLocalizedName(defaultStud.studName, defaultStud.studArabicName, isArabic)
+    : '';
+  const applyDefaultStud = (target: 'owner' | 'breeder') => {
+    if (!defaultStud) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      ...(target === 'owner'
+        ? { ownerStudbookId: defaultStud.id, ownerName: defaultStudName }
+        : { breederStudbookId: defaultStud.id, breederName: defaultStudName }),
+    }));
+  };
 
   const steps = [
     { id: 1, label: t('horses.step1') || 'اسم الخيل' },
@@ -609,6 +645,30 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
     setSubmitError('');
     setFieldErrors({});
   }, [isOpen, initialData]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let mounted = true;
+    setDefaultStudLoading(true);
+
+    getDefaultStud()
+      .then((result) => {
+        if (!mounted) return;
+        setDefaultStud(result.data ?? null);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setDefaultStud(null);
+      })
+      .finally(() => {
+        if (mounted) setDefaultStudLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     return () => {
@@ -1235,6 +1295,9 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                     placeholder={isRTL ? 'ابحث باسم المالك' : 'Search owner stud'}
                     selectedId={formData.ownerStudbookId}
                     selectedName={formData.ownerName}
+                    defaultStudName={defaultStudName}
+                    defaultStudLoading={defaultStudLoading}
+                    onUseDefault={() => applyDefaultStud('owner')}
                     onSelect={(stud) => {
                       setFormData((prev) => ({
                         ...prev,
@@ -1249,6 +1312,9 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                     placeholder={isRTL ? 'ابحث باسم المربي' : 'Search breeder stud'}
                     selectedId={formData.breederStudbookId}
                     selectedName={formData.breederName}
+                    defaultStudName={defaultStudName}
+                    defaultStudLoading={defaultStudLoading}
+                    onUseDefault={() => applyDefaultStud('breeder')}
                     onSelect={(stud) => {
                       setFormData((prev) => ({
                         ...prev,

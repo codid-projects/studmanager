@@ -361,6 +361,18 @@ export type ExternalStudSearchItem = {
   studProfileImage: string | null;
 };
 
+export type DefaultStudDto = {
+  id: number;
+  studbookId: number | null;
+  studName: string | null;
+  studArabicName: string | null;
+  studEmail: string | null;
+  primaryPhoneNumber: string | null;
+  secondryPhoneNumber: string | null;
+  registrationNumber: string | null;
+  studProfileImage: string | null;
+};
+
 export type ImportHorsePayload = {
   studbookId: number;
 };

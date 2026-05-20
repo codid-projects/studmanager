@@ -158,7 +158,7 @@ function SidebarItem({ item, isActive, href, collapsed = false }: SidebarItemPro
   return (
     <Link href={href} className="block" title={collapsed ? label : undefined}>
       <div
-        className={`relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-300 ${collapsed ? 'md:justify-center md:gap-0 md:px-0' : ''} ${direction === 'rtl'
+        className={`relative flex items-center gap-2.5 rounded-xl px-3 py-2 transition-all duration-300 ${collapsed ? 'md:justify-center md:gap-0 md:px-0' : ''} ${direction === 'rtl'
           ? 'flex-row-reverse justify-end text-right'
           : 'flex-row justify-start text-left'
           } ${isActive
@@ -209,14 +209,14 @@ export function Sidebar({ open = true, onClose, collapsed = false, onCollapsedCh
 
   return (
     <aside
-      className={`fixed z-50 flex h-full w-[17rem] flex-col overflow-y-auto rounded-none bg-white px-4 py-5 shadow-[0_20px_40px_rgba(96,56,23,0.08)] transition-all duration-300 ease-in-out
-        md:top-8 md:z-20 md:h-[calc(100vh-4rem)] ${collapsed ? 'md:w-[5.5rem] md:px-3' : 'md:w-[17.5rem] md:px-5'} md:rounded-[28px] md:py-6 md:translate-x-0
+      className={`fixed z-50 flex h-full w-[17rem] flex-col overflow-y-auto rounded-none bg-white px-4 py-4 shadow-[0_20px_40px_rgba(96,56,23,0.08)] transition-all duration-300 ease-in-out
+        md:top-8 md:z-20 md:h-[calc(100vh-4rem)] ${collapsed ? 'md:w-[5.5rem] md:px-3' : 'md:w-[17.5rem] md:px-5'} md:rounded-[28px] md:py-5 md:translate-x-0
         ${isRTL
           ? `top-0 right-0 md:right-10 ${open ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`
           : `top-0 left-0 md:left-10 ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`
         }`}
     >
-      <div className={`mb-6 flex items-center gap-3 md:mb-8 ${collapsed ? 'md:flex-col md:justify-center md:gap-2' : 'justify-between'}`}>
+      <div className={`mb-4 flex items-center gap-3 md:mb-5 ${collapsed ? 'md:flex-col md:justify-center md:gap-2' : 'justify-between'}`}>
         <Link href={`/${locale}/dashboard`}>
           <img
             src={collapsed ? '/brand/icon.png' : '/brand/logo.png'}
@@ -237,7 +237,7 @@ export function Sidebar({ open = true, onClose, collapsed = false, onCollapsedCh
         </button>
       </div>
 
-      <nav className="flex-1 space-y-1">
+      <nav className="flex-1 space-y-0.5">
         {sidebarItems.map((item) => {
           const route = item.route || item.key;
           const href = `/${locale}/${route}`;
@@ -249,10 +249,10 @@ export function Sidebar({ open = true, onClose, collapsed = false, onCollapsedCh
           );
         })}
 
-        <div className="mt-6 border-t border-gray-100 pt-6">
+        <div className="mt-4 border-t border-gray-100 pt-4">
           <button
             onClick={handleLogout}
-            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[#8d3a2a] transition-all duration-300 hover:bg-[#fff1ea] ${
+            className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-[#8d3a2a] transition-all duration-300 hover:bg-[#fff1ea] ${
               direction === 'rtl' ? 'flex-row-reverse justify-end text-right' : 'flex-row justify-start text-left'
             } ${
               collapsed ? 'md:justify-center md:gap-0 md:px-0' : ''
@@ -270,7 +270,7 @@ export function Sidebar({ open = true, onClose, collapsed = false, onCollapsedCh
           </button>
         </div>
 
-        <div className="md:hidden mt-4 flex justify-center border-t border-gray-100 pt-6">
+        <div className="md:hidden mt-3 flex justify-center border-t border-gray-100 pt-4">
           <LocaleMenu variant="mobile" />
         </div>
       </nav>
