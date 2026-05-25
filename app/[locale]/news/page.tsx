@@ -1,119 +1,162 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { Heart, MessageCircle, Newspaper } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { clientApiFetch } from "@/lib/api/client";
+import { API_BASE_URL } from "@/lib/api/transport";
 import { useLocale, useTranslation } from "@/lib/locale-context";
-import Image from "next/image";
+import type { ExternalNewsFeedResponse, PagedResponse } from "@/lib/api/types";
 
-const NEWS_ITEMS = {
-  ar: [
-    {
-      id: 1,
-      title: "اضافة مزرعة جديدة",
-      date: "4 ابريل 2025",
-      icon: "🌐",
-      iconBg: "bg-blue-500",
-      image:
-        "https://images.unsplash.com/photo-1516483638261-f4dbaf036963?w=600&h=350&fit=crop",
-      body:
-        "إضافة جديدة إلى Studbook مزرعة مهنا\nفي خطوة جديدة لتعزيز شبكة المزارع المعتمدة وتوسيع نطاق الخدمة والرعاية البيطرية المتقدمة.\nمزرعة مهنا تُعد من المزارع الواعدة في مجال تربية ورعاية الخيول، وتتميز ببنية تحتية متطورة، واهتمام كبير بالتفاصيل في كل ما يتعلق بصحة الخيل وجودة العلف وبيئة التربية.",
-    },
-    {
-      id: 2,
-      title: "مهرجان جديد",
-      date: "4 ابريل 2025",
-      icon: "📍",
-      iconBg: "bg-orange-500",
-      image:
-        "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?w=600&h=350&fit=crop",
-      body:
-        "مهرجان الخيول - المسخة السنوية\nيسعدنا أن نُعلن عن إطلاق فعالية جديدة لهذا العام، يجمع بين الترفيه والتعليم والتفاعل المباشر مع أفضل الخبراء في مجال تربية الخيول.\n\n◆ تفاصيل الحدث:\n• 📍 المكان: مزرعة مهنا – الساحة الرئيسية\n• 📅 التاريخ: 15 مايو 2025 المزيد...",
-    },
-  ],
-  en: [
-    {
-      id: 1,
-      title: "New Farm Added",
-      date: "April 4, 2025",
-      icon: "🌐",
-      iconBg: "bg-blue-500",
-      image:
-        "https://images.unsplash.com/photo-1516483638261-f4dbaf036963?w=600&h=350&fit=crop",
-      body:
-        "A new farm has been added to Studbook.\nThis step expands the network of approved farms and strengthens advanced care and veterinary support.\nMehna Farm is one of the promising farms in horse breeding and care, with strong infrastructure and close attention to horse health, feed quality, and the breeding environment.",
-    },
-    {
-      id: 2,
-      title: "New Festival",
-      date: "April 4, 2025",
-      icon: "📍",
-      iconBg: "bg-orange-500",
-      image:
-        "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?w=600&h=350&fit=crop",
-      body:
-        "Horse Festival - Annual Edition\nWe are pleased to announce a new event for this year that combines entertainment, education, and direct interaction with leading experts in horse breeding.\n\n◆ Event details:\n• Location: Mehna Farm - Main Arena\n• Date: May 15, 2025 and more...",
-    },
-  ],
-} as const;
+function resolveMediaUrl(path: string | null | undefined) {
+  if (!path) return null;
+  if (path.startsWith("http")) return path;
+  return `${API_BASE_URL}/${path.replace(/^\//, "")}`;
+}
+
+function formatDate(value: string | null, locale: string) {
+  if (!value) return "";
+
+  return new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(new Date(value));
+}
 
 export default function NewsPage() {
   const { direction, locale } = useLocale();
   const { t } = useTranslation();
   const isRTL = direction === "rtl";
-  const items = locale === "ar" ? NEWS_ITEMS.ar : NEWS_ITEMS.en;
+  const [news, setNews] = useState<ExternalNewsFeedResponse[]>([]);
+  const [pageInfo, setPageInfo] = useState<PagedResponse<ExternalNewsFeedResponse> | null>(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadNews() {
+      setLoading(true);
+
+      try {
+        const result = await clientApiFetch<PagedResponse<ExternalNewsFeedResponse>>({
+          backendPath: "/api/ExternalHorses/newsfeed",
+          nextPath: "/api/newsfeed",
+          query: { pageNumber, pageSize: 10, locale },
+          locale,
+        });
+
+        if (!mounted) return;
+        setPageInfo(result);
+        setNews(result.data ?? []);
+      } catch {
+        if (!mounted) return;
+        setPageInfo(null);
+        setNews([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    loadNews();
+
+    return () => {
+      mounted = false;
+    };
+  }, [locale, pageNumber]);
 
   return (
     <MainLayout>
-      <div
-        className={`mx-auto p-6 ${isRTL ? "font-cairo" : ""}`}
-        dir={direction}
-      >
-        <h1 className="mb-8 text-start text-2xl font-bold text-[#3b2b20]">
+      <div className="mx-auto max-w-[1180px] p-4 sm:p-6" dir={direction}>
+        <h1 className="mb-8 text-start text-3xl font-bold text-[#3b2b20]">
           {t("news.title")}
         </h1>
 
-        <div className="space-y-10">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-3xl border border-gray-50 bg-white p-8 shadow-sm"
-            >
-              <div
-                className={`mb-6 flex items-center gap-4 ${
-                  isRTL ? "" : "justify-start"
-                }`}
-              >
-                <div
-                  className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-xl text-white ${item.iconBg}`}
+        {loading ? (
+          <div className="rounded-2xl bg-white p-10 text-center text-lg font-semibold text-[#6f665e]">
+            {t("common.loading")}
+          </div>
+        ) : news.length === 0 ? (
+          <div className="rounded-2xl bg-white p-10 text-center text-lg font-semibold text-[#6f665e]">
+            {t("common.noRecordsFound")}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {news.map((item, index) => {
+              const imageUrl = resolveMediaUrl(item.attachments?.find((attachment) => attachment.mediaType?.startsWith("image"))?.path);
+
+              return (
+                <article
+                  key={`${item.approvalDate ?? "news"}-${index}`}
+                  className="rounded-2xl border border-[#f1ece8] bg-white p-6 shadow-sm"
                 >
-                  {item.icon}
-                </div>
-                <div className={isRTL ? "text-right" : "text-left"}>
-                  <h2 className="text-xl font-bold text-[#3b2b20]">
-                    {item.title}
-                  </h2>
-                  <p className="mt-1 text-sm text-gray-400">{item.date}</p>
-                </div>
-              </div>
+                  <div className={`mb-5 flex items-center gap-4 ${isRTL ? "flex-row-reverse text-right" : "text-left"}`}>
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#4b2f1a] text-white">
+                      <Newspaper className="h-6 w-6" />
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="truncate text-xl font-bold text-[#3b2b20]">
+                        {item.userName || t("news.title")}
+                      </h2>
+                      <p className="mt-1 text-sm text-[#8c847c]">{formatDate(item.approvalDate, locale)}</p>
+                    </div>
+                  </div>
 
-              <div
-                className={`flex flex-col gap-6 md:flex-row ${
-                  isRTL ? "" : "md:flex-row-reverse"
-                }`}
-              >
-                <div className="relative h-[220px] w-full flex-shrink-0 overflow-hidden rounded-2xl md:w-[320px]">
-                  <Image src={item.image} alt={item.title} fill className="object-cover" />
-                </div>
+                  <div className={`grid gap-6 ${imageUrl ? "lg:grid-cols-[20rem_1fr]" : ""}`}>
+                    {imageUrl && (
+                      <div className="overflow-hidden rounded-xl bg-[#f4efea]">
+                        <img src={imageUrl} alt="" className="h-60 w-full object-cover" />
+                      </div>
+                    )}
 
-                <div className={`flex-1 ${isRTL ? "text-right" : "text-left"}`}>
-                  {item.body.split("\n").map((line, i) => (
-                    <p key={i} className="mb-2 text-[15px] leading-relaxed text-gray-600">
-                      {line}
-                    </p>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
+                    <div className={`${isRTL ? "text-right" : "text-left"}`}>
+                      <p className="whitespace-pre-line text-lg leading-8 text-[#5c5651]">
+                        {item.body || t("common.noRecordsFound")}
+                      </p>
+                      <div className={`mt-5 flex flex-wrap gap-2 ${isRTL ? "justify-end" : "justify-start"}`}>
+                        {(item.categories ?? []).map((category) => (
+                          <span key={category} className="rounded-full bg-[#f4efea] px-3 py-1 text-sm font-semibold text-[#4b2f1a]">
+                            {category}
+                          </span>
+                        ))}
+                      </div>
+                      <div className={`mt-5 flex items-center gap-5 text-sm font-semibold text-[#6f665e] ${isRTL ? "justify-end" : "justify-start"}`}>
+                        <span className="inline-flex items-center gap-1">
+                          <Heart className="h-4 w-4" />
+                          {item.likesCount ?? 0}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <MessageCircle className="h-4 w-4" />
+                          {item.commentsCount ?? 0}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <button
+            disabled={!pageInfo?.hasPreviousPage || loading}
+            onClick={() => setPageNumber((page) => Math.max(1, page - 1))}
+            className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#4b2f1a] disabled:opacity-40"
+          >
+            {t("common.back")}
+          </button>
+          <span className="text-sm font-semibold text-[#6f665e]">
+            {pageInfo?.currentPage ?? pageNumber} / {pageInfo?.totalPages || 1}
+          </span>
+          <button
+            disabled={!pageInfo?.hasNextPage || loading}
+            onClick={() => setPageNumber((page) => page + 1)}
+            className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#4b2f1a] disabled:opacity-40"
+          >
+            {t("common.next")}
+          </button>
         </div>
       </div>
     </MainLayout>

@@ -1,0 +1,5654 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "StudManager API",
+    "version": "v1"
+  },
+  "paths": {
+    "/api/Dashboard": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardDtoResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardDtoResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardDtoResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardDtoResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardDtoResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardDtoResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Dashboard/activities": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/ActivityTypeEnum"
+            }
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityDtoPagedResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityDtoPagedResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityDtoPagedResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Dashboard/lineage-count": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/DropDowns/countries": {
+      "get": {
+        "tags": [
+          "DropDowns"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CountryDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CountryDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CountryDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/DropDowns/roles": {
+      "get": {
+        "tags": [
+          "DropDowns"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/DropDowns/activityTypes": {
+      "get": {
+        "tags": [
+          "DropDowns"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityTypeDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityTypeDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityTypeDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/DropDowns/strains": {
+      "get": {
+        "tags": [
+          "DropDowns"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LineageNamesDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LineageNamesDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LineageNamesDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/DropDowns/special-lines": {
+      "get": {
+        "tags": [
+          "DropDowns"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LineageNamesDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LineageNamesDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LineageNamesDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/test-external": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/search-external-horses": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "SearchTerm",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Gender",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAllStudbookHorsesResponsePagedResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAllStudbookHorsesResponsePagedResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAllStudbookHorsesResponsePagedResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/search-external-studs": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "SearchTerm",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Gender",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAllStudbookStudsResponsePagedResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAllStudbookStudsResponsePagedResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAllStudbookStudsResponsePagedResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/import-horse": {
+      "post": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportHorseDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportHorseDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportHorseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Int32Result"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Int32Result"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Int32Result"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/{localHorseId}/events": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "localHorseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseEventHistoryResponsePagedResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseEventHistoryResponsePagedResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseEventHistoryResponsePagedResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/{localHorseId}/championships": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "localHorseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseChampionHistoryDtoPagedResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseChampionHistoryDtoPagedResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseChampionHistoryDtoPagedResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/{localHorseId}/awards": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "localHorseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseAwardHistoryDtoPagedResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseAwardHistoryDtoPagedResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseAwardHistoryDtoPagedResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/sync-events": {
+      "post": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/{localId}/siblings": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "localId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseSiblingsResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseSiblingsResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseSiblingsResponseResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseSiblingsResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseSiblingsResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseSiblingsResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/{localId}/offsprings": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "localId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseOffspringDtoPagedResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseOffspringDtoPagedResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseOffspringDtoPagedResponseResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseOffspringDtoPagedResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseOffspringDtoPagedResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseOffspringDtoPagedResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/{localId}/dashboard": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "localId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalHorseDasboardInformationDtoResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalHorseDasboardInformationDtoResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalHorseDasboardInformationDtoResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalHorseDasboardInformationDtoResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalHorseDasboardInformationDtoResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalHorseDasboardInformationDtoResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/{localId}/pedigree": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "localId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "levels",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 6
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorsePedigreeNodeDtoListListResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorsePedigreeNodeDtoListListResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorsePedigreeNodeDtoListListResult"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorsePedigreeTreeResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorsePedigreeTreeResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorsePedigreeTreeResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/testmating": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "horseMotherStudbookId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "horseFatherStudbookId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "levels",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 6
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTreeNodeListListResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTreeNodeListListResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTreeNodeListListResult"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorsePedigreeTreeResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorsePedigreeTreeResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorsePedigreeTreeResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/{localId}/sync-attachments": {
+      "post": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "localId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/{localId}/analysis-tree": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "localId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "levels",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 12
+            }
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseFamilyTreeWithPercentagesDtoPagedResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseFamilyTreeWithPercentagesDtoPagedResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseFamilyTreeWithPercentagesDtoPagedResponseResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseFamilyTreeWithPercentagesDtoPagedResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseFamilyTreeWithPercentagesDtoPagedResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseFamilyTreeWithPercentagesDtoPagedResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/{localId}/tail-male": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "localId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "levels",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 12
+            }
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTailNodePagedResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTailNodePagedResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTailNodePagedResponseResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTailNodePagedResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTailNodePagedResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTailNodePagedResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/{localId}/tail-female": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "localId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "levels",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 12
+            }
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTailNodePagedResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTailNodePagedResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTailNodePagedResponseResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTailNodePagedResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTailNodePagedResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTailNodePagedResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/{studbookId}/summary": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "studbookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalHorseSummaryDtoResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalHorseSummaryDtoResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalHorseSummaryDtoResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ExternalHorses/newsfeed": {
+      "get": {
+        "tags": [
+          "ExternalHorses"
+        ],
+        "parameters": [
+          {
+            "name": "mediaType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "categories",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalNewsFeedResponsePagedResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalNewsFeedResponsePagedResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalNewsFeedResponsePagedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Horses": {
+      "get": {
+        "tags": [
+          "Horses"
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "all",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "gender",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAllHorsesResponsePagedResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAllHorsesResponsePagedResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAllHorsesResponsePagedResponseResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Horses"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "EnglishName": {
+                    "type": "string"
+                  },
+                  "ArabicName": {
+                    "type": "string"
+                  },
+                  "KnownAs": {
+                    "type": "string"
+                  },
+                  "HorseProfileImage": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "StrainEn": {
+                    "type": "string"
+                  },
+                  "StrainAr": {
+                    "type": "string"
+                  },
+                  "SpecialEn": {
+                    "type": "string"
+                  },
+                  "SpecialAr": {
+                    "type": "string"
+                  },
+                  "DateofBirth": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "Gender": {
+                    "type": "string"
+                  },
+                  "BornIn": {
+                    "type": "string"
+                  },
+                  "CurrentlyIn": {
+                    "type": "string"
+                  },
+                  "Color": {
+                    "type": "string"
+                  },
+                  "Height": {
+                    "type": "string"
+                  },
+                  "AdditionalInformation": {
+                    "type": "string"
+                  },
+                  "FaceSpecialMarkings": {
+                    "type": "string"
+                  },
+                  "FrontRightLeg": {
+                    "type": "string"
+                  },
+                  "FrontLeftLeg": {
+                    "type": "string"
+                  },
+                  "BackRightLeg": {
+                    "type": "string"
+                  },
+                  "BackLeftLeg": {
+                    "type": "string"
+                  },
+                  "SpecialNotes": {
+                    "type": "string"
+                  },
+                  "RegistrationNumber": {
+                    "type": "string"
+                  },
+                  "MicrochipID": {
+                    "type": "string"
+                  },
+                  "UELNNumber": {
+                    "type": "string"
+                  },
+                  "InternationalFEIRegistrationNumber": {
+                    "type": "string"
+                  },
+                  "NationalSportRegistrationNumber": {
+                    "type": "string"
+                  },
+                  "PassportNumber": {
+                    "type": "string"
+                  },
+                  "Images": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  },
+                  "Videos": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "HorseFatherStudbookId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "HorseMotherStudbookId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "OwnerStudbookId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "BreederStudbookId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "IsStallion": {
+                    "type": "boolean"
+                  },
+                  "IsMare": {
+                    "type": "boolean"
+                  },
+                  "IsStrain": {
+                    "type": "boolean"
+                  },
+                  "IsSpecial": {
+                    "type": "boolean"
+                  },
+                  "Box": {
+                    "type": "string"
+                  }
+                }
+              },
+              "encoding": {
+                "EnglishName": {
+                  "style": "form"
+                },
+                "ArabicName": {
+                  "style": "form"
+                },
+                "KnownAs": {
+                  "style": "form"
+                },
+                "HorseProfileImage": {
+                  "style": "form"
+                },
+                "StrainEn": {
+                  "style": "form"
+                },
+                "StrainAr": {
+                  "style": "form"
+                },
+                "SpecialEn": {
+                  "style": "form"
+                },
+                "SpecialAr": {
+                  "style": "form"
+                },
+                "DateofBirth": {
+                  "style": "form"
+                },
+                "Gender": {
+                  "style": "form"
+                },
+                "BornIn": {
+                  "style": "form"
+                },
+                "CurrentlyIn": {
+                  "style": "form"
+                },
+                "Color": {
+                  "style": "form"
+                },
+                "Height": {
+                  "style": "form"
+                },
+                "AdditionalInformation": {
+                  "style": "form"
+                },
+                "FaceSpecialMarkings": {
+                  "style": "form"
+                },
+                "FrontRightLeg": {
+                  "style": "form"
+                },
+                "FrontLeftLeg": {
+                  "style": "form"
+                },
+                "BackRightLeg": {
+                  "style": "form"
+                },
+                "BackLeftLeg": {
+                  "style": "form"
+                },
+                "SpecialNotes": {
+                  "style": "form"
+                },
+                "RegistrationNumber": {
+                  "style": "form"
+                },
+                "MicrochipID": {
+                  "style": "form"
+                },
+                "UELNNumber": {
+                  "style": "form"
+                },
+                "InternationalFEIRegistrationNumber": {
+                  "style": "form"
+                },
+                "NationalSportRegistrationNumber": {
+                  "style": "form"
+                },
+                "PassportNumber": {
+                  "style": "form"
+                },
+                "Images": {
+                  "style": "form"
+                },
+                "Videos": {
+                  "style": "form"
+                },
+                "HorseFatherStudbookId": {
+                  "style": "form"
+                },
+                "HorseMotherStudbookId": {
+                  "style": "form"
+                },
+                "OwnerStudbookId": {
+                  "style": "form"
+                },
+                "BreederStudbookId": {
+                  "style": "form"
+                },
+                "IsStallion": {
+                  "style": "form"
+                },
+                "IsMare": {
+                  "style": "form"
+                },
+                "IsStrain": {
+                  "style": "form"
+                },
+                "IsSpecial": {
+                  "style": "form"
+                },
+                "Box": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Int32Result"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Int32Result"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Int32Result"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Horses/{localId}": {
+      "get": {
+        "tags": [
+          "Horses"
+        ],
+        "parameters": [
+          {
+            "name": "localId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseInfoResponseResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseInfoResponseResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseInfoResponseResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Horses"
+        ],
+        "parameters": [
+          {
+            "name": "localId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Horses"
+        ],
+        "parameters": [
+          {
+            "name": "localId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "EnglishName": {
+                    "type": "string"
+                  },
+                  "ArabicName": {
+                    "type": "string"
+                  },
+                  "KnownAs": {
+                    "type": "string"
+                  },
+                  "HorseProfileImage": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "ClearHorseProfileImage": {
+                    "type": "boolean"
+                  },
+                  "StrainEn": {
+                    "type": "string"
+                  },
+                  "StrainAr": {
+                    "type": "string"
+                  },
+                  "SpecialEn": {
+                    "type": "string"
+                  },
+                  "SpecialAr": {
+                    "type": "string"
+                  },
+                  "DateofBirth": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "Gender": {
+                    "type": "string"
+                  },
+                  "BornIn": {
+                    "type": "string"
+                  },
+                  "CurrentlyIn": {
+                    "type": "string"
+                  },
+                  "Color": {
+                    "type": "string"
+                  },
+                  "Height": {
+                    "type": "string"
+                  },
+                  "AdditionalInformation": {
+                    "type": "string"
+                  },
+                  "FaceSpecialMarkings": {
+                    "type": "string"
+                  },
+                  "FrontRightLeg": {
+                    "type": "string"
+                  },
+                  "FrontLeftLeg": {
+                    "type": "string"
+                  },
+                  "BackRightLeg": {
+                    "type": "string"
+                  },
+                  "BackLeftLeg": {
+                    "type": "string"
+                  },
+                  "SpecialNotes": {
+                    "type": "string"
+                  },
+                  "RegistrationNumber": {
+                    "type": "string"
+                  },
+                  "MicrochipID": {
+                    "type": "string"
+                  },
+                  "UELNNumber": {
+                    "type": "string"
+                  },
+                  "InternationalFEIRegistrationNumber": {
+                    "type": "string"
+                  },
+                  "NationalSportRegistrationNumber": {
+                    "type": "string"
+                  },
+                  "PassportNumber": {
+                    "type": "string"
+                  },
+                  "RemoveImageIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int32"
+                    }
+                  },
+                  "NewImages": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  },
+                  "RemoveVideoIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int32"
+                    }
+                  },
+                  "NewVideos": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "HorseFatherStudbookId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "HorseMotherStudbookId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "OwnerStudbookId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "BreederStudbookId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "IsStallion": {
+                    "type": "boolean"
+                  },
+                  "IsMare": {
+                    "type": "boolean"
+                  },
+                  "IsStrain": {
+                    "type": "boolean"
+                  },
+                  "IsSpecial": {
+                    "type": "boolean"
+                  },
+                  "Box": {
+                    "type": "string"
+                  },
+                  "SyncToStudbook": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "encoding": {
+                "EnglishName": {
+                  "style": "form"
+                },
+                "ArabicName": {
+                  "style": "form"
+                },
+                "KnownAs": {
+                  "style": "form"
+                },
+                "HorseProfileImage": {
+                  "style": "form"
+                },
+                "ClearHorseProfileImage": {
+                  "style": "form"
+                },
+                "StrainEn": {
+                  "style": "form"
+                },
+                "StrainAr": {
+                  "style": "form"
+                },
+                "SpecialEn": {
+                  "style": "form"
+                },
+                "SpecialAr": {
+                  "style": "form"
+                },
+                "DateofBirth": {
+                  "style": "form"
+                },
+                "Gender": {
+                  "style": "form"
+                },
+                "BornIn": {
+                  "style": "form"
+                },
+                "CurrentlyIn": {
+                  "style": "form"
+                },
+                "Color": {
+                  "style": "form"
+                },
+                "Height": {
+                  "style": "form"
+                },
+                "AdditionalInformation": {
+                  "style": "form"
+                },
+                "FaceSpecialMarkings": {
+                  "style": "form"
+                },
+                "FrontRightLeg": {
+                  "style": "form"
+                },
+                "FrontLeftLeg": {
+                  "style": "form"
+                },
+                "BackRightLeg": {
+                  "style": "form"
+                },
+                "BackLeftLeg": {
+                  "style": "form"
+                },
+                "SpecialNotes": {
+                  "style": "form"
+                },
+                "RegistrationNumber": {
+                  "style": "form"
+                },
+                "MicrochipID": {
+                  "style": "form"
+                },
+                "UELNNumber": {
+                  "style": "form"
+                },
+                "InternationalFEIRegistrationNumber": {
+                  "style": "form"
+                },
+                "NationalSportRegistrationNumber": {
+                  "style": "form"
+                },
+                "PassportNumber": {
+                  "style": "form"
+                },
+                "RemoveImageIds": {
+                  "style": "form"
+                },
+                "NewImages": {
+                  "style": "form"
+                },
+                "RemoveVideoIds": {
+                  "style": "form"
+                },
+                "NewVideos": {
+                  "style": "form"
+                },
+                "HorseFatherStudbookId": {
+                  "style": "form"
+                },
+                "HorseMotherStudbookId": {
+                  "style": "form"
+                },
+                "OwnerStudbookId": {
+                  "style": "form"
+                },
+                "BreederStudbookId": {
+                  "style": "form"
+                },
+                "IsStallion": {
+                  "style": "form"
+                },
+                "IsMare": {
+                  "style": "form"
+                },
+                "IsStrain": {
+                  "style": "form"
+                },
+                "IsSpecial": {
+                  "style": "form"
+                },
+                "Box": {
+                  "style": "form"
+                },
+                "SyncToStudbook": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Int32NullableResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Int32NullableResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Int32NullableResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Stud": {
+      "get": {
+        "tags": [
+          "Stud"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultTenantStudDtoListResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultTenantStudDtoListResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultTenantStudDtoListResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/default": {
+      "get": {
+        "tags": [
+          "Stud"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultTenantStudDtoResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultTenantStudDtoResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultTenantStudDtoResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/login": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDtoResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDtoResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDtoResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/create": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDtoResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDtoResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDtoResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentUserDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentUserDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentUserDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ActivityDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "descriptionEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "descriptionAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "entityType": {
+            "type": "string",
+            "nullable": true
+          },
+          "entityId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "metadata": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ActivityDtoPagedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityDto"
+            },
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "extraInfo": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ActivityDtoPagedResponseResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ActivityDtoPagedResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ActivityTypeDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ActivityTypeEnum": {
+        "enum": [
+          1,
+          2,
+          3
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "AttachmentsDto": {
+        "type": "object",
+        "properties": {
+          "attachmentId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "mediaType": {
+            "type": "string",
+            "nullable": true
+          },
+          "path": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "AuthResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "nullable": true
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "userId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "username": {
+            "type": "string",
+            "nullable": true
+          },
+          "fullName": {
+            "type": "string",
+            "nullable": true
+          },
+          "userProfileImage": {
+            "type": "string",
+            "nullable": true
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoleDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "AuthResponseDtoResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AuthResponseDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BooleanResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommentsDto": {
+        "type": "object",
+        "properties": {
+          "userName": {
+            "type": "string",
+            "nullable": true
+          },
+          "userProfilePhoto": {
+            "type": "string",
+            "nullable": true
+          },
+          "body": {
+            "type": "string",
+            "nullable": true
+          },
+          "creationDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "isMine": {
+            "type": "boolean"
+          },
+          "replies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommentsDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CountryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nameAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "nameEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "flagImg": {
+            "type": "string",
+            "nullable": true
+          },
+          "counrtyCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "nationality": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CurrentUserDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "username": {
+            "type": "string",
+            "nullable": true
+          },
+          "fullName": {
+            "type": "string",
+            "nullable": true
+          },
+          "userProfileImage": {
+            "type": "string",
+            "nullable": true
+          },
+          "roleIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DashboardDto": {
+        "type": "object",
+        "properties": {
+          "horsesInStud": {
+            "$ref": "#/components/schemas/OffspringSummaryDto"
+          },
+          "birthedThisYear": {
+            "$ref": "#/components/schemas/OffspringSummaryDto"
+          },
+          "bredByStud": {
+            "$ref": "#/components/schemas/OffspringSummaryDto"
+          },
+          "sales": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "expenses": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "profit": {
+            "type": "number",
+            "format": "double",
+            "nullable": true,
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DashboardDtoResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DashboardDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DefaultTenantStudDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "studbookId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "studName": {
+            "type": "string",
+            "nullable": true
+          },
+          "studArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "studEmail": {
+            "type": "string",
+            "nullable": true
+          },
+          "primaryPhoneNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "secondryPhoneNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "registrationNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "studProfileImage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DefaultTenantStudDtoListResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DefaultTenantStudDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DefaultTenantStudDtoResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DefaultTenantStudDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExternalCountsDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "female": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "male": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExternalHorseDasboardInformationDto": {
+        "type": "object",
+        "properties": {
+          "siblings": {
+            "$ref": "#/components/schemas/ExternalCountsDto"
+          },
+          "foals": {
+            "$ref": "#/components/schemas/ExternalCountsDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExternalHorseDasboardInformationDtoResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ExternalHorseDasboardInformationDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExternalHorseSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "englishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "arabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "knownAs": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateofBirth": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "nullable": true
+          },
+          "bornIn": {
+            "type": "string",
+            "nullable": true
+          },
+          "currentlyIn": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "height": {
+            "type": "string",
+            "nullable": true
+          },
+          "additionalInformation": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseProfileImage": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseFatherId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "horseMotherId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "horseFatherArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseMotherArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseFatherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseMotherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "ownerId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "breederId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "isStallion": {
+            "type": "boolean"
+          },
+          "isMare": {
+            "type": "boolean"
+          },
+          "isVerified": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "studBreeder": {
+            "$ref": "#/components/schemas/ExternalStudDto"
+          },
+          "studOwner": {
+            "$ref": "#/components/schemas/ExternalStudDto"
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "videos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "faceSpecialMarkings": {
+            "type": "string",
+            "nullable": true
+          },
+          "frontRightLeg": {
+            "type": "string",
+            "nullable": true
+          },
+          "frontLeftLeg": {
+            "type": "string",
+            "nullable": true
+          },
+          "backRightLeg": {
+            "type": "string",
+            "nullable": true
+          },
+          "backLeftLeg": {
+            "type": "string",
+            "nullable": true
+          },
+          "specialNotes": {
+            "type": "string",
+            "nullable": true
+          },
+          "registrationNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "microchipID": {
+            "type": "string",
+            "nullable": true
+          },
+          "uelnNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "internationalFEIRegistrationNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "nationalSportRegistrationNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "passportNumber": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExternalHorseSummaryDtoResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ExternalHorseSummaryDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExternalNewsFeedResponse": {
+        "type": "object",
+        "properties": {
+          "userName": {
+            "type": "string",
+            "nullable": true
+          },
+          "userProfilePhoto": {
+            "type": "string",
+            "nullable": true
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttachmentsDto"
+            },
+            "nullable": true
+          },
+          "body": {
+            "type": "string",
+            "nullable": true
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "approvalDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "likesCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "commentsCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "likes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LikesDto"
+            },
+            "nullable": true
+          },
+          "comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommentsDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExternalNewsFeedResponsePagedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalNewsFeedResponse"
+            },
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "extraInfo": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExternalStudDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "studName": {
+            "type": "string",
+            "nullable": true
+          },
+          "studArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "country": {
+            "type": "string",
+            "nullable": true
+          },
+          "studEmail": {
+            "type": "string",
+            "nullable": true
+          },
+          "primaryPhoneNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "secondryPhoneNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "registrationNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "studProfileImage": {
+            "type": "string",
+            "nullable": true
+          },
+          "totalBreederdMales": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "totalBreederdFemales": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExternalTailNode": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "englishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "arabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateofBirth": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "horseFatherId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "horseMotherId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "horseFatherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseFatherArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseMotherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseMotherArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "generationLevel": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isStrain": {
+            "type": "boolean"
+          },
+          "isSpecial": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExternalTailNodePagedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalTailNode"
+            },
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "extraInfo": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExternalTailNodePagedResponseResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ExternalTailNodePagedResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExternalTreeNode": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "englishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "arabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateofBirth": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "microchipID": {
+            "type": "string",
+            "nullable": true
+          },
+          "studBreeder": {
+            "$ref": "#/components/schemas/StudDto"
+          },
+          "studOwner": {
+            "$ref": "#/components/schemas/StudDto"
+          },
+          "strain": {
+            "$ref": "#/components/schemas/ExternalTreeNode"
+          },
+          "specailLine": {
+            "$ref": "#/components/schemas/ExternalTreeNode"
+          },
+          "horseFatherId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "horseFatherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseFatherArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseMotherId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "horseMotherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseMotherArabicName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExternalTreeNodeListListResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/ExternalTreeNode"
+              }
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetAllHorsesResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "englishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "arabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "knownAs": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateofBirth": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseProfileImage": {
+            "type": "string",
+            "nullable": true
+          },
+          "strainEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "strainAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "specialEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "specialAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "box": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetAllHorsesResponsePagedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetAllHorsesResponse"
+            },
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "extraInfo": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetAllHorsesResponsePagedResponseResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/GetAllHorsesResponsePagedResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetAllStudbookHorsesResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "englishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "arabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "knownAs": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseProfileImage": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseFatherId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "horseMotherId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "horseFatherArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseMotherArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseFatherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseMotherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateofBirth": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "nullable": true
+          },
+          "bornIn": {
+            "type": "string",
+            "nullable": true
+          },
+          "currentlyIn": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "isMare": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "isStallion": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "strain": {
+            "type": "string",
+            "nullable": true
+          },
+          "specialLine": {
+            "type": "string",
+            "nullable": true
+          },
+          "strainAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "specialLineAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "studBreeder": {
+            "type": "string",
+            "nullable": true
+          },
+          "studOwner": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetAllStudbookHorsesResponsePagedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetAllStudbookHorsesResponse"
+            },
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "extraInfo": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetAllStudbookHorsesResponsePagedResponseResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/GetAllStudbookHorsesResponsePagedResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetAllStudbookStudsResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "studName": {
+            "type": "string",
+            "nullable": true
+          },
+          "studArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "country": {
+            "type": "string",
+            "nullable": true
+          },
+          "studProfileImage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetAllStudbookStudsResponsePagedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetAllStudbookStudsResponse"
+            },
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "extraInfo": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetAllStudbookStudsResponsePagedResponseResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/GetAllStudbookStudsResponsePagedResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseAwardHistoryDto": {
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "eventNameEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "eventNameAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "eventStartDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "eventEndDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "award": {
+            "type": "string",
+            "nullable": true
+          },
+          "judgingType": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseAwardHistoryDtoPagedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HorseAwardHistoryDto"
+            },
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "extraInfo": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseAwardHistoryDtoPagedResponseResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/HorseAwardHistoryDtoPagedResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseChampionHistoryDto": {
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "eventNameEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "eventNameAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "judgingType": {
+            "type": "string",
+            "nullable": true
+          },
+          "eventStartDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "eventEndDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "classId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "className": {
+            "type": "string",
+            "nullable": true
+          },
+          "score": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rank": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseChampionHistoryDtoPagedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HorseChampionHistoryDto"
+            },
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "extraInfo": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseChampionHistoryDtoPagedResponseResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/HorseChampionHistoryDtoPagedResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseEventHistoryResponse": {
+        "type": "object",
+        "properties": {
+          "studbookEventId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "eventId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "eventNameEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "eventNameAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "eventStartDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "eventEndDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "eventType": {
+            "type": "string",
+            "nullable": true
+          },
+          "className": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPoint": {
+            "type": "number",
+            "format": "double"
+          },
+          "totalScorePercentage": {
+            "type": "number",
+            "format": "double"
+          },
+          "rank": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseEventHistoryResponsePagedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HorseEventHistoryResponse"
+            },
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "extraInfo": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseEventHistoryResponsePagedResponseResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/HorseEventHistoryResponsePagedResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseFamilyTreeWithPercentagesDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "englishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "arabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseFatherArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseMotherArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseFatherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseMotherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "percentage": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "percentageFromMother": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "percentageFromFather": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "generationLevels": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          },
+          "generationLevelsFromMother": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          },
+          "generationLevelsFromFather": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseFamilyTreeWithPercentagesDtoPagedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HorseFamilyTreeWithPercentagesDto"
+            },
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "extraInfo": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseFamilyTreeWithPercentagesDtoPagedResponseResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/HorseFamilyTreeWithPercentagesDtoPagedResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseImageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseInfoResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "studbookId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "englishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "arabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "knownAs": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateofBirth": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "nullable": true
+          },
+          "bornIn": {
+            "type": "string",
+            "nullable": true
+          },
+          "currentlyIn": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "height": {
+            "type": "string",
+            "nullable": true
+          },
+          "additionalInformation": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "faceSpecialMarkings": {
+            "type": "string",
+            "nullable": true
+          },
+          "frontRightLeg": {
+            "type": "string",
+            "nullable": true
+          },
+          "frontLeftLeg": {
+            "type": "string",
+            "nullable": true
+          },
+          "backRightLeg": {
+            "type": "string",
+            "nullable": true
+          },
+          "backLeftLeg": {
+            "type": "string",
+            "nullable": true
+          },
+          "specialNotes": {
+            "type": "string",
+            "nullable": true
+          },
+          "registrationNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "microchipID": {
+            "type": "string",
+            "nullable": true
+          },
+          "uelnNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "internationalFEIRegistrationNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "nationalSportRegistrationNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "passportNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HorseImageDto"
+            },
+            "nullable": true
+          },
+          "videos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HorseVideoDto"
+            },
+            "nullable": true
+          },
+          "horseProfileImage": {
+            "type": "string",
+            "nullable": true
+          },
+          "isStallion": {
+            "type": "boolean"
+          },
+          "isMare": {
+            "type": "boolean"
+          },
+          "isStrain": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "isSpecial": {
+            "type": "boolean"
+          },
+          "strainEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "strainAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "specialEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "specialAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "owner": {
+            "$ref": "#/components/schemas/StudDto"
+          },
+          "breeder": {
+            "$ref": "#/components/schemas/StudDto"
+          },
+          "box": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseInfoResponseResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/HorseInfoResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseOffspringDto": {
+        "type": "object",
+        "properties": {
+          "englishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "arabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateOfBirth": {
+            "type": "string",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "nullable": true
+          },
+          "fatherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "fatherArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "motherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "motherArabicName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseOffspringDtoPagedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HorseOffspringDto"
+            },
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "extraInfo": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseOffspringDtoPagedResponseResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/HorseOffspringDtoPagedResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorsePedigreeNodeDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "englishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "arabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseFatherId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "horseFatherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseFatherArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseMotherId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "horseMotherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "horseMotherArabicName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorsePedigreeNodeDtoListListResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/HorsePedigreeNodeDto"
+              }
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorsePedigreeRootDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "englishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "arabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateofBirth": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "microchipID": {
+            "type": "string",
+            "nullable": true
+          },
+          "strainEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "strainAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "lineEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "lineAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "breederEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "breederAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "ownerEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "ownerAr": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorsePedigreeTreeResponse": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "$ref": "#/components/schemas/HorsePedigreeRootDto"
+          },
+          "ancestors": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/HorsePedigreeNodeDto"
+              }
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorsePedigreeTreeResponseResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/HorsePedigreeTreeResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseSiblingDto": {
+        "type": "object",
+        "properties": {
+          "englishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "arabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateOfBirth": {
+            "type": "string",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "nullable": true
+          },
+          "fatherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "fatherArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "motherEnglishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "motherArabicName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseSiblingDtoPagedResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HorseSiblingDto"
+            },
+            "nullable": true
+          },
+          "currentPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "extraInfo": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseSiblingsResponse": {
+        "type": "object",
+        "properties": {
+          "all": {
+            "$ref": "#/components/schemas/HorseSiblingDtoPagedResponse"
+          },
+          "dam": {
+            "$ref": "#/components/schemas/HorseSiblingDtoPagedResponse"
+          },
+          "sire": {
+            "$ref": "#/components/schemas/HorseSiblingDtoPagedResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseSiblingsResponseResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/HorseSiblingsResponse"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseVideoDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImportHorseDto": {
+        "type": "object",
+        "properties": {
+          "studbookId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "strain": {
+            "type": "string",
+            "nullable": true
+          },
+          "specialLine": {
+            "type": "string",
+            "nullable": true
+          },
+          "strainAr": {
+            "type": "string",
+            "nullable": true
+          },
+          "specialLineAr": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Int32NullableResult": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Int32Result": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LikesDto": {
+        "type": "object",
+        "properties": {
+          "userName": {
+            "type": "string",
+            "nullable": true
+          },
+          "userProfilePhoto": {
+            "type": "string",
+            "nullable": true
+          },
+          "creationDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "LineageNamesDto": {
+        "type": "object",
+        "properties": {
+          "englishName": {
+            "type": "string",
+            "nullable": true
+          },
+          "arabicName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "LoginRequestDto": {
+        "required": [
+          "password",
+          "username"
+        ],
+        "type": "object",
+        "properties": {
+          "username": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "password": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "OffspringSummaryDto": {
+        "type": "object",
+        "properties": {
+          "male": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "female": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          },
+          "instance": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": { }
+      },
+      "RegisterRequestDto": {
+        "required": [
+          "fullName",
+          "password",
+          "username"
+        ],
+        "type": "object",
+        "properties": {
+          "username": {
+            "maxLength": 50,
+            "minLength": 3,
+            "type": "string"
+          },
+          "password": {
+            "minLength": 8,
+            "type": "string"
+          },
+          "fullName": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 200,
+            "type": "string",
+            "format": "email",
+            "nullable": true
+          },
+          "roleId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tenantId": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Result": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RoleDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "arabicName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "StudDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "studName": {
+            "type": "string",
+            "nullable": true
+          },
+          "studArabicName": {
+            "type": "string",
+            "nullable": true
+          },
+          "studEmail": {
+            "type": "string",
+            "nullable": true
+          },
+          "primaryPhoneNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "secondryPhoneNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "registrationNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "studProfileImage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "scheme": "Bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
+    {
+      "Bearer": [ ]
+    }
+  ]
+}

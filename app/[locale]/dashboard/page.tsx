@@ -1,48 +1,188 @@
 'use client';
 
-import Link from 'next/link';
-import React from 'react';
-import { useLocale, useTranslation } from '@/lib/locale-context';
+import React, { useEffect, useState } from 'react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Info,
+  Leaf,
+  Mars,
+  MoreHorizontal,
+  Venus,
+  X,
+} from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { clientApiFetch } from '@/lib/api/client';
+import { useLocale, useTranslation } from '@/lib/locale-context';
+import type {
+  ActivityDto,
+  ApiResult,
+  DashboardDto,
+  DefaultStudDto,
+  PagedResponse,
+} from '@/lib/api/types';
+
+type ViewMode = 'day' | 'week' | 'month';
+
+const emptyDashboard: DashboardDto = {
+  horsesInStud: { male: 0, female: 0, total: 0 },
+  birthedThisYear: { male: 0, female: 0, total: 0 },
+  bredByStud: { male: 0, female: 0, total: 0 },
+  sales: 0,
+  expenses: 0,
+  profit: 0,
+};
+
+const emptyStud: DefaultStudDto = {
+  id: 0,
+  studbookId: null,
+  studName: null,
+  studArabicName: null,
+  studEmail: null,
+  primaryPhoneNumber: null,
+  secondryPhoneNumber: null,
+  registrationNumber: null,
+  studProfileImage: null,
+};
+
+function unwrapResult<T>(payload: T | ApiResult<T>): T {
+  if (payload && typeof payload === 'object' && 'data' in payload && 'statusCode' in payload) {
+    return (payload as ApiResult<T>).data as T;
+  }
+
+  return payload as T;
+}
+
+function formatNumber(value: number | null | undefined) {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(value ?? 0);
+}
+
+function formatCurrency(value: number | null | undefined) {
+  return `${formatNumber(value)}$`;
+}
+
+function timeAgo(value: string | null, locale: string) {
+  if (!value) return locale === 'ar' ? 'الآن' : 'Now';
+
+  const diff = Date.now() - new Date(value).getTime();
+  const minutes = Math.max(1, Math.round(diff / 60000));
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+
+  if (minutes < 60) return rtf.format(-minutes, 'minute');
+
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return rtf.format(-hours, 'hour');
+
+  return rtf.format(-Math.round(hours / 24), 'day');
+}
+
+function getActivityTone(type: string | null) {
+  const normalized = (type ?? '').toLowerCase();
+  if (normalized.includes('health')) return 'bg-[#fff1f2] text-[#dc2626]';
+  if (normalized.includes('expense') || normalized.includes('sale')) return 'bg-[#fff7ed] text-[#b45309]';
+  if (normalized.includes('birth') || normalized.includes('horse')) return 'bg-[#eef2d5] text-[#6b6b33]';
+  return 'bg-[#f1eef6] text-[#6b5a75]';
+}
+
+function ActivityRow({
+  activity,
+  locale,
+  spacious = false,
+}: {
+  activity: ActivityDto;
+  locale: string;
+  spacious?: boolean;
+}) {
+  return (
+    <div className={`grid grid-cols-[2.75rem_1fr] gap-4 border-b border-[#f1ece8] pb-4 last:border-0 ${spacious ? 'items-start' : ''}`}>
+      <div className={`flex h-10 w-10 items-center justify-center rounded-full ${getActivityTone(activity.type)}`}>
+        <MoreHorizontal className="h-5 w-5" />
+      </div>
+      <div className="text-end">
+        <p className={`${spacious ? 'text-lg leading-7' : 'line-clamp-1 text-base'} font-semibold text-[#4b2f1a]`}>
+          {locale === 'ar' ? activity.descriptionAr || activity.descriptionEn : activity.descriptionEn || activity.descriptionAr}
+        </p>
+        <p className="mt-1 text-sm text-[#8c847c]">{timeAgo(activity.createdAt, locale)}</p>
+        {spacious && activity.createdBy && (
+          <p className="mt-1 text-sm text-[#8c847c]">{activity.createdBy}</p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const { locale, direction } = useLocale();
   const { t } = useTranslation();
+  const [dashboard, setDashboard] = useState<DashboardDto>(emptyDashboard);
+  const [stud, setStud] = useState<DefaultStudDto>(emptyStud);
+  const [activities, setActivities] = useState<ActivityDto[]>([]);
+  const [activityPageInfo, setActivityPageInfo] = useState<PagedResponse<ActivityDto> | null>(null);
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityModalOpen, setActivityModalOpen] = useState(false);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activeView, setActiveView] = useState<ViewMode>('month');
+  const isRTL = direction === 'rtl';
 
-  const stats = [
-    {
-      label: t('dashboard.totalHorses'),
-      value: '200',
-      accent: 'text-[#7a5b4a]',
-      icon: "/svgs/عدد الخيل.svg",
-    },
-    {
-      label: t('dashboard.totalExpenses'),
-      value: '500$',
-      accent: 'text-[#008f9c]',
-      icon: "/svgs/مصروفات.svg",
-    },
-    {
-      label: t('dashboard.profit'),
-      value: '500$',
-      accent: 'text-[#d37a17]',
-      icon: "/svgs/earning.svg",
-    },
-    {
-      label: t('dashboard.totalSales'),
-      value: '500',
-      accent: 'text-[#d81c24]',
-      icon: "/svgs/red-horse.svg",
-    },
-  ];
+  async function loadActivities(pageNumber: number, pageSize = 6) {
+    setActivityLoading(true);
 
-  const recentInvoices = [
-    { product: t('invoices.productName'), client: 'محمد أحمد', number: '123456', status: t('invoices.pending'), statusClass: 'bg-[#ffe9aa] text-[#b38000]', category: t('invoices.category_feed'), cost: '1200$' },
-    { product: t('invoices.productName'), client: 'محمد أحمد', number: '123456', status: t('invoices.notApproved'), statusClass: 'bg-[#ffd5c5] text-[#ff2617]', category: t('invoices.category_vet'), cost: '1200$' },
-    { product: t('invoices.productName'), client: 'محمد أحمد', number: '123456', status: t('invoices.paid'), statusClass: 'bg-[#cdf7d5] text-[#13a43a]', category: t('invoices.category_grooming'), cost: '1200$' },
-    { product: t('invoices.productName'), client: 'محمد أحمد', number: '123456', status: t('invoices.paid'), statusClass: 'bg-[#cdf7d5] text-[#13a43a]', category: t('invoices.category_grooming'), cost: '1200$' },
-    { product: t('invoices.productName'), client: 'محمد أحمد', number: '123456', status: t('invoices.paid'), statusClass: 'bg-[#cdf7d5] text-[#13a43a]', category: t('invoices.category_feed'), cost: '1200$' },
-  ];
+    try {
+      const payload = await clientApiFetch<ApiResult<PagedResponse<ActivityDto>> | PagedResponse<ActivityDto>>({
+        backendPath: '/api/Dashboard/activities',
+        nextPath: '/api/dashboard/activities',
+        query: { pageNumber, pageSize, locale },
+        locale,
+      });
+      const result = unwrapResult(payload);
+      setActivities(result?.data ?? []);
+      setActivityPageInfo(result ?? null);
+      setActivityPage(pageNumber);
+    } catch {
+      setActivities([]);
+      setActivityPageInfo(null);
+    } finally {
+      setActivityLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadDashboardData() {
+      const [dashboardResult, studResult] = await Promise.allSettled([
+        clientApiFetch<ApiResult<DashboardDto> | DashboardDto>({
+          backendPath: '/api/Dashboard',
+          nextPath: '/api/dashboard',
+          locale,
+        }),
+        clientApiFetch<ApiResult<DefaultStudDto>>({
+          backendPath: '/default',
+          nextPath: '/api/default',
+          query: { locale },
+          locale,
+        }),
+      ]);
+
+      if (!mounted) return;
+
+      if (dashboardResult.status === 'fulfilled') {
+        setDashboard(unwrapResult(dashboardResult.value) ?? emptyDashboard);
+      }
+
+      if (studResult.status === 'fulfilled') {
+        setStud(unwrapResult(studResult.value) ?? emptyStud);
+      }
+    }
+
+    loadDashboardData();
+    loadActivities(1, 6);
+
+    return () => {
+      mounted = false;
+    };
+  }, [locale]);
 
   const days = [
     t('days.saturday'),
@@ -61,188 +201,331 @@ export default function DashboardPage() {
     [22, 23, 24, 25, 26, 27, 28],
     [29, 30, 31, `1 ${t('months.february')}`, 2, 3, 4],
   ];
-
-  const events = [
-    { title: t('calendar.eventName'), time: `10:00 AM ${t('common.to')} 12:00 PM`, color: 'bg-[#d8f4ff] text-[#2b99d3] border-[#34aaf6]' },
-    { title: t('calendar.eventName'), time: `10:00 AM ${t('common.to')} 12:00 PM`, color: 'bg-[#fff0c5] text-[#c88d1d] border-[#f0c04b]' },
-    { title: t('calendar.eventName'), time: `10:00 AM ${t('common.to')} 12:00 PM`, color: 'bg-[#d5f8de] text-[#39b56c] border-[#49d77d]' },
-    { title: t('calendar.eventName'), time: `10:00 AM ${t('common.to')} 12:00 PM`, color: 'bg-[#ffd8c9] text-[#ff2317] border-[#ff3b2f]' },
-    { title: t('calendar.eventName'), time: `10:00 AM ${t('common.to')} 12:00 PM`, color: 'bg-[#ffe4c8] text-[#ff8a3d] border-[#ff9a56]' },
-    { title: t('calendar.eventName'), time: `10:00 AM ${t('common.to')} 12:00 PM`, color: 'bg-[#f4ddff] text-[#8b4cff] border-[#a34fff]' },
-  ];
-
-  const [activeView, setActiveView] = React.useState<'day' | 'week' | 'month'>('month');
+  const displayDays = isRTL ? [...days].reverse() : days;
+  const displayCalendarWeeks = isRTL ? calendarWeeks.map((week) => [...week].reverse()) : calendarWeeks;
 
   const viewTabs = [
-    { key: 'day', label: t('calendar.viewDay') },
-    { key: 'week', label: t('calendar.viewWeek') },
-    { key: 'month', label: t('calendar.viewMonth') },
-  ] as const;
+    { key: 'day' as const, label: t('calendar.viewDay') },
+    { key: 'week' as const, label: t('calendar.viewWeek') },
+    { key: 'month' as const, label: t('calendar.viewMonth') },
+  ];
+
+  const studName = locale === 'ar' ? stud.studArabicName || stud.studName : stud.studName || stud.studArabicName;
+  const activityItems = activities.slice(0, 4);
 
   return (
     <MainLayout>
-      <div className="space-y-4 sm:space-y-6 lg:space-y-7">
-        <section className={`grid grid-cols-1 gap-4 sm:grid-cols-2 desk:grid-cols-4 ${direction === 'rtl' ? '[direction:rtl]' : '[direction:ltr]'}`}>
-          {stats.map((stat) => (
-            <article 
-              key={stat.label} 
-              className="flex flex-row sm:flex-col-reverse lg:flex-row-reverse items-center justify-between sm:justify-center lg:justify-between gap-3 sm:gap-4 rounded-[1.25rem] bg-white px-4 py-5 sm:rounded-[24px] sm:px-6 sm:py-6 shadow-sm border border-[#f3e9df] transition-all hover:shadow-md"
+      <div className={`mx-auto max-w-[1280px] space-y-6 ${isRTL ? '[direction:rtl]' : '[direction:ltr]'}`}>
+        <section className="grid overflow-hidden rounded-2xl bg-[linear-gradient(110deg,#202315,#737116_58%,#9f9816)] text-white shadow-[0_18px_40px_rgba(45,36,18,0.16)] md:grid-cols-2">
+          {[
+            { title: t('dashboard.availableHorses'), data: dashboard.horsesInStud },
+            { title: t('dashboard.production'), data: dashboard.birthedThisYear },
+          ].map((item, index) => (
+            <article
+              key={item.title}
+              className={`relative min-h-[185px] overflow-hidden px-7 py-8 text-center sm:px-10 ${
+                index === 0 ? 'md:border-e md:border-white/40' : ''
+              }`}
             >
-              <div className={`flex-1 space-y-0.5 sm:space-y-1 ${direction === 'rtl' ? 'text-right' : 'text-left'} sm:text-center lg:text-inherit`}>
-                <div className={`text-xl font-black sm:text-[1.85rem] ${stat.accent} leading-none`}>{stat.value}</div>
-                <div className="text-[0.75rem] font-bold text-[#4a3f35] sm:text-[1.1rem] lg:text-[1.3rem] leading-tight opacity-80">{stat.label}</div>
-              </div>
-              <div className="relative flex-shrink-0">
-                <img 
-                  src={stat.icon} 
-                  alt="" 
-                  className="h-12 w-12 sm:h-20 sm:w-20 lg:h-24 lg:w-24 object-contain drop-shadow-sm" 
-                />
+              <div className="absolute inset-y-0 -start-10 w-2/3 bg-[radial-gradient(ellipse_at_center,rgba(14,16,10,0.42),transparent_62%)]" />
+              <div className="absolute -end-20 top-10 h-16 w-48 rotate-[-7deg] rounded-[100%] bg-[#b3a91b]/45" />
+              <div className="relative">
+                <div className="text-5xl font-light leading-none sm:text-[3.35rem]">
+                  {formatNumber(item.data?.total)}
+                </div>
+                <h2 className="mt-4 text-2xl font-semibold sm:text-[2rem]">{item.title}</h2>
+                <div className="mx-auto mt-4 grid max-w-[220px] grid-cols-2 divide-x divide-white/55 text-2xl">
+                  <div className="px-4">
+                    <div>{formatNumber(item.data?.male)}</div>
+                    <div className="mt-1 flex items-center justify-center gap-1 text-base">
+                      <span>{t('dashboard.males')}</span>
+                      <Mars className="h-5 w-5" />
+                    </div>
+                  </div>
+                  <div className="px-4">
+                    <div>{formatNumber(item.data?.female)}</div>
+                    <div className="mt-1 flex items-center justify-center gap-1 text-base">
+                      <span>{t('dashboard.females')}</span>
+                      <Venus className="h-5 w-5" />
+                    </div>
+                  </div>
+                </div>
               </div>
             </article>
           ))}
         </section>
 
-        <section className="overflow-x-auto rounded-[16px] bg-white shadow-[0_16px_36px_rgba(94,56,23,0.05)] sm:rounded-[28px]">
-          <div className={`flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-6 ${direction === 'rtl' ? 'flex-row' : 'flex-row-reverse'}`}>
-            <h2 className="text-lg font-bold text-[#21203a] sm:text-[2.3rem]">
-              {t('dashboard.recentInvoices')}
-            </h2>
-            <Link
-              href={`/${locale}/invoices`}
-              className="inline-flex w-fit rounded-full bg-[#4b2f1a] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#3f2616] sm:px-6 sm:text-sm"
-            >
-              {t('dashboard.invoices')}
-            </Link>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className={`w-full border-separate border-spacing-0 text-sm sm:text-base ${direction === 'rtl' ? 'text-right' : 'text-left'}`}>
-              <thead className="hidden sm:table-header-group">
-                <tr className="text-[0.9rem] text-[#c3beb9] sm:text-[1.02rem]">
-                  <th className="border-b border-[#efe4dc] px-3 py-4 font-semibold sm:px-6 sm:py-5">{t('dashboard.product')}</th>
-                  <th className="border-b border-[#efe4dc] px-3 py-4 font-semibold sm:px-6 sm:py-5">{t('dashboard.clientName')}</th>
-                  <th className="border-b border-[#efe4dc] px-3 py-4 font-semibold sm:px-6 sm:py-5">{t('dashboard.invoiceNumber')}</th>
-                  <th className="border-b border-[#efe4dc] px-3 py-4 font-semibold sm:px-6 sm:py-5">{t('dashboard.status')}</th>
-                  <th className="border-b border-[#efe4dc] px-3 py-4 font-semibold sm:px-6 sm:py-5">{t('dashboard.category')}</th>
-                  <th className="border-b border-[#efe4dc] px-3 py-4 font-semibold sm:px-6 sm:py-5">{t('dashboard.cost')}</th>
-                </tr>
-              </thead>
-              <tbody className="text-xs font-semibold text-[#27304a] sm:text-[1.08rem]">
-                {recentInvoices.slice(0, 5).map((invoice, index) => (
-                  <tr key={`${invoice.number}-${index}`} className="border-b border-[#f3e7df]">
-                    <td className="px-3 py-4 sm:px-6 sm:py-5">{invoice.product}</td>
-                    <td className="hidden px-3 py-4 sm:table-cell sm:px-6 sm:py-5">{invoice.client}</td>
-                    <td className="hidden px-3 py-4 sm:table-cell sm:px-6 sm:py-5">{invoice.number}</td>
-                    <td className="px-3 py-4 sm:px-6 sm:py-5">
-                      <span className={`inline-flex min-w-fit justify-center rounded-lg px-2 py-1 text-xs font-bold sm:min-w-[5.8rem] sm:rounded-xl sm:px-4 sm:py-2 sm:text-sm ${invoice.statusClass}`}>
-                        {invoice.status}
-                      </span>
-                    </td>
-                    <td className="hidden px-3 py-4 sm:table-cell sm:px-6 sm:py-5">{invoice.category}</td>
-                    <td className="px-3 py-4 sm:px-6 sm:py-5">{invoice.cost}</td>
-                  </tr>
+        <section className="grid gap-5 xl:grid-cols-[1.35fr_1fr]">
+          <div className="grid gap-4 md:grid-cols-[0.85fr_1fr_1fr]">
+            <article className="rounded-2xl bg-white p-6 shadow-sm">
+              <h3 className="text-xl font-semibold text-[#4b2f1a]">{t('dashboard.costAnalysis')}</h3>
+              <div className="mt-7 space-y-5">
+                {[
+                  { label: t('dashboard.feedCost'), value: 0 },
+                  { label: t('dashboard.vetCare'), value: 0 },
+                  { label: t('dashboard.operationalExpenses'), value: 0 },
+                ].map((item) => (
+                  <div key={item.label}>
+                    <div className="mb-2 flex items-center justify-between text-base font-semibold text-[#7a7069]">
+                      <span>{item.value}%</span>
+                      <span>{item.label}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-[#e8e1da]">
+                      <div className="h-full rounded-full bg-[#4b2f1a]" style={{ width: `${item.value}%` }} />
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+              </div>
+            </article>
 
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-[14.5rem_1fr] lg:gap-5">
-          <aside className="order-2 rounded-[16px] bg-white p-4 shadow-[0_16px_36px_rgba(94,56,23,0.05)] sm:rounded-[28px] sm:p-6 lg:order-1">
-            <div className={`mb-4 sm:mb-5 ${direction === 'rtl' ? 'text-right' : 'text-left'}`}>
-              <h3 className="text-lg font-bold text-[#20203c] sm:text-[2.1rem]">
-                {t('dashboard.event')}
-              </h3>
-              <p className="text-xs text-[#d7d0ca] sm:text-base">{t('dashboard.dragAndDrop')}</p>
-            </div>
-
-            <div className="space-y-2 sm:space-y-4">
-              {events.slice(0, 3).map((event) => (
-                <div
-                  key={`${event.title}-${event.color}`}
-                  className={`rounded-lg border-r-4 px-3 py-3 sm:rounded-2xl sm:px-4 sm:py-4 ${direction === 'rtl' ? 'text-right' : 'text-left'} ${event.color}`}
-                >
-                  <div className="text-xs font-bold sm:text-lg">{event.title}</div>
-                  <div className="mt-1 text-xs font-semibold sm:text-sm">{event.time}</div>
-                </div>
+            <div className="grid gap-4 sm:grid-cols-2 md:col-span-2">
+              {[
+                {
+                  label: t('dashboard.profit'),
+                  value: formatCurrency(dashboard.profit),
+                  icon: '/svgs/earning.svg',
+                  color: 'text-[#d45b00]',
+                },
+                {
+                  label: t('dashboard.totalExpenses'),
+                  value: formatCurrency(dashboard.expenses),
+                  icon: '/svgs/مصروفات.svg',
+                  color: 'text-[#008f9c]',
+                },
+                {
+                  label: t('dashboard.totalHorses'),
+                  value: formatNumber(dashboard.horsesInStud?.total),
+                  icon: '/svgs/عدد الخيل.svg',
+                  color: 'text-[#7a5b4a]',
+                },
+                {
+                  label: t('dashboard.totalSales'),
+                  value: formatCurrency(dashboard.sales),
+                  icon: '/svgs/red-horse.svg',
+                  color: 'text-[#d81c24]',
+                },
+              ].map((item) => (
+                <article key={item.label} className="flex min-h-[125px] items-center justify-between rounded-2xl bg-white px-7 py-5 shadow-sm">
+                  <img src={item.icon} alt="" className="h-20 w-20 object-contain" />
+                  <div className="text-end">
+                    <div className={`text-xl font-black ${item.color}`}>{item.value}</div>
+                    <div className="mt-3 text-xl font-bold text-[#22243c]">{item.label}</div>
+                  </div>
+                </article>
               ))}
             </div>
-          </aside>
+          </div>
 
-          <article className="order-1 rounded-[16px] bg-white p-4 shadow-[0_16px_36px_rgba(94,56,23,0.05)] sm:rounded-[28px] sm:p-6 lg:order-2">
-            <div className="mb-4 flex flex-col gap-3 sm:mb-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex w-fit items-center rounded-xl border border-[#4b2f1a] overflow-hidden text-xs font-semibold sm:text-sm">
+          <article className="rounded-xl border border-[#bcc7d6] bg-white px-7 py-6 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <Info className="h-6 w-6 text-[#4b2f1a]" />
+              <h3 className="text-2xl font-semibold text-[#4b2f1a]">{t('dashboard.studInformation')}</h3>
+            </div>
+            <dl className="mt-8 space-y-4 text-lg text-[#5c5651]">
+              <div className="grid grid-cols-[1fr_10rem] items-center gap-4 text-right">
+                <dd className="truncate">{studName || '-'}</dd>
+                <dt className="font-semibold text-[#8c847c]">{t('dashboard.name')}</dt>
+              </div>
+              <div className="grid grid-cols-[1fr_10rem] items-center gap-4 text-right">
+                <dd>{stud.registrationNumber || stud.studbookId || '-'}</dd>
+                <dt className="font-semibold text-[#8c847c]">{t('dashboard.registrationNumber')}</dt>
+              </div>
+              <div className="grid grid-cols-[1fr_10rem] items-center gap-4 text-right">
+                <dd>{dashboard.bredByStud?.total ?? 0}</dd>
+                <dt className="font-semibold text-[#8c847c]">{t('dashboard.bredHorses')}</dt>
+              </div>
+              <div className="grid grid-cols-[1fr_10rem] items-center gap-4 text-right">
+                <dd>{stud.primaryPhoneNumber || '-'}</dd>
+                <dt className="font-semibold text-[#8c847c]">{t('dashboard.phoneNumber')}</dt>
+              </div>
+              <div className="grid grid-cols-[1fr_10rem] items-center gap-4 text-right">
+                <dd className="truncate">{stud.studEmail || '-'}</dd>
+                <dt className="font-semibold text-[#8c847c]">{t('dashboard.email')}</dt>
+              </div>
+            </dl>
+          </article>
+        </section>
+
+        <section className="grid gap-5 xl:grid-cols-3">
+          <article className="rounded-2xl bg-white p-7 shadow-sm">
+            <h3 className="text-center text-2xl font-semibold text-[#4b2f1a]">{t('dashboard.healthRecord')}</h3>
+            <div className="mt-8 flex min-h-[210px] items-center justify-center rounded-xl border border-dashed border-[#ded6ce] text-lg font-semibold text-[#8c847c]">
+              {t('common.noRecordsFound')}
+            </div>
+            <button className="mt-8 h-12 w-full rounded-lg bg-[#e8e4de] text-base font-semibold text-[#4b2f1a]">
+              {t('dashboard.fullVisitLog')}
+            </button>
+          </article>
+
+          <article className="rounded-[28px] bg-[#e8e4de] p-7 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#6b6b3a] text-white">
+                <Leaf className="h-6 w-6" />
+              </div>
+              <div className="text-end">
+                <h3 className="text-2xl font-semibold text-[#4b2f1a]">{t('dashboard.currentRation')}</h3>
+                <p className="text-base text-[#6f665e]">{t('dashboard.dailyRation')}</p>
+              </div>
+            </div>
+            <div className="mt-8 flex min-h-[220px] items-center justify-center rounded-xl bg-white/65 text-lg font-semibold text-[#8c847c]">
+              {t('common.noRecordsFound')}
+            </div>
+            <button className="mt-6 h-12 w-full rounded-lg bg-white text-base font-semibold text-[#4b2f1a] shadow-sm">
+              {t('dashboard.editNutritionPlan')}
+            </button>
+          </article>
+
+          <article className="rounded-2xl bg-white p-7 shadow-sm">
+            <div className="mb-5 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setActivityModalOpen(true);
+                  loadActivities(1, 10);
+                }}
+                className="text-base font-semibold text-[#4b2f1a] underline"
+              >
+                {t('dashboard.all')}
+              </button>
+              <h3 className="text-2xl font-semibold text-[#4b2f1a]">{t('dashboard.latestActivities')}</h3>
+            </div>
+            <div className="space-y-4">
+              {activityLoading && activityItems.length === 0 ? (
+                <div className="rounded-xl bg-[#f8f4f0] p-6 text-center text-base font-semibold text-[#8c847c]">
+                  {t('common.loading')}
+                </div>
+              ) : activityItems.length === 0 ? (
+                <div className="rounded-xl bg-[#f8f4f0] p-6 text-center text-base font-semibold text-[#8c847c]">
+                  {t('common.noRecordsFound')}
+                </div>
+              ) : (
+                activityItems.map((activity) => (
+                  <ActivityRow key={activity.id} activity={activity} locale={locale} />
+                ))
+              )}
+            </div>
+            <div className="mt-6 rounded-xl bg-[#4a2108] p-6 text-white">
+              <FileText className="mb-3 h-8 w-8 opacity-70" />
+              <p className="text-lg font-semibold">{t('dashboard.reportNotice')}</p>
+              <p className="mt-2 text-sm leading-6 text-white/70">{t('common.noRecordsFound')}</p>
+            </div>
+          </article>
+        </section>
+
+        <section className="grid gap-5 xl:grid-cols-[1fr_17rem] [direction:ltr]">
+          <article className="rounded-2xl bg-white p-5 shadow-sm sm:p-7" dir={direction}>
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-[#4b2f1a]">
+                <button className="flex h-10 w-10 items-center justify-center rounded-full border border-[#4b2f1a] text-xl">
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+                <button className="flex h-10 w-10 items-center justify-center rounded-full border border-[#4b2f1a] text-xl">
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="text-3xl font-semibold text-[#20203c]">
+                2025 <span className="font-bold">{t('months.january')}</span>
+              </div>
+              <div className="flex overflow-hidden rounded-md border border-[#4b2f1a] text-base font-semibold">
                 {viewTabs.map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveView(tab.key)}
-                    className={`min-w-[3rem] px-2 py-1.5 sm:min-w-[4.35rem] sm:px-4 sm:py-2 ${
-                      activeView === tab.key ? 'bg-[#4b2f1a] text-white' : 'text-[#4b2f1a] hover:bg-[#f5efbb]'
+                    className={`min-w-[4.3rem] px-4 py-2 ${
+                      activeView === tab.key ? 'bg-[#4b2f1a] text-white' : 'bg-white text-[#4b2f1a]'
                     }`}
                   >
                     {tab.label}
                   </button>
                 ))}
               </div>
-
-              <div className="text-base font-bold text-[#20203c] sm:text-[2rem]">
-                <span className="mr-2 text-xs text-[#2f2f55] sm:text-[#2f2f55]">
-                  {t('months.january')}
-                </span>
-                2025
-              </div>
-
-              <div className="flex items-center gap-2 text-[#4b2f1a] sm:gap-3">
-                <button className="flex h-7 w-7 items-center justify-center rounded-full border border-[#4b2f1a] text-lg sm:h-9 sm:w-9 sm:text-xl">
-                  {direction === 'rtl' ? '‹' : '›'}
-                </button>
-                <button className="flex h-7 w-7 items-center justify-center rounded-full border border-[#4b2f1a] text-lg sm:h-9 sm:w-9 sm:text-xl">
-                  {direction === 'rtl' ? '›' : '‹'}
-                </button>
-              </div>
             </div>
 
-            <div className="grid grid-cols-7 gap-1 border-r border-t border-[#d9d4cf] sm:gap-0">
-              {days.map((day) => (
-                <div
-                  key={day}
-                  className="border-b border-l border-[#efe7e2] px-2 py-2 text-center text-xs font-semibold text-[#cbc5c0] sm:px-3 sm:py-4 sm:text-[1.02rem]"
-                >
+            <div className="grid grid-cols-7 border-t border-[#d6d0ca] text-[#20203c]">
+              {displayDays.map((day) => (
+                <div key={day} className="border-b border-s border-[#d6d0ca] px-2 py-4 text-center text-lg font-semibold text-[#c5beb7]">
                   {day}
                 </div>
               ))}
-
-              {calendarWeeks.flatMap((week, weekIndex) =>
+              {displayCalendarWeeks.flatMap((week, weekIndex) =>
                 week.map((day, dayIndex) => {
-                  const dayLabel = typeof day === 'number' ? day.toString() : day;
-                  const eventLabel =
-                    weekIndex === 0 && dayIndex === 0
-                      ? t('calendar.eventName')
-                      : weekIndex === 1 && dayIndex === 2
-                        ? t('calendar.eventName')
-                        : '';
-
                   return (
-                    <div
-                      key={`${weekIndex}-${dayIndex}`}
-                      className="relative min-h-[3rem] border-b border-l border-[#d9d4cf] px-1 py-1 sm:min-h-[6.4rem] sm:px-3 sm:py-2"
-                    >
-                      <div className={`text-xs font-bold text-[#232741] sm:text-[1.7rem] ${direction === 'rtl' ? 'text-right' : 'text-left'}`}>
-                        {dayLabel}
-                      </div>
-                      {eventLabel && (
-                        <div className="mt-1 hidden rounded-lg bg-[#fdb900] px-2 py-1 text-xs font-semibold text-[#2b2330] sm:block">
-                          {eventLabel}
-                        </div>
-                      )}
+                    <div key={`${weekIndex}-${dayIndex}`} className="relative min-h-[105px] border-b border-s border-[#d6d0ca] p-3 sm:min-h-[145px]">
+                      <div className={`text-lg font-bold ${typeof day === 'string' ? 'text-[#c8c2bd]' : 'text-[#20203c]'}`}>{day}</div>
                     </div>
                   );
                 }),
               )}
             </div>
           </article>
+
+          <aside className="rounded-2xl bg-white p-7 shadow-sm" dir={direction}>
+            <div className="mb-6 text-end">
+              <h3 className="text-3xl font-bold text-[#4b2f1a]">{t('dashboard.event')}</h3>
+              <p className="text-base text-[#c8c2bd]">{t('dashboard.dragAndDrop')}</p>
+            </div>
+            <div className="flex min-h-[420px] items-center justify-center rounded-xl border border-dashed border-[#ded6ce] text-center text-lg font-semibold text-[#8c847c]">
+              {t('common.noRecordsFound')}
+            </div>
+          </aside>
         </section>
+
+        {activityModalOpen && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" dir={direction}>
+            <div className="flex max-h-[86vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
+              <div className="flex items-center justify-between border-b border-[#f1ece8] px-6 py-5">
+                <button
+                  onClick={() => {
+                    setActivityModalOpen(false);
+                    loadActivities(1, 6);
+                  }}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f8f4f0] text-[#4b2f1a]"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                <h2 className="text-2xl font-bold text-[#4b2f1a]">{t('dashboard.latestActivities')}</h2>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+                {activityLoading ? (
+                  <div className="rounded-xl bg-[#f8f4f0] p-8 text-center text-lg font-semibold text-[#8c847c]">
+                    {t('common.loading')}
+                  </div>
+                ) : activities.length === 0 ? (
+                  <div className="rounded-xl bg-[#f8f4f0] p-8 text-center text-lg font-semibold text-[#8c847c]">
+                    {t('common.noRecordsFound')}
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    {activities.map((activity) => (
+                      <ActivityRow key={activity.id} activity={activity} locale={locale} spacious />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-center gap-4 border-t border-[#f1ece8] px-6 py-4">
+                <button
+                  disabled={!activityPageInfo?.hasPreviousPage || activityLoading}
+                  onClick={() => loadActivities(Math.max(1, activityPage - 1), 10)}
+                  className="rounded-lg bg-[#f8f4f0] px-5 py-2 text-base font-semibold text-[#4b2f1a] disabled:opacity-40"
+                >
+                  {t('common.back')}
+                </button>
+                <span className="text-base font-semibold text-[#6f665e]">
+                  {activityPageInfo?.currentPage ?? activityPage} / {activityPageInfo?.totalPages || 1}
+                </span>
+                <button
+                  disabled={!activityPageInfo?.hasNextPage || activityLoading}
+                  onClick={() => loadActivities(activityPage + 1, 10)}
+                  className="rounded-lg bg-[#f8f4f0] px-5 py-2 text-base font-semibold text-[#4b2f1a] disabled:opacity-40"
+                >
+                  {t('common.next')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </MainLayout>
   );

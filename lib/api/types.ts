@@ -8,6 +8,68 @@ export interface ApiResult<T> {
   messages?: string[] | null;
 }
 
+export type OffspringSummaryDto = {
+  male: number;
+  female: number;
+  total: number;
+};
+
+export type DashboardDto = {
+  horsesInStud: OffspringSummaryDto | null;
+  birthedThisYear: OffspringSummaryDto | null;
+  bredByStud: OffspringSummaryDto | null;
+  sales: number | null;
+  expenses: number | null;
+  profit: number | null;
+};
+
+export type ActivityDto = {
+  id: number;
+  type: string | null;
+  descriptionEn: string | null;
+  descriptionAr: string | null;
+  entityType: string | null;
+  entityId: number;
+  metadata: string | null;
+  createdAt: string | null;
+  createdBy: string | null;
+};
+
+export type ActivityTypeEnum = 1 | 2 | 3;
+
+export type AttachmentDto = {
+  attachmentId: number;
+  mediaType: string | null;
+  path: string | null;
+};
+
+export type CommentDto = {
+  userName: string | null;
+  userProfilePhoto: string | null;
+  body: string | null;
+  creationDate: string | null;
+  isMine: boolean;
+  replies: CommentDto[] | null;
+};
+
+export type LikeDto = {
+  userName?: string | null;
+  userProfilePhoto?: string | null;
+};
+
+export type ExternalNewsFeedResponse = {
+  userName: string | null;
+  userProfilePhoto: string | null;
+  attachments: AttachmentDto[] | null;
+  body: string | null;
+  categories: string[] | null;
+  approvalDate: string | null;
+  likesCount: number;
+  commentsCount: number;
+  likes: LikeDto[] | null;
+  comments: CommentDto[] | null;
+};
+
 export type ApiMessageResult = {
   succeeded: boolean;
   message: string | null;
