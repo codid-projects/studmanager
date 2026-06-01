@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Heart, MessageCircle, Newspaper } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { clientApiFetch } from "@/lib/api/client";
@@ -24,6 +24,29 @@ function formatDate(value: string | null, locale: string) {
   }).format(new Date(value));
 }
 
+function isImageAttachment(mediaType: string | null | undefined) {
+  return mediaType?.toLowerCase().startsWith("image") ?? false;
+}
+
+function isLongNewsBody(body: string | null | undefined) {
+  return (body?.length ?? 0) > 700 || (body?.split(/\r?\n/).length ?? 0) > 10;
+}
+
+const ARABIC_TAG_LABELS: Record<string, string> = {
+  book: "كتاب",
+  horse: "خيل",
+  image: "صورة",
+  news: "أخبار",
+  stud: "مربط",
+  video: "فيديو",
+};
+
+function formatNewsTag(category: string, locale: string) {
+  if (locale !== "ar") return category;
+
+  return ARABIC_TAG_LABELS[category.trim().toLowerCase()] ?? category;
+}
+
 export default function NewsPage() {
   const { direction, locale } = useLocale();
   const { t } = useTranslation();
@@ -32,6 +55,16 @@ export default function NewsPage() {
   const [pageInfo, setPageInfo] = useState<PagedResponse<ExternalNewsFeedResponse> | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const articleRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  const collapseItem = (key: string) => {
+    setExpandedItems((current) => ({ ...current, [key]: false }));
+
+    window.requestAnimationFrame(() => {
+      articleRefs.current[key]?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -84,14 +117,21 @@ export default function NewsPage() {
         ) : (
           <div className="space-y-6">
             {news.map((item, index) => {
-              const imageUrl = resolveMediaUrl(item.attachments?.find((attachment) => attachment.mediaType?.startsWith("image"))?.path);
+              const articleKey = `${item.approvalDate ?? "news"}-${index}`;
+              const imageUrl = resolveMediaUrl(item.attachments?.find((attachment) => isImageAttachment(attachment.mediaType))?.path);
+              const isExpanded = Boolean(expandedItems[articleKey]);
+              const canToggleBody = isLongNewsBody(item.body);
 
               return (
                 <article
-                  key={`${item.approvalDate ?? "news"}-${index}`}
-                  className="rounded-2xl border border-[#f1ece8] bg-white p-6 shadow-sm"
+                  key={articleKey}
+                  ref={(node) => {
+                    articleRefs.current[articleKey] = node;
+                  }}
+                  className={`rounded-2xl border border-[#f1ece8] bg-white p-6 shadow-sm ${isRTL ? "text-right" : "text-left"}`}
+                  dir={direction}
                 >
-                  <div className={`mb-5 flex items-center gap-4 ${isRTL ? "flex-row-reverse text-right" : "text-left"}`}>
+                  <div className="mb-5 flex items-center gap-4">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#4b2f1a] text-white">
                       <Newspaper className="h-6 w-6" />
                     </div>
@@ -110,14 +150,34 @@ export default function NewsPage() {
                       </div>
                     )}
 
-                    <div className={`${isRTL ? "text-right" : "text-left"}`}>
-                      <p className="whitespace-pre-line text-lg leading-8 text-[#5c5651]">
+                    <div>
+                      <p
+                        className={`whitespace-pre-line text-lg leading-8 text-[#5c5651] ${
+                          canToggleBody && !isExpanded ? "max-h-72 overflow-hidden" : ""
+                        }`}
+                      >
                         {item.body || t("common.noRecordsFound")}
                       </p>
+                      {canToggleBody ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isExpanded) {
+                              collapseItem(articleKey);
+                              return;
+                            }
+
+                            setExpandedItems((current) => ({ ...current, [articleKey]: true }));
+                          }}
+                          className="mt-3 text-sm font-bold text-[#4b2f1a] underline-offset-4 hover:underline"
+                        >
+                          {isExpanded ? t("news.seeLess") : t("news.seeMore")}
+                        </button>
+                      ) : null}
                       <div className={`mt-5 flex flex-wrap gap-2 ${isRTL ? "justify-end" : "justify-start"}`}>
                         {(item.categories ?? []).map((category) => (
                           <span key={category} className="rounded-full bg-[#f4efea] px-3 py-1 text-sm font-semibold text-[#4b2f1a]">
-                            {category}
+                            {formatNewsTag(category, locale)}
                           </span>
                         ))}
                       </div>

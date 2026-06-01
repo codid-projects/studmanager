@@ -85,9 +85,10 @@ export function horseDisplayName(
 
 export function toHorseCardModel(horse: HorseListItemDto, locale: LocaleCode) {
   const localId = horse.localId ?? horse.id;
+  const strain = locale === 'ar' ? horse.strainAr : horse.strainEn;
   const meta = horseMeta(locale, [
+    { labelAr: 'الرسن', labelEn: 'Strain', value: strain },
     { labelAr: 'اللون', labelEn: 'Color', value: horse.color ? localizeColor(horse.color, locale) : null },
-    { labelAr: 'السلالة', labelEn: 'Strain', value: firstPresent(horse.strainAr, horse.strainEn) },
     { labelAr: 'الخط الخاص', labelEn: 'Special line', value: firstPresent(horse.specialAr, horse.specialEn) },
   ]);
 
@@ -106,7 +107,7 @@ export function toHorseCardModel(horse: HorseListItemDto, locale: LocaleCode) {
 export function toStudbookCardModel(horse: StudbookHorseDto, locale: LocaleCode) {
   const meta = horseMeta(locale, [
     { labelAr: 'اللون', labelEn: 'Color', value: horse.color ? localizeColor(horse.color, locale) : null },
-    { labelAr: 'السلالة', labelEn: 'Strain', value: firstPresent(horse.strainAr, horse.strain) },
+    { labelAr: 'الرسن', labelEn: 'Strain', value: firstPresent(horse.strainAr, horse.strain) },
     { labelAr: 'الخط الخاص', labelEn: 'Special line', value: firstPresent(horse.specialLineAr, horse.specialLine) },
     { labelAr: 'ولد في', labelEn: 'Born in', value: horse.bornIn },
     { labelAr: 'حالياً في', labelEn: 'Currently in', value: horse.currentlyIn },

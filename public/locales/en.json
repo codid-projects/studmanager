@@ -245,7 +245,9 @@
   "news": {
     "title": "News",
     "addFarm": "New Farm Added",
-    "newFestival": "New Festival"
+    "newFestival": "New Festival",
+    "seeMore": "See more",
+    "seeLess": "See less"
   },
   "calendar": {
     "title": "Calendar & Events",

@@ -38,7 +38,7 @@ export type ActivityDto = {
 export type ActivityTypeEnum = 1 | 2 | 3;
 
 export type AttachmentDto = {
-  attachmentId: number;
+  attachmentId?: number | null;
   mediaType: string | null;
   path: string | null;
 };
@@ -55,6 +55,7 @@ export type CommentDto = {
 export type LikeDto = {
   userName?: string | null;
   userProfilePhoto?: string | null;
+  creationDate?: string | null;
 };
 
 export type ExternalNewsFeedResponse = {

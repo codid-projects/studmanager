@@ -245,7 +245,9 @@
   "news": {
     "title": "الأخبار",
     "addFarm": "اضافة مزرعة جديدة",
-    "newFestival": "مهرجان جديد"
+    "newFestival": "مهرجان جديد",
+    "seeMore": "عرض المزيد",
+    "seeLess": "عرض أقل"
   },
   "calendar": {
     "title": "التقويم و الأحداث",
@@ -388,11 +390,11 @@
     "manualApiPending": "إضافة الخيل يدويًا غير متاحة في عقد الـ API المرفق حتى الآن."
   },
   "matingTest": {
-    "title": "تحليل السلالة",
+    "title": "تحليل الرسن",
     "analysis": "تحليل",
     "test": "اختبار التزاوج",
-    "fatherLine": "السلالة من جهة الأب",
-    "motherLine": "السلالة من جهة الأم",
+    "fatherLine": "الرسن من جهة الأب",
+    "motherLine": "الرسن من جهة الأم",
     "inbreeding": "نسبة فقدان الأجداد خلال 12 جيلاً",
     "generation": "الجيل",
     "horseName": "اسم الخيل",

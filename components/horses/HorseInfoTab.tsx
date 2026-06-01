@@ -39,7 +39,7 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-[#a08a6b] font-medium">{isRTL ? "السلالة :" : "Strain :"}</span>
+            <span className="text-[#a08a6b] font-medium">{isRTL ? "الرسن :" : "Strain :"}</span>
             <span className="text-black font-semibold">{localized(raw.strainAr, raw.strainEn)}</span>
           </div>
 
