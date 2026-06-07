@@ -3,12 +3,19 @@ import type { LocaleCode } from './types';
 const ARABIC_MESSAGE_MAP: Record<string, string> = {
   'invalid credentials': 'اسم المستخدم أو كلمة المرور غير صحيحة.',
   'login successful': 'تم تسجيل الدخول بنجاح.',
+  'failed to fetch': 'حدث خطأ ما. يرجى المحاولة مرة أخرى لاحقاً.',
   unauthorized: 'انتهت صلاحية الجلسة أو لا تملك صلاحية الوصول.',
   forbidden: 'لا تملك صلاحية تنفيذ هذا الإجراء.',
   'not found': 'حدث خطأ ما، يرجى المحاولة مرة أخرى.',
   'internal server error': 'حدث خطأ في الخادم. يرجى المحاولة مرة أخرى.',
   success: 'تم بنجاح.',
 };
+
+export function getFriendlyApiErrorMessage(locale: LocaleCode) {
+  return locale === 'ar'
+    ? 'حدث خطأ ما. يرجى المحاولة مرة أخرى لاحقاً.'
+    : 'Something went wrong. Please try again later.';
+}
 
 export class ApiError extends Error {
   status: number;
@@ -24,7 +31,11 @@ export class ApiError extends Error {
 
 export function localizeApiMessage(message: string | null | undefined, locale: LocaleCode) {
   if (!message) {
-    return locale === 'ar' ? 'حدث خطأ غير متوقع.' : 'Something went wrong.';
+    return getFriendlyApiErrorMessage(locale);
+  }
+
+  if (message.trim().toLowerCase() === 'failed to fetch') {
+    return getFriendlyApiErrorMessage(locale);
   }
 
   if (locale !== 'ar') return message;

@@ -12,6 +12,7 @@
     "to": "To",
     "loading": "Loading...",
     "error": "Error occurred",
+    "requestError": "Something went wrong. Please try again later.",
     "success": "Successful",
     "language": "Language",
     "logout": "Log out",
@@ -40,6 +41,11 @@
     "notes": "Notes",
     "price": "Price",
     "location": "location"
+  },
+  "picker": {
+    "selectHorse": "Select horse",
+    "searchHorses": "Search horses...",
+    "noHorsesFound": "No horses found for your search."
   },
   "sidebar": {
     "dashboard": "Dashboard",
@@ -481,9 +487,21 @@
     "matingNoteHeader": "Here you can choose father and mother for a theoretical mating test.",
     "matingNoteSub": "Please note that both parents must be registered in our database before using them in the mating test.",
     "selectHorse": "Select Horse",
+    "selectHorseHint": "Search registered horses to view the pedigree certificate.",
     "fatherName": "Father's Name",
     "motherName": "Mother's Name",
-    "matingResult": "Mating Test"
+    "matingResult": "Mating Test",
+    "selectFather": "Select father",
+    "selectMother": "Select mother",
+    "noFathersFound": "No male horses match your search.",
+    "noMothersFound": "No female horses match your search.",
+    "chooseHorseToViewPedigree": "Select a horse to view its pedigree certificate.",
+    "chooseParentsToRunMating": "Select the father and mother, then run the mating test to view the result.",
+    "selectBothParents": "Select both father and mother first.",
+    "parentsNeedStudbook": "Both parents must have a Studbook ID to run the mating test.",
+    "resultUnavailable": "The result is unavailable right now. Please try again later.",
+    "runMating": "Run mating test",
+    "runningMating": "Analyzing..."
   },
   "expenses": {
     "subscription": "Subscription",

@@ -1,130 +1,308 @@
 'use client';
 
 import { useState } from 'react';
+import { Dna, HeartHandshake, Search } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { useLocale, useTranslation } from '@/lib/locale-context';
 import { HorsePedigreeTree } from '@/components/horses/HorsePedigreeTree';
-import { ChevronDown } from 'lucide-react';
+import { HorsePicker } from '@/components/horses/HorsePicker';
+import { clientApiFetch } from '@/lib/api/client';
+import { getTestMatingTree } from '@/lib/api/external-horses';
+import { horseDisplayName } from '@/lib/api/horse-formatters';
+import type {
+  ApiResult,
+  ExternalTreeNode,
+  HorseInfoDto,
+  HorseListItemDto,
+  LocaleCode,
+} from '@/lib/api/types';
+import { useLocale, useTranslation } from '@/lib/locale-context';
+
+type SelectedHorse = {
+  localId: number;
+  name: string;
+  studbookId?: number | null;
+};
+
+function unwrapHorse(payload: ApiResult<HorseInfoDto> | HorseInfoDto): HorseInfoDto {
+  if (payload && typeof payload === 'object' && 'data' in payload) {
+    return payload.data as HorseInfoDto;
+  }
+
+  return payload as HorseInfoDto;
+}
 
 export default function DatabasePage() {
-  const { direction } = useLocale();
+  const { direction, locale } = useLocale();
   const { t } = useTranslation();
+  const localeCode = locale as LocaleCode;
   const isRTL = direction === 'rtl';
   const [activeTab, setActiveTab] = useState<'pedigree' | 'mating'>('pedigree');
+  const [pedigreePickerOpen, setPedigreePickerOpen] = useState(false);
+  const [pedigreeHorse, setPedigreeHorse] = useState<SelectedHorse | null>(null);
+  const [father, setFather] = useState<SelectedHorse | null>(null);
+  const [mother, setMother] = useState<SelectedHorse | null>(null);
+  const [matingTree, setMatingTree] = useState<ExternalTreeNode[][] | null>(null);
+  const [matingLoading, setMatingLoading] = useState(false);
+  const [matingMessage, setMatingMessage] = useState('');
 
-  // Mock horse data for the tree
-  const mockHorse = {
-    name: "Mohamed Saleh",
-    id: "1"
+  const toSelectedHorse = (horse: HorseListItemDto): SelectedHorse => ({
+    localId: horse.localId ?? horse.id,
+    name: horseDisplayName(horse, localeCode),
+  });
+
+  const selectParent = (
+    horse: HorseListItemDto,
+    setter: (selected: SelectedHorse) => void,
+  ) => {
+    setter(toSelectedHorse(horse));
+    setMatingTree(null);
+    setMatingMessage('');
   };
+
+  const getHorseDetail = async (horse: SelectedHorse) => {
+    if (horse.studbookId !== undefined) return horse;
+
+    const payload = await clientApiFetch<ApiResult<HorseInfoDto> | HorseInfoDto>({
+      backendPath: `/api/Horses/${horse.localId}`,
+      nextPath: `/api/horses/${horse.localId}`,
+      locale: localeCode,
+    });
+    const detail = unwrapHorse(payload);
+
+    return {
+      ...horse,
+      studbookId: detail.studbookId,
+    };
+  };
+
+  const runMatingTest = async () => {
+    if (!father || !mother) {
+      setMatingMessage(t('database.selectBothParents'));
+      return;
+    }
+
+    setMatingLoading(true);
+    setMatingMessage('');
+    setMatingTree(null);
+
+    try {
+      const [resolvedFather, resolvedMother] = await Promise.all([
+        getHorseDetail(father),
+        getHorseDetail(mother),
+      ]);
+      setFather(resolvedFather);
+      setMother(resolvedMother);
+
+      if (!resolvedFather.studbookId || !resolvedMother.studbookId) {
+        setMatingMessage(t('database.parentsNeedStudbook'));
+        return;
+      }
+
+      const result = await getTestMatingTree({
+        horseFatherStudbookId: resolvedFather.studbookId,
+        horseMotherStudbookId: resolvedMother.studbookId,
+        levels: 6,
+      });
+      setMatingTree(result.data ?? []);
+    } catch {
+      setMatingMessage(t('database.resultUnavailable'));
+    } finally {
+      setMatingLoading(false);
+    }
+  };
+
+  const showMatingTree = matingLoading || matingTree !== null;
 
   return (
     <MainLayout>
       <div className={`space-y-6 ${isRTL ? 'font-cairo' : ''}`} dir={direction}>
-        {/* Header Tabs */}
-        <div className="flex justify-end pt-4" dir={isRTL ? 'ltr' : 'rtl'}>
-          <div className="inline-flex rounded-2xl bg-white p-1.5 shadow-sm border border-gray-50">
+        <div className="flex justify-end pt-4">
+          <div className="inline-flex rounded-2xl border border-gray-100 bg-white p-1.5 shadow-sm">
             <button
+              type="button"
               onClick={() => setActiveTab('pedigree')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
                 activeTab === 'pedigree'
-                  ? 'bg-[#3b2b20] text-white shadow-lg'
+                  ? 'bg-[#3b2b20] text-white shadow-md'
                   : 'text-[#5a473d] hover:bg-gray-50'
               }`}
             >
-              <img 
-                src={activeTab === 'pedigree' ? "/svgs/pedigree-white.svg" : "/svgs/pedigree-brown.svg"} 
-                alt="" 
-                className="w-5 h-5" 
-                onError={(e) => (e.currentTarget.style.display = 'none')}
-              />
-              <span>{t('database.pedigreeTab')}</span>
+              <Dna className="h-5 w-5" />
+              {t('database.pedigreeTab')}
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('mating')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
                 activeTab === 'mating'
-                  ? 'bg-[#3b2b20] text-white shadow-lg'
+                  ? 'bg-[#3b2b20] text-white shadow-md'
                   : 'text-[#5a473d] hover:bg-gray-50'
               }`}
             >
-              <img 
-                src={activeTab === 'mating' ? "/svgs/mating-white.svg" : "/svgs/mating-brown.svg"} 
-                alt="" 
-                className="w-5 h-5"
-                onError={(e) => (e.currentTarget.style.display = 'none')}
-              />
-              <span>{t('database.matingTab')}</span>
+              <HeartHandshake className="h-5 w-5" />
+              {t('database.matingTab')}
             </button>
           </div>
         </div>
 
-        {/* Content Section */}
-        <div className="bg-white rounded-[32px] p-6 sm:p-8 shadow-[0_12px_26px_rgba(91,53,24,0.06)] border border-gray-50">
-          {/* Notes */}
-          <div className={`mb-8 space-y-1 ${isRTL ? 'text-right' : 'text-left'}`}>
-            {activeTab === 'pedigree' ? (
-              <p className="text-[#8d7769] text-sm md:text-base font-medium flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#8d7769]" />
-                {t('database.pedigreeNote')}
+        <section className="rounded-[32px] border border-gray-100 bg-white p-5 shadow-[0_12px_26px_rgba(91,53,24,0.06)] sm:p-8">
+          <div className="mb-7 space-y-2 text-sm font-medium text-[#8d7769] md:text-base">
+            <p className="flex items-start gap-2">
+              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#8d7769]" />
+              {activeTab === 'pedigree'
+                ? t('database.pedigreeNote')
+                : t('database.matingNoteHeader')}
+            </p>
+            {activeTab === 'mating' && (
+              <p className="flex items-start gap-2">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#8d7769]" />
+                {t('database.matingNoteSub')}
               </p>
-            ) : (
-              <>
-                <p className="text-[#8d7769] text-sm md:text-base font-medium flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#8d7769]" />
-                  {t('database.matingNoteHeader')}
-                </p>
-                <p className="text-[#8d7769] text-sm md:text-base font-medium flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#8d7769]" />
-                  {t('database.matingNoteSub')}
-                </p>
-              </>
             )}
           </div>
 
-          {/* Inputs */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-            {activeTab === 'pedigree' ? (
-              <div className="relative md:col-span-2">
-                <div className={`absolute top-1/2 -translate-y-1/2 pointer-events-none ${isRTL ? 'left-4' : 'right-4'}`}>
-                  <ChevronDown className="w-5 h-5 text-gray-400" />
+          {activeTab === 'pedigree' ? (
+            <div className="space-y-8">
+              <div className="rounded-[24px] border border-[#eadfd6] bg-gradient-to-b from-[#fffdfb] to-[#faf6f1] p-4 shadow-[0_8px_24px_rgba(91,53,24,0.05)] sm:p-5">
+                <div className="mb-3 flex items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#3b2b20] text-white shadow-sm">
+                    <Search className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <label className="block text-sm font-bold text-[#3b2b20]">
+                      {t('database.selectHorse')}
+                    </label>
+                    <p className="mt-0.5 text-xs font-medium text-[#8d7769]">
+                      {t('database.selectHorseHint')}
+                    </p>
+                  </div>
                 </div>
-                <select className={`w-full bg-[#fdfbf9] border border-gray-200 rounded-[20px] px-6 py-4 text-[#20203c] font-bold outline-none focus:border-[#3b2b20] transition-colors appearance-none ${isRTL ? 'text-right' : 'text-left'}`}>
-                  <option selected disabled>{t('database.selectHorse')}</option>
-                  <option>Horse 1</option>
-                  <option>Horse 2</option>
-                </select>
+
+                <HorsePicker
+                  value={pedigreeHorse?.localId ?? null}
+                  selectedLabel={pedigreeHorse?.name}
+                  onChange={(horse) => setPedigreeHorse(toSelectedHorse(horse))}
+                  placeholder={t('database.selectHorse')}
+                  title={t('database.selectHorse')}
+                  open={pedigreePickerOpen}
+                  onOpenChange={setPedigreePickerOpen}
+                  triggerClassName="min-h-[58px] rounded-2xl border-[#d8c8bc] bg-white px-5 font-bold text-[#3b2b20] shadow-sm transition hover:border-[#8d7769] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#8d7769]/25"
+                />
               </div>
-            ) : (
-              <>
-                <div className="relative">
-                  <input 
-                    type="text" 
-                    placeholder={t('database.fatherName')}
-                    className={`w-full bg-[#fdfbf9] border border-gray-200 rounded-[20px] px-6 py-4 text-[#20203c] font-bold outline-none focus:border-[#3b2b20] transition-colors ${isRTL ? 'text-right' : 'text-left'}`}
+
+              <div>
+                <h2 className="mb-5 text-[1.7rem] font-bold text-[#20203c]">
+                  {t('database.pedigreeTab')}
+                </h2>
+                {pedigreeHorse ? (
+                  <HorsePedigreeTree
+                    key={pedigreeHorse.localId}
+                    horse={{
+                      id: String(pedigreeHorse.localId),
+                      localId: pedigreeHorse.localId,
+                      name: pedigreeHorse.name,
+                    }}
+                    showTitle={false}
+                    controlsVariant="compact"
+                  />
+                ) : (
+                  <EmptyResult
+                    text={t('database.chooseHorseToViewPedigree')}
+                    onClick={() => setPedigreePickerOpen(true)}
+                  />
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-[#3b2b20]">
+                    {t('database.fatherName')}
+                  </label>
+                  <HorsePicker
+                    value={father?.localId ?? null}
+                    selectedLabel={father?.name}
+                    onChange={(horse) => selectParent(horse, setFather)}
+                    gender="Male"
+                    placeholder={t('database.selectFather')}
+                    title={t('database.selectFather')}
+                    emptyText={t('database.noFathersFound')}
                   />
                 </div>
-                <div className="relative">
-                  <input 
-                    type="text" 
-                    placeholder={t('database.motherName')}
-                    className={`w-full bg-[#fdfbf9] border border-gray-200 rounded-[20px] px-6 py-4 text-[#20203c] font-bold outline-none focus:border-[#3b2b20] transition-colors ${isRTL ? 'text-right' : 'text-left'}`}
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-[#3b2b20]">
+                    {t('database.motherName')}
+                  </label>
+                  <HorsePicker
+                    value={mother?.localId ?? null}
+                    selectedLabel={mother?.name}
+                    onChange={(horse) => selectParent(horse, setMother)}
+                    gender="Female"
+                    placeholder={t('database.selectMother')}
+                    title={t('database.selectMother')}
+                    emptyText={t('database.noMothersFound')}
                   />
                 </div>
-              </>
-            )}
-          </div>
+              </div>
 
-          {/* Pedigree Tree Component */}
-          <header className={`mb-6 ${isRTL ? 'text-right' : 'text-left'}`}>
-             <h2 className="text-[1.7rem] font-bold text-[#20203c]">
-               {activeTab === 'pedigree' ? t('database.pedigreeTab') : t('database.matingResult')}
-             </h2>
-          </header>
+              <div>
+                <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <h2 className="text-[1.7rem] font-bold text-[#20203c]">
+                    {t('database.matingResult')}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={runMatingTest}
+                    disabled={!father || !mother || matingLoading}
+                    className="rounded-2xl bg-[#4a2b1a] px-6 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {matingLoading ? t('database.runningMating') : t('database.runMating')}
+                  </button>
+                </div>
 
-          <HorsePedigreeTree horse={mockHorse} showTitle={false} />
-        </div>
+                {matingMessage && (
+                  <div className="mb-4 rounded-2xl border border-[#eadfd6] bg-[#fbf8f4] px-4 py-3 text-sm text-[#6f5b4d]">
+                    {matingMessage}
+                  </div>
+                )}
+
+                {showMatingTree ? (
+                  <HorsePedigreeTree
+                    horse={{ id: 'test-mating', name: t('database.matingResult') }}
+                    pedigreeData={matingTree ?? []}
+                    loading={matingLoading}
+                    showTitle={false}
+                    controlsVariant="compact"
+                  />
+                ) : (
+                  <EmptyResult text={t('database.chooseParentsToRunMating')} />
+                )}
+              </div>
+            </div>
+          )}
+        </section>
       </div>
     </MainLayout>
+  );
+}
+
+function EmptyResult({ text, onClick }: { text: string; onClick?: () => void }) {
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="w-full rounded-[26px] border border-dashed border-[#d9c8ba] bg-[#fdfbf9] px-6 py-14 text-center text-sm font-medium text-[#7a6c63] transition hover:border-[#8d7769] hover:bg-[#faf6f1] hover:text-[#3b2b20] focus:outline-none focus:ring-2 focus:ring-[#8d7769]/30"
+      >
+        {text}
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-[26px] border border-dashed border-[#d9c8ba] bg-[#fdfbf9] px-6 py-14 text-center text-sm font-medium text-[#7a6c63]">
+      {text}
+    </div>
   );
 }

@@ -95,17 +95,33 @@ function ActivityRow({
   spacious?: boolean;
 }) {
   return (
-    <div className={`grid grid-cols-[2.75rem_1fr] gap-4 border-b border-[#f1ece8] pb-4 last:border-0 ${spacious ? 'items-start' : ''}`}>
-      <div className={`flex h-10 w-10 items-center justify-center rounded-full ${getActivityTone(activity.type)}`}>
-        <MoreHorizontal className="h-5 w-5" />
-      </div>
-      <div className="text-end">
-        <p className={`${spacious ? 'text-lg leading-7' : 'line-clamp-1 text-base'} font-semibold text-[#4b2f1a]`}>
-          {locale === 'ar' ? activity.descriptionAr || activity.descriptionEn : activity.descriptionEn || activity.descriptionAr}
+  <div
+      dir={locale === "ar" ? "rtl" : "ltr"}
+      className={`border-b border-[#f1ece8] pb-4 last:border-0 ${
+        spacious ? "py-2" : ""
+      }`}
+    >
+      <div className="min-w-0">
+        <p
+          className={`font-semibold text-[#4b2f1a] ${
+            spacious
+              ? "text-lg leading-7 break-words whitespace-normal"
+              : "text-base break-words whitespace-normal"
+          }`}
+        >
+          {locale === "ar"
+            ? activity.descriptionAr || activity.descriptionEn
+            : activity.descriptionEn || activity.descriptionAr}
         </p>
-        <p className="mt-1 text-sm text-[#8c847c]">{timeAgo(activity.createdAt, locale)}</p>
+
+        <p className="mt-1 text-sm text-[#8c847c]">
+          {timeAgo(activity.createdAt, locale)}
+        </p>
+
         {spacious && activity.createdBy && (
-          <p className="mt-1 text-sm text-[#8c847c]">{activity.createdBy}</p>
+          <p className="mt-1 text-sm text-[#8c847c] break-words">
+            {activity.createdBy}
+          </p>
         )}
       </div>
     </div>
@@ -394,32 +410,59 @@ export default function DashboardPage() {
           </div>
 
           <article className="rounded-xl border border-[#bcc7d6] bg-white px-7 py-6 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
+            <div className={`flex items-start ${isRTL ? 'flex-row-reverse' : ''} justify-between gap-3`}>
               <Info className="h-6 w-6 text-[#4b2f1a]" />
               <h3 className="text-2xl font-semibold text-[#4b2f1a]">{t('dashboard.studInformation')}</h3>
             </div>
-            <dl className="mt-8 space-y-4 text-lg text-[#5c5651]">
-              <div className="grid grid-cols-[1fr_10rem] items-center gap-4 text-right">
-                <dd className="truncate">{studName || '-'}</dd>
-                <dt className="font-semibold text-[#8c847c]">{t('dashboard.name')}</dt>
-              </div>
-              <div className="grid grid-cols-[1fr_10rem] items-center gap-4 text-right">
-                <dd>{stud.registrationNumber || stud.studbookId || '-'}</dd>
-                <dt className="font-semibold text-[#8c847c]">{t('dashboard.registrationNumber')}</dt>
-              </div>
-              <div className="grid grid-cols-[1fr_10rem] items-center gap-4 text-right">
-                <dd>{dashboard.bredByStud?.total ?? 0}</dd>
-                <dt className="font-semibold text-[#8c847c]">{t('dashboard.bredHorses')}</dt>
-              </div>
-              <div className="grid grid-cols-[1fr_10rem] items-center gap-4 text-right">
-                <dd>{stud.primaryPhoneNumber || '-'}</dd>
-                <dt className="font-semibold text-[#8c847c]">{t('dashboard.phoneNumber')}</dt>
-              </div>
-              <div className="grid grid-cols-[1fr_10rem] items-center gap-4 text-right">
-                <dd className="truncate">{stud.studEmail || '-'}</dd>
-                <dt className="font-semibold text-[#8c847c]">{t('dashboard.email')}</dt>
-              </div>
-            </dl>
+            <dl
+  dir={isRTL ? "rtl" : "ltr"}
+  className={`mt-8 space-y-4 text-lg text-[#5c5651] ${
+    isRTL ? "text-right" : "text-left"
+  }`}
+>
+  <div className="flex items-center">
+    <dt className="w-40 shrink-0 font-semibold text-[#8c847c]">
+      {t("dashboard.name")}
+    </dt>
+    <dd className="flex-1 truncate">{studName || "-"}</dd>
+  </div>
+
+  <div className="flex items-center">
+    <dt className="w-40 shrink-0 font-semibold text-[#8c847c]">
+      {t("dashboard.registrationNumber")}
+    </dt>
+    <dd className="flex-1">
+      {stud.registrationNumber || stud.studbookId || "-"}
+    </dd>
+  </div>
+
+  <div className="flex items-center">
+    <dt className="w-40 shrink-0 font-semibold text-[#8c847c]">
+      {t("dashboard.bredHorses")}
+    </dt>
+    <dd className="flex-1">
+      {dashboard.bredByStud?.total ?? 0}
+    </dd>
+  </div>
+
+  <div className="flex items-center">
+    <dt className="w-40 shrink-0 font-semibold text-[#8c847c]">
+      {t("dashboard.phoneNumber")}
+    </dt>
+    <dd className="flex-1">
+      {stud.primaryPhoneNumber || "-"}
+    </dd>
+  </div>
+
+  <div className="flex items-center">
+    <dt className="w-40 shrink-0 font-semibold text-[#8c847c]">
+      {t("dashboard.email")}
+    </dt>
+    <dd className="flex-1 truncate">
+      {stud.studEmail || "-"}
+    </dd>
+  </div>
+</dl>
           </article>
         </section>
 
@@ -434,58 +477,107 @@ export default function DashboardPage() {
             </button>
           </article>
 
-          <article className="rounded-[28px] bg-[#e8e4de] p-7 shadow-sm">
-            <div className="flex items-start justify-between">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#6b6b3a] text-white">
-                <Leaf className="h-6 w-6" />
-              </div>
-              <div className="text-end">
-                <h3 className="text-2xl font-semibold text-[#4b2f1a]">{t('dashboard.currentRation')}</h3>
-                <p className="text-base text-[#6f665e]">{t('dashboard.dailyRation')}</p>
-              </div>
-            </div>
-            <div className="mt-8 flex min-h-[220px] items-center justify-center rounded-xl bg-white/65 text-lg font-semibold text-[#8c847c]">
-              {t('common.noRecordsFound')}
-            </div>
-            <button className="mt-6 h-12 w-full rounded-lg bg-white text-base font-semibold text-[#4b2f1a] shadow-sm">
-              {t('dashboard.editNutritionPlan')}
-            </button>
-          </article>
+        <article
+  dir={isRTL ? "rtl" : "ltr"}
+  className="rounded-[28px] bg-[#e8e4de] p-7 shadow-sm"
+>
+  <div
+    className={`flex items-start justify-between ${
+      isRTL ? "flex-row-reverse" : ""
+    }`}
+  >
+    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#6b6b3a] text-white">
+      <Leaf className="h-6 w-6" />
+    </div>
 
-          <article className="rounded-2xl bg-white p-7 shadow-sm">
-            <div className="mb-5 flex items-center justify-between">
-              <button
-                onClick={() => {
-                  setActivityModalOpen(true);
-                  loadActivities(1, 10);
-                }}
-                className="text-base font-semibold text-[#4b2f1a] underline"
-              >
-                {t('dashboard.all')}
-              </button>
-              <h3 className="text-2xl font-semibold text-[#4b2f1a]">{t('dashboard.latestActivities')}</h3>
-            </div>
-            <div className="space-y-4">
-              {activityLoading && activityItems.length === 0 ? (
-                <div className="rounded-xl bg-[#f8f4f0] p-6 text-center text-base font-semibold text-[#8c847c]">
-                  {t('common.loading')}
-                </div>
-              ) : activityItems.length === 0 ? (
-                <div className="rounded-xl bg-[#f8f4f0] p-6 text-center text-base font-semibold text-[#8c847c]">
-                  {t('common.noRecordsFound')}
-                </div>
-              ) : (
-                activityItems.map((activity) => (
-                  <ActivityRow key={activity.id} activity={activity} locale={locale} />
-                ))
-              )}
-            </div>
-            <div className="mt-6 rounded-xl bg-[#4a2108] p-6 text-white">
-              <FileText className="mb-3 h-8 w-8 opacity-70" />
-              <p className="text-lg font-semibold">{t('dashboard.reportNotice')}</p>
-              <p className="mt-2 text-sm leading-6 text-white/70">{t('common.noRecordsFound')}</p>
-            </div>
-          </article>
+    <div className={isRTL ? "text-right" : "text-left"}>
+      <h3 className="text-2xl font-semibold text-[#4b2f1a]">
+        {t("dashboard.currentRation")}
+      </h3>
+
+      <p className="text-base text-[#6f665e]">
+        {t("dashboard.dailyRation")}
+      </p>
+    </div>
+  </div>
+
+  <div className="mt-8 flex min-h-[220px] items-center justify-center rounded-xl bg-white/65 text-lg font-semibold text-[#8c847c]">
+    {t("common.noRecordsFound")}
+  </div>
+
+  <button className="mt-6 h-12 w-full rounded-lg bg-white text-base font-semibold text-[#4b2f1a] shadow-sm">
+    {t("dashboard.editNutritionPlan")}
+  </button>
+</article>
+
+         <article
+  dir={isRTL ? "rtl" : "ltr"}
+  className="rounded-2xl bg-white p-7 shadow-sm"
+>
+  <div
+    className={`mb-5 flex items-center justify-between ${
+      isRTL ? "flex-row" : ""
+    }`}
+  >
+    <button
+      onClick={() => {
+        setActivityModalOpen(true);
+        loadActivities(1, 10);
+      }}
+      className="text-base font-semibold text-[#4b2f1a] underline"
+    >
+      {t("dashboard.all")}
+    </button>
+
+    <h3
+      className={`flex-1 text-2xl font-semibold text-[#4b2f1a] ${
+        isRTL ? "text-right mr-4" : "text-left ml-4"
+      }`}
+    >
+      {t("dashboard.latestActivities")}
+    </h3>
+  </div>
+
+  <div className="space-y-4">
+    {activityLoading && activityItems.length === 0 ? (
+      <div className="rounded-xl bg-[#f8f4f0] p-6 text-center text-base font-semibold text-[#8c847c]">
+        {t("common.loading")}
+      </div>
+    ) : activityItems.length === 0 ? (
+      <div className="rounded-xl bg-[#f8f4f0] p-6 text-center text-base font-semibold text-[#8c847c]">
+        {t("common.noRecordsFound")}
+      </div>
+    ) : (
+      activityItems.map((activity) => (
+        <ActivityRow
+          key={activity.id}
+          activity={activity}
+          locale={locale}
+        />
+      ))
+    )}
+  </div>
+
+  <div
+    className={`mt-6 rounded-xl bg-[#4a2108] p-6 text-white ${
+      isRTL ? "text-left" : "text-left"
+    }`}
+  >
+    <FileText
+      className={`mb-3 h-8 w-8 opacity-70 ${
+        isRTL ? "mr-auto" : ""
+      }`}
+    />
+
+    <p className="text-lg font-semibold">
+      {t("dashboard.reportNotice")}
+    </p>
+
+    <p className="mt-2 text-sm leading-6 text-white/70">
+      {t("common.noRecordsFound")}
+    </p>
+  </div>
+</article>
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[1fr_17rem] [direction:ltr]">

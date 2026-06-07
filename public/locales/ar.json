@@ -12,6 +12,7 @@
     "to": "إلى",
     "loading": "جاري التحميل...",
     "error": "حدث خطأ",
+    "requestError": "حدث خطأ ما. يرجى المحاولة مرة أخرى لاحقاً.",
     "success": "تم بنجاح",
     "language": "اللغة",
     "logout": "تسجيل الخروج",
@@ -40,6 +41,11 @@
     "notes": "ملاحظات",
     "price": " السعر",
     "location": "الموقع"
+  },
+  "picker": {
+    "selectHorse": "اختر الخيل",
+    "searchHorses": "ابحث عن خيل...",
+    "noHorsesFound": "لا توجد خيول مطابقة لبحثك."
   },
   "sidebar": {
     "dashboard": "لوحة التحكم",
@@ -481,9 +487,21 @@
     "matingNoteHeader": "هنا يمكنك اختيار الأب والأم وتجربة تزاوج نظري.",
     "matingNoteSub": "يرجى العلم أنه يجب أن يكون الأب والأم مسجلين في قاعدة بياناتنا قبل استخدامهما في اختبار التزاوج.",
     "selectHorse": "اختر الخيل",
+    "selectHorseHint": "ابحث في قائمة الخيول المسجلة لعرض شهادة النسب.",
     "fatherName": "اسم الأب",
     "motherName": "اسم الأم",
-    "matingResult": "إختبار التزاوج"
+    "matingResult": "اختبار التزاوج",
+    "selectFather": "اختر الأب",
+    "selectMother": "اختر الأم",
+    "noFathersFound": "لا توجد خيول ذكور مطابقة لبحثك.",
+    "noMothersFound": "لا توجد خيول إناث مطابقة لبحثك.",
+    "chooseHorseToViewPedigree": "اختر خيلاً من القائمة لعرض شهادة النسب.",
+    "chooseParentsToRunMating": "اختر الأب والأم ثم شغّل اختبار التزاوج لعرض النتيجة.",
+    "selectBothParents": "يرجى اختيار الأب والأم أولاً.",
+    "parentsNeedStudbook": "يجب أن يكون الأب والأم مرتبطين برقم Studbook لإجراء اختبار التزاوج.",
+    "resultUnavailable": "تعذر عرض النتيجة حالياً. يرجى المحاولة مرة أخرى لاحقاً.",
+    "runMating": "تشغيل اختبار التزاوج",
+    "runningMating": "جارٍ التحليل..."
   },
   "expenses": {
     "subscription": "عضوية",

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Heart, MessageCircle, Newspaper } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Newspaper, X } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { clientApiFetch } from "@/lib/api/client";
 import { API_BASE_URL } from "@/lib/api/transport";
@@ -47,6 +47,185 @@ function formatNewsTag(category: string, locale: string) {
   return ARABIC_TAG_LABELS[category.trim().toLowerCase()] ?? category;
 }
 
+type ImageViewerState = {
+  images: string[];
+  index: number;
+};
+
+function NewsImageGallery({
+  images,
+  onOpen,
+}: {
+  images: string[];
+  onOpen: (index: number) => void;
+}) {
+  const visibleImages = images.slice(0, 4);
+
+  if (images.length === 0) return null;
+
+  const gridClass =
+    images.length === 1
+      ? "grid-cols-1"
+      : images.length === 2
+        ? "grid-cols-2"
+        : "grid-cols-2 grid-rows-2";
+
+  return (
+    <div
+      className={`grid h-72 gap-1.5 overflow-hidden rounded-xl bg-[#f4efea] sm:h-80 ${gridClass}`}
+    >
+      {visibleImages.map((image, index) => {
+        const isLeadingImage = images.length === 3 && index === 0;
+        const remainingCount = images.length - 4;
+
+        return (
+          <button
+            key={`${image}-${index}`}
+            type="button"
+            onClick={() => onOpen(index)}
+            className={`group relative min-h-0 overflow-hidden bg-[#e9e1da] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#4b2f1a]/40 ${
+              isLeadingImage ? "row-span-2" : ""
+            }`}
+            aria-label={`Open image ${index + 1} of ${images.length}`}
+          >
+            <img
+              src={image}
+              alt=""
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+            />
+            <span className="absolute inset-0 bg-black/0 transition group-hover:bg-black/10" />
+            {index === 3 && remainingCount > 0 ? (
+              <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-3xl font-bold text-white">
+                +{remainingCount}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function NewsImageViewer({
+  viewer,
+  onClose,
+  onChange,
+}: {
+  viewer: ImageViewerState;
+  onClose: () => void;
+  onChange: (index: number) => void;
+}) {
+  const { images, index } = viewer;
+  const hasMultipleImages = images.length > 1;
+
+  const showPrevious = useCallback(() => {
+    onChange((index - 1 + images.length) % images.length);
+  }, [images.length, index, onChange]);
+
+  const showNext = useCallback(() => {
+    onChange((index + 1) % images.length);
+  }, [images.length, index, onChange]);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+      if (event.key === "ArrowLeft" && hasMultipleImages) showPrevious();
+      if (event.key === "ArrowRight" && hasMultipleImages) showNext();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [hasMultipleImages, onClose, showNext, showPrevious]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex flex-col bg-black/95 p-3 sm:p-5"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Image viewer"
+      onClick={onClose}
+    >
+      <div className="relative flex min-h-0 flex-1 items-center justify-center">
+        <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between text-white">
+          <span className="rounded-full bg-black/45 px-3 py-1 text-sm font-semibold">
+            {index + 1} / {images.length}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-black/45 transition hover:bg-white/20"
+            aria-label="Close image viewer"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <img
+          src={images[index]}
+          alt=""
+          onClick={(event) => event.stopPropagation()}
+          className="max-h-full max-w-full select-none object-contain"
+        />
+
+        {hasMultipleImages ? (
+          <>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                showPrevious();
+              }}
+              className="absolute start-0 flex h-12 w-12 items-center justify-center rounded-full bg-black/45 text-white transition hover:bg-white/20 sm:start-3"
+              aria-label="Previous image"
+            >
+              <ChevronLeft className="h-7 w-7 rtl:rotate-180" />
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                showNext();
+              }}
+              className="absolute end-0 flex h-12 w-12 items-center justify-center rounded-full bg-black/45 text-white transition hover:bg-white/20 sm:end-3"
+              aria-label="Next image"
+            >
+              <ChevronRight className="h-7 w-7 rtl:rotate-180" />
+            </button>
+          </>
+        ) : null}
+      </div>
+
+      {hasMultipleImages ? (
+        <div
+          className="mx-auto mt-3 flex max-w-full gap-2 overflow-x-auto rounded-xl bg-black/35 p-2"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {images.map((image, imageIndex) => (
+            <button
+              key={`${image}-${imageIndex}`}
+              type="button"
+              onClick={() => onChange(imageIndex)}
+              className={`h-16 w-20 shrink-0 overflow-hidden rounded-lg border-2 transition ${
+                imageIndex === index ? "border-white opacity-100" : "border-transparent opacity-55 hover:opacity-90"
+              }`}
+              aria-label={`View image ${imageIndex + 1}`}
+            >
+              <img src={image} alt="" className="h-full w-full object-cover" />
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function NewsPage() {
   const { direction, locale } = useLocale();
   const { t } = useTranslation();
@@ -56,6 +235,7 @@ export default function NewsPage() {
   const [pageNumber, setPageNumber] = useState(1);
   const [loading, setLoading] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const [imageViewer, setImageViewer] = useState<ImageViewerState | null>(null);
   const articleRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const collapseItem = (key: string) => {
@@ -118,7 +298,10 @@ export default function NewsPage() {
           <div className="space-y-6">
             {news.map((item, index) => {
               const articleKey = `${item.approvalDate ?? "news"}-${index}`;
-              const imageUrl = resolveMediaUrl(item.attachments?.find((attachment) => isImageAttachment(attachment.mediaType))?.path);
+              const imageUrls = (item.attachments ?? [])
+                .filter((attachment) => isImageAttachment(attachment.mediaType))
+                .map((attachment) => resolveMediaUrl(attachment.path))
+                .filter((path): path is string => Boolean(path));
               const isExpanded = Boolean(expandedItems[articleKey]);
               const canToggleBody = isLongNewsBody(item.body);
 
@@ -143,12 +326,11 @@ export default function NewsPage() {
                     </div>
                   </div>
 
-                  <div className={`grid gap-6 ${imageUrl ? "lg:grid-cols-[20rem_1fr]" : ""}`}>
-                    {imageUrl && (
-                      <div className="overflow-hidden rounded-xl bg-[#f4efea]">
-                        <img src={imageUrl} alt="" className="h-60 w-full object-cover" />
-                      </div>
-                    )}
+                  <div className={`grid gap-6 ${imageUrls.length ? "lg:grid-cols-[minmax(20rem,28rem)_1fr]" : ""}`}>
+                    <NewsImageGallery
+                      images={imageUrls}
+                      onOpen={(imageIndex) => setImageViewer({ images: imageUrls, index: imageIndex })}
+                    />
 
                     <div>
                       <p
@@ -181,16 +363,6 @@ export default function NewsPage() {
                           </span>
                         ))}
                       </div>
-                      <div className={`mt-5 flex items-center gap-5 text-sm font-semibold text-[#6f665e] ${isRTL ? "justify-end" : "justify-start"}`}>
-                        <span className="inline-flex items-center gap-1">
-                          <Heart className="h-4 w-4" />
-                          {item.likesCount ?? 0}
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <MessageCircle className="h-4 w-4" />
-                          {item.commentsCount ?? 0}
-                        </span>
-                      </div>
                     </div>
                   </div>
                 </article>
@@ -219,6 +391,14 @@ export default function NewsPage() {
           </button>
         </div>
       </div>
+
+      {imageViewer ? (
+        <NewsImageViewer
+          viewer={imageViewer}
+          onClose={() => setImageViewer(null)}
+          onChange={(index) => setImageViewer((current) => current ? { ...current, index } : null)}
+        />
+      ) : null}
     </MainLayout>
   );
 }

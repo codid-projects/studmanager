@@ -147,7 +147,7 @@ export function useTailFemale(params: Parameters<typeof getTailFemale>[0] | null
 }
 
 export function useTestMatingTree(params: Parameters<typeof getTestMatingTree>[0], locale?: LocaleCode) {
-  const enabled = Boolean(params.horseMotherStudbookId || params.horseFatherStudbookId);
+  const enabled = Boolean(params.horseMotherStudbookId && params.horseFatherStudbookId);
   const fetcher = useCallback(() => getTestMatingTree(params), [params.horseMotherStudbookId, params.horseFatherStudbookId, params.levels]);
   return useApiQuery(fetcher, [fetcher], { enabled, locale });
 }

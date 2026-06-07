@@ -1,6 +1,7 @@
 'use client';
 
 import { AUTH_COOKIE, AUTH_TOKEN_COOKIE, AUTH_USER_COOKIE, AUTH_VALUE } from '@/lib/auth';
+import { getFriendlyApiErrorMessage } from './errors';
 import { API_BASE_URL, API_TRANSPORT_MODE } from './transport';
 import type { ApiResult, AuthResponseDto, LocaleCode } from './types';
 
@@ -129,11 +130,21 @@ export async function clientApiFetch<T>({
   if (direct && token) headers.set('Authorization', `Bearer ${token}`);
 
   for (let attempt = 0; ; attempt += 1) {
-    const response = await fetch(url, {
-      method: normalizedMethod,
-      headers,
-      body: requestBody === undefined ? undefined : isFormData ? requestBody : JSON.stringify(requestBody),
-    });
+    let response: Response;
+
+    try {
+      response = await fetch(url, {
+        method: normalizedMethod,
+        headers,
+        body: requestBody === undefined ? undefined : isFormData ? requestBody : JSON.stringify(requestBody),
+      });
+    } catch (error) {
+      throw Object.assign(new Error(getFriendlyApiErrorMessage(locale)), {
+        status: 0,
+        cause: error,
+      });
+    }
+
     const payload = await parseResponse(response);
 
     if (response.ok) return payload as T;
@@ -149,10 +160,8 @@ export async function clientApiFetch<T>({
       window.location.assign(`/${locale}/login?session=expired`);
     }
 
-    const message = response.status === 404
-      ? locale === 'ar'
-        ? 'حدث خطأ ما، يرجى المحاولة مرة أخرى.'
-        : 'Something went wrong. Please try again.'
+    const message = response.status >= 400
+      ? getFriendlyApiErrorMessage(locale)
       : payload && typeof payload === 'object'
         ? (payload as Record<string, unknown>).message ??
           (payload as Record<string, unknown>).detail ??
@@ -173,15 +182,29 @@ export async function loginClient(payload: {
   locale: LocaleCode;
 }) {
   if (API_TRANSPORT_MODE === 'server') {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    let response: Response;
+
+    try {
+      response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      throw Object.assign(new Error(getFriendlyApiErrorMessage(payload.locale)), {
+        status: 0,
+        cause: error,
+      });
+    }
+
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-      throw Object.assign(new Error(data?.message || response.statusText), {
+      const message = response.status === 401
+        ? data?.message || response.statusText
+        : getFriendlyApiErrorMessage(payload.locale);
+
+      throw Object.assign(new Error(message), {
         status: response.status,
         payload: data,
       });

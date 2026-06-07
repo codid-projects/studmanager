@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Edit, Search, Trash2, X } from "lucide-react";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
-import { clientApiFetch, isClientApiNotFound } from "@/lib/api/client";
+import { HorsePicker } from "@/components/horses/HorsePicker";
+import { isClientApiNotFound } from "@/lib/api/client";
 import { fetchSupplements } from "@/lib/api/management-client";
 import {
   fetchNutrition,
@@ -19,7 +20,6 @@ import type {
   NutritionRecordDto,
   NutritionTypeDto,
   NutritionTypeId,
-  PagedResponse,
   SupplementDto,
 } from "@/lib/api/types";
 import { useLocale, useTranslation } from "@/lib/locale-context";
@@ -70,7 +70,7 @@ export const NutritionCategoryTable = ({ categoryId }: NutritionCategoryTablePro
   const fallbackType = CATEGORY_TYPE[categoryId];
   const [types, setTypes] = useState<NutritionTypeDto[]>([]);
   const [records, setRecords] = useState<NutritionRecordDto[]>([]);
-  const [horses, setHorses] = useState<HorseListItemDto[]>([]);
+  const [selectedHorse, setSelectedHorse] = useState<HorseListItemDto | null>(null);
   const [supplements, setSupplements] = useState<SupplementDto[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -123,20 +123,12 @@ export const NutritionCategoryTable = ({ categoryId }: NutritionCategoryTablePro
     async function loadLookups() {
       const results = await Promise.allSettled([
         fetchNutritionTypes(localeCode),
-        clientApiFetch<PagedResponse<HorseListItemDto>>({
-          backendPath: "/api/Horses",
-          nextPath: "/api/horses",
-          backendQuery: { pageNumber: 1, pageSize: 100 },
-          nextQuery: { pageNumber: 1, pageSize: 100, locale },
-          locale: localeCode,
-        }),
         fetchSupplements(localeCode, 1, 100),
       ]);
 
       if (!active) return;
       setTypes(results[0].status === "fulfilled" ? results[0].value : []);
-      setHorses(results[1].status === "fulfilled" ? results[1].value.data ?? [] : []);
-      setSupplements(results[2].status === "fulfilled" ? results[2].value.data ?? [] : []);
+      setSupplements(results[1].status === "fulfilled" ? results[1].value.data ?? [] : []);
     }
 
     loadLookups();
@@ -184,12 +176,29 @@ export const NutritionCategoryTable = ({ categoryId }: NutritionCategoryTablePro
   function openCreate() {
     if (!nutritionType) return;
     setEditing(null);
+    setSelectedHorse(null);
     setForm(emptyForm(nutritionType));
     setFormOpen(true);
   }
 
   function openEdit(record: NutritionRecordDto) {
     setEditing(record);
+    setSelectedHorse({
+      id: record.horseId,
+      localId: record.horseId,
+      englishName: record.horseEnglishName,
+      arabicName: record.horseArabicName,
+      knownAs: null,
+      dateofBirth: null,
+      gender: null,
+      color: null,
+      horseProfileImage: null,
+      strainEn: null,
+      strainAr: null,
+      specialEn: null,
+      specialAr: null,
+      isActive: true,
+    });
     setForm({
       horseId: record.horseId,
       supplementId: record.supplementId,
@@ -356,10 +365,15 @@ export const NutritionCategoryTable = ({ categoryId }: NutritionCategoryTablePro
               <button type="button" onClick={() => setFormOpen(false)}><X /></button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <select required disabled={Boolean(editing)} value={form.horseId || ""} onChange={(event) => setForm({ ...form, horseId: Number(event.target.value) })} className="rounded-xl border px-4 py-3 disabled:bg-gray-100">
-                <option value="" disabled>{isRTL ? "اختر الخيل" : "Select horse"}</option>
-                {horses.map((horse) => <option key={horse.id} value={horse.localId ?? horse.id}>{isRTL ? horse.arabicName || horse.englishName : horse.englishName || horse.arabicName}</option>)}
-              </select>
+              <HorsePicker
+                value={form.horseId || null}
+                selectedLabel={selectedHorse ? (isRTL ? selectedHorse.arabicName || selectedHorse.englishName || "" : selectedHorse.englishName || selectedHorse.arabicName || "") : undefined}
+                disabled={Boolean(editing)}
+                onChange={(horse) => {
+                  setSelectedHorse(horse);
+                  setForm({ ...form, horseId: horse.localId ?? horse.id });
+                }}
+              />
               <select required value={form.supplementId || ""} onChange={(event) => setForm({ ...form, supplementId: Number(event.target.value) })} className="rounded-xl border px-4 py-3">
                 <option value="" disabled>{isRTL ? "اختر المكمل أو العلف" : "Select supplement or feed"}</option>
                 {supplements.map((supplement) => <option key={supplement.id} value={supplement.id}>{isRTL ? supplement.arabicName || supplement.englishName : supplement.englishName || supplement.arabicName}</option>)}
