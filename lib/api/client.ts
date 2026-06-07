@@ -5,6 +5,7 @@ import { API_BASE_URL, API_TRANSPORT_MODE } from './transport';
 import type { ApiResult, AuthResponseDto, LocaleCode } from './types';
 
 const TOKEN_STORAGE_KEY = 'studmanager-token';
+const NOT_FOUND_RETRY_DELAYS_MS = [250, 500];
 
 type QueryValue = string | number | boolean | null | undefined;
 
@@ -84,6 +85,21 @@ async function parseResponse(response: Response) {
   }
 }
 
+function wait(milliseconds: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+export function getClientApiErrorStatus(error: unknown) {
+  if (!error || typeof error !== 'object' || !('status' in error)) return undefined;
+
+  const status = Number((error as { status?: unknown }).status);
+  return Number.isFinite(status) ? status : undefined;
+}
+
+export function isClientApiNotFound(error: unknown) {
+  return getClientApiErrorStatus(error) === 404;
+}
+
 export async function clientApiFetch<T>({
   method = 'GET',
   backendPath,
@@ -97,6 +113,7 @@ export async function clientApiFetch<T>({
   locale = 'ar',
   authRequest = false,
 }: ClientApiOptions): Promise<T> {
+  const normalizedMethod = method.toUpperCase();
   const direct = API_TRANSPORT_MODE === 'direct';
   const requestBody = direct ? backendBody ?? body : nextBody ?? body;
   const url = direct
@@ -111,21 +128,32 @@ export async function clientApiFetch<T>({
   if (requestBody !== undefined && !isFormData) headers.set('Content-Type', 'application/json');
   if (direct && token) headers.set('Authorization', `Bearer ${token}`);
 
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: requestBody === undefined ? undefined : isFormData ? requestBody : JSON.stringify(requestBody),
-  });
-  const payload = await parseResponse(response);
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await fetch(url, {
+      method: normalizedMethod,
+      headers,
+      body: requestBody === undefined ? undefined : isFormData ? requestBody : JSON.stringify(requestBody),
+    });
+    const payload = await parseResponse(response);
 
-  if (!response.ok) {
+    if (response.ok) return payload as T;
+
+    const retryDelay = NOT_FOUND_RETRY_DELAYS_MS[attempt];
+    if (response.status === 404 && retryDelay !== undefined) {
+      await wait(retryDelay);
+      continue;
+    }
+
     if (response.status === 401 && !authRequest) {
       clearClientSession();
       window.location.assign(`/${locale}/login?session=expired`);
     }
 
-    const message =
-      payload && typeof payload === 'object'
+    const message = response.status === 404
+      ? locale === 'ar'
+        ? 'حدث خطأ ما، يرجى المحاولة مرة أخرى.'
+        : 'Something went wrong. Please try again.'
+      : payload && typeof payload === 'object'
         ? (payload as Record<string, unknown>).message ??
           (payload as Record<string, unknown>).detail ??
           response.statusText
@@ -136,8 +164,6 @@ export async function clientApiFetch<T>({
       payload,
     });
   }
-
-  return payload as T;
 }
 
 export async function loginClient(payload: {

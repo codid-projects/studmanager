@@ -5,7 +5,7 @@ const ARABIC_MESSAGE_MAP: Record<string, string> = {
   'login successful': 'تم تسجيل الدخول بنجاح.',
   unauthorized: 'انتهت صلاحية الجلسة أو لا تملك صلاحية الوصول.',
   forbidden: 'لا تملك صلاحية تنفيذ هذا الإجراء.',
-  'not found': 'العنصر المطلوب غير موجود.',
+  'not found': 'حدث خطأ ما، يرجى المحاولة مرة أخرى.',
   'internal server error': 'حدث خطأ في الخادم. يرجى المحاولة مرة أخرى.',
   success: 'تم بنجاح.',
 };

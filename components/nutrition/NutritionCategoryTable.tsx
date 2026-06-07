@@ -1,270 +1,386 @@
 "use client";
 
-import { useLocale } from "@/lib/locale-context";
-import { Search, ChevronLeft, ChevronRight, Download, Trash2, Edit } from "lucide-react";
-import { useState } from "react";
-import { NutritionModals } from "./NutritionModals"; 
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Edit, Search, Trash2, X } from "lucide-react";
+import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
+import { clientApiFetch, isClientApiNotFound } from "@/lib/api/client";
+import { fetchSupplements } from "@/lib/api/management-client";
+import {
+  fetchNutrition,
+  fetchNutritionTypes,
+  removeNutrition,
+  removeNutritionBatch,
+  saveNutrition,
+} from "@/lib/api/nutrition-client";
+import type {
+  CreateNutritionPayload,
+  HorseListItemDto,
+  LocaleCode,
+  NutritionRecordDto,
+  NutritionTypeDto,
+  NutritionTypeId,
+  PagedResponse,
+  SupplementDto,
+} from "@/lib/api/types";
+import { useLocale, useTranslation } from "@/lib/locale-context";
 
 interface NutritionCategoryTableProps {
   categoryId: string;
 }
 
-interface ColumnConfig {
-  key: string;
-  label: string;
+const CATEGORY_TYPE: Record<string, NutritionTypeId> = {
+  "feed-changes": 1,
+  "monthly-supplements": 2,
+  "tournament-supplements": 3,
+};
+
+const TYPE_NAMES: Record<string, string> = {
+  "feed-changes": "FeedChanges",
+  "monthly-supplements": "MonthlySuppliments",
+  "tournament-supplements": "TournamentSuppliments",
+};
+
+const PAGE_SIZE = 10;
+
+function dateInputValue(value?: string | null) {
+  if (!value) return "";
+  return value.slice(0, 10);
 }
 
-const CATEGORY_CONFIG: Record<string, { titleAr: string; titleEn: string; columns: ColumnConfig[] }> = {
-  "feed-changes": {
-    titleAr: "تغييرات الأعلاف",
-    titleEn: "Feed Changes",
-    columns: [
-      { key: "horseName", label: "اسم الخيل" },
-      { key: "feedType", label: "نوع العلف" },
-      { key: "supplierName", label: "اسم المورد" },
-      { key: "supplierNumber", label: "رقم المورد" },
-      { key: "quantity", label: "الكمية / كجم" },
-      { key: "date", label: "تاريخ التغيير" },
-      { key: "cost", label: "التكلفة" },
-    ]
-  },
-  "monthly-supplements": {
-    titleAr: "المكملات الشهرية",
-    titleEn: "Monthly Supplements",
-    columns: [
-      { key: "horseName", label: "اسم الخيل" },
-      { key: "supplementName", label: "اسم المكمل" },
-      { key: "supplierName", label: "المورد" },
-      { key: "quantity", label: "الجرعة" },
-      { key: "date", label: "تاريخ البدء" },
-      { key: "cost", label: "التكلفة" },
-    ]
-  },
-  "tournament-supplements": { 
-    titleAr: "مكملات المهرجنات", titleEn: "Tournament Supplements", 
-    columns: [
-      { key: "horseName", label: "اسم الخيل" }, 
-      { key: "supplementName", label: "اسم المكمل" },
-      { key: "tournamentName", label: "المهرجان" }, 
-      { key: "date", label: "تاريخ الاستخدام" }, 
-      { key: "cost", label: "التكلفة" }
-    ] 
-  },
-  "nutrition-assistant": { 
-    titleAr: "مساعد التغذية", titleEn: "Nutrition Assistant", 
-    columns: [
-      { key: "horseName", label: "اسم الخيل" }, 
-      { key: "assistantName", label: "المساعد" }, 
-      { key: "planType", label: "نوع النظام" }, 
-      { key: "date", label: "تاريخ النظام" },
-      { key: "status", label: "الحالة" }
-    ] 
-  },
-};
-
-const DEFAULT_CONFIG = {
-  titleAr: "سجل التغذية",
-  titleEn: "Nutrition Record",
-  columns: [
-    { key: "horseName", label: "اسم الخيل" },
-    { key: "date", label: "التاريخ" },
-    { key: "cost", label: "التكلفة" },
-  ]
-};
-
-const getMockData = (columns: ColumnConfig[]) => {
-  return Array.from({ length: 8 }).map((_, i) => {
-    const row: any = { id: i + 1 };
-    
-    columns.forEach(col => {
-      switch(col.key) {
-        case "horseName": row[col.key] = "اسم الخيل"; break;
-        case "feedType": row[col.key] = "نوع العلف"; break;
-        case "supplementName": row[col.key] = "اسم المكمل"; break;
-        case "supplierName": row[col.key] = "اسم المورد"; break;
-        case "supplierNumber": row[col.key] = "01010101010"; break;
-        case "quantity": row[col.key] = `${90 - i}`; break; // Using descending numbers simulating the mockup
-        case "date": row[col.key] = "18/9/2025"; break;
-        case "cost": row[col.key] = "200$"; break;
-        case "tournamentName": row[col.key] = "بطولة الإستعراض"; break;
-        case "assistantName": row[col.key] = "أحمد خالد"; break;
-        case "planType": row[col.key] = "نظام بطولات"; break;
-        case "status": row[col.key] = "نشط"; break;
-        default: row[col.key] = "بيانات";
-      }
-    });
-
-    return row;
-  });
-};
+function emptyForm(type: NutritionTypeId): CreateNutritionPayload {
+  return {
+    horseId: 0,
+    supplementId: 0,
+    supplierId: 0,
+    supplierName: "",
+    phoneNumber: "",
+    quantity: 0,
+    cost: 0,
+    type,
+    changeDate: "",
+    notifyOnDate: "",
+  };
+}
 
 export const NutritionCategoryTable = ({ categoryId }: NutritionCategoryTableProps) => {
-  const { direction } = useLocale();
+  const { locale, direction } = useLocale();
+  const { t } = useTranslation();
+  const localeCode = locale as LocaleCode;
   const isRTL = direction === "rtl";
-  const [currentPage, setCurrentPage] = useState(1);
-  const [modalState, setModalState] = useState<{ isOpen: boolean; type: "add" | "edit" | "delete" | null; record: any }>({
-    isOpen: false,
-    type: null,
-    record: null
-  });
+  const fallbackType = CATEGORY_TYPE[categoryId];
+  const [types, setTypes] = useState<NutritionTypeDto[]>([]);
+  const [records, setRecords] = useState<NutritionRecordDto[]>([]);
+  const [horses, setHorses] = useState<HorseListItemDto[]>([]);
+  const [supplements, setSupplements] = useState<SupplementDto[]>([]);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<NutritionRecordDto | null>(null);
+  const [form, setForm] = useState<CreateNutritionPayload>(
+    emptyForm(fallbackType ?? 1),
+  );
+  const [deleteTarget, setDeleteTarget] = useState<NutritionRecordDto | null>(null);
+  const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
 
-  const config = CATEGORY_CONFIG[categoryId] || DEFAULT_CONFIG;
-  const columns = config.columns;
-  const mockData = getMockData(columns);
+  const nutritionType = useMemo(() => {
+    const expectedName = TYPE_NAMES[categoryId];
+    return types.find((item) => item.name === expectedName)?.id ?? fallbackType;
+  }, [categoryId, fallbackType, types]);
 
-  const openModal = (type: "add" | "edit" | "delete", record: any = null) => {
-    setModalState({ isOpen: true, type, record });
-  };
+  const title = isRTL
+    ? categoryId === "feed-changes"
+      ? "تغييرات الأعلاف"
+      : categoryId === "monthly-supplements"
+        ? "المكملات الشهرية"
+        : categoryId === "tournament-supplements"
+          ? "مكملات المهرجانات"
+          : "مساعد التغذية"
+    : categoryId === "feed-changes"
+      ? "Feed Changes"
+      : categoryId === "monthly-supplements"
+        ? "Monthly Supplements"
+        : categoryId === "tournament-supplements"
+          ? "Tournament Supplements"
+          : "Nutrition Assistant";
 
-  const closeModal = () => {
-    setModalState({ isOpen: false, type: null, record: null });
-  };
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadLookups() {
+      const results = await Promise.allSettled([
+        fetchNutritionTypes(localeCode),
+        clientApiFetch<PagedResponse<HorseListItemDto>>({
+          backendPath: "/api/Horses",
+          nextPath: "/api/horses",
+          backendQuery: { pageNumber: 1, pageSize: 100 },
+          nextQuery: { pageNumber: 1, pageSize: 100, locale },
+          locale: localeCode,
+        }),
+        fetchSupplements(localeCode, 1, 100),
+      ]);
+
+      if (!active) return;
+      setTypes(results[0].status === "fulfilled" ? results[0].value : []);
+      setHorses(results[1].status === "fulfilled" ? results[1].value.data ?? [] : []);
+      setSupplements(results[2].status === "fulfilled" ? results[2].value.data ?? [] : []);
+    }
+
+    loadLookups();
+    return () => {
+      active = false;
+    };
+  }, [locale, localeCode]);
+
+  const loadRecords = useCallback(async () => {
+    if (!nutritionType) {
+      setRecords([]);
+      setTotalPages(0);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    try {
+      const result = await fetchNutrition(localeCode, {
+        type: nutritionType,
+        search: debouncedSearch || undefined,
+        pageNumber: page,
+        pageSize: PAGE_SIZE,
+      });
+      setRecords(result?.data ?? []);
+      setTotalPages(result?.totalPages ?? 0);
+      setSelectedIds([]);
+    } catch (requestError) {
+      if (isClientApiNotFound(requestError)) {
+        setRecords([]);
+        setTotalPages(0);
+      } else {
+        setError(requestError instanceof Error ? requestError.message : t("common.error"));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [debouncedSearch, localeCode, nutritionType, page, t]);
+
+  useEffect(() => {
+    loadRecords();
+  }, [loadRecords]);
+
+  function openCreate() {
+    if (!nutritionType) return;
+    setEditing(null);
+    setForm(emptyForm(nutritionType));
+    setFormOpen(true);
+  }
+
+  function openEdit(record: NutritionRecordDto) {
+    setEditing(record);
+    setForm({
+      horseId: record.horseId,
+      supplementId: record.supplementId,
+      supplierId: record.supplierId ?? 0,
+      supplierName: record.supplierName ?? "",
+      phoneNumber: record.phoneNumber ?? "",
+      quantity: record.quantity,
+      cost: record.cost,
+      type: record.type,
+      changeDate: dateInputValue(record.changeDate),
+      notifyOnDate: dateInputValue(record.notifyOnDate),
+    });
+    setFormOpen(true);
+  }
+
+  async function submitForm(event: React.FormEvent) {
+    event.preventDefault();
+    if (!form.horseId || !form.supplementId || !nutritionType) return;
+
+    setSaving(true);
+    setError("");
+    try {
+      if (editing) {
+        await saveNutrition(
+          localeCode,
+          {
+            id: editing.id,
+            supplementId: form.supplementId,
+            supplierId: form.supplierId,
+            supplierName: form.supplierName,
+            phoneNumber: form.phoneNumber,
+            quantity: form.quantity,
+            cost: form.cost,
+            changeDate: form.changeDate,
+            notifyOnDate: form.notifyOnDate,
+          },
+          editing.id,
+        );
+      } else {
+        await saveNutrition(localeCode, { ...form, type: nutritionType });
+      }
+      setFormOpen(false);
+      await loadRecords();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : t("common.error"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setSaving(true);
+    setError("");
+    try {
+      await removeNutrition(localeCode, deleteTarget.id);
+      setDeleteTarget(null);
+      await loadRecords();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : t("common.error"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function confirmBatchDelete() {
+    if (!selectedIds.length) return;
+    setSaving(true);
+    setError("");
+    try {
+      await removeNutritionBatch(localeCode, selectedIds);
+      setBatchDeleteOpen(false);
+      await loadRecords();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : t("common.error"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const pageNumbers = useMemo(() => {
+    const start = Math.max(1, Math.min(page - 1, totalPages - 2));
+    return Array.from({ length: Math.min(3, totalPages) }, (_, index) => start + index);
+  }, [page, totalPages]);
 
   return (
-    <div className="bg-white rounded-[2rem] p-4 sm:p-8 shadow-sm font-cairo border border-[#f3ece7]" dir={direction}>
-      {/* Header Area */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-6">
-        <h2 className="text-2xl font-bold text-[#3b2b20] whitespace-nowrap">{isRTL ? config.titleAr : config.titleEn}</h2>
-        
-        <div className="flex flex-col sm:flex-row w-full xl:w-auto items-stretch sm:items-center gap-4">
-          {/* Search Box */}
-          <div className="relative flex-1 sm:w-80">
-             <input
-                type="text"
-                placeholder={isRTL ? "البحث" : "Search"}
-                className="w-full bg-[#fdfbf9] border border-[#ece2da] rounded-2xl px-5 py-3 text-sm outline-none focus:border-[#4b2f1a] transition-all shadow-sm pr-12"
-              />
-              <Search className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-4 h-4 text-[#8a7a6d]`} />
-          </div>
-          
-          <div className="flex items-center gap-3">
-            {/* Add Record Button */}
-            <button 
-               onClick={() => openModal("add")}
-               className="flex-1 sm:flex-initial bg-[#3b2b20] text-white px-6 py-3 rounded-2xl font-bold text-[1.05rem] flex items-center justify-center gap-2 hover:bg-[#2e2119] transition-all whitespace-nowrap shadow-md active:scale-95"
-            >
-               <span className="text-xl leading-none">+</span>
-               {isRTL ? "إضافة سجل جديد" : "Add New Record"}
+    <>
+      <div className="rounded-[2rem] border border-[#f3ece7] bg-white p-4 shadow-sm sm:p-8" dir={direction}>
+        <div className="mb-8 flex flex-col items-start justify-between gap-6 xl:flex-row xl:items-center">
+          <h2 className="text-2xl font-bold text-[#3b2b20]">{title}</h2>
+          <div className="flex w-full flex-col gap-4 sm:flex-row xl:w-auto">
+            <div className="relative flex-1 sm:w-80">
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("common.search")} className={`w-full rounded-2xl border border-[#ece2da] bg-[#fdfbf9] px-5 py-3 outline-none ${isRTL ? "pr-12" : "pl-12"}`} />
+              <Search className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 text-[#8a7a6d] ${isRTL ? "right-4" : "left-4"}`} />
+            </div>
+            <button onClick={openCreate} disabled={!nutritionType} className="rounded-2xl bg-[#3b2b20] px-6 py-3 font-bold text-white disabled:opacity-50">
+              {t("common.addNewRecord")}
             </button>
-            
-            {/* Action Icons */}
-            <button className="p-3 bg-white border border-[#ece2da] rounded-2xl hover:bg-gray-50 transition-all shadow-sm text-[#8a7a6d]">
-              <Trash2 className="w-5 h-5" />
-            </button>
-            <button className="p-3 bg-white border border-[#ece2da] rounded-2xl hover:bg-gray-50 transition-all shadow-sm text-[#8a7a6d]">
-              <Download className="w-5 h-5" />
+            <button onClick={() => setBatchDeleteOpen(true)} disabled={!selectedIds.length} className="rounded-2xl border border-red-100 p-3 text-red-600 disabled:opacity-35" aria-label={t("common.deleteSelected")}>
+              <Trash2 className="h-5 w-5" />
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Table Area */}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px]">
-          <thead>
-            <tr className="bg-[#4b2f1a] text-white text-sm">
-              <th className="py-4 px-4 font-semibold text-right rounded-r-xl w-12">
-                <input type="checkbox" className="w-4 h-4 rounded border-gray-300 acccent-[#3b2b20]" />
-              </th>
-              {columns.map((col) => (
-                <th key={col.key} className="py-4 px-4 font-semibold text-right">
-                  {col.label}
+        {error && <div className="mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1050px]">
+            <thead className="bg-[#4b2f1a] text-white">
+              <tr>
+                <th className="px-4 py-4">
+                  <input type="checkbox" checked={Boolean(records.length) && selectedIds.length === records.length} onChange={(event) => setSelectedIds(event.target.checked ? records.map((item) => item.id) : [])} />
                 </th>
-              ))}
-              <th className="py-4 px-4 font-semibold text-center rounded-l-xl">الإجراءات</th>
-            </tr>
-          </thead>
-          <tbody>
-            {mockData.map((row, index) => (
-              <tr 
-                key={row.id} 
-                className={`border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors ${
-                  index % 2 === 0 ? "bg-white" : "bg-[#fdfbf7]"
-                }`}
-              >
-                <td className="py-4 px-4 text-right">
-                   <input type="checkbox" className="w-4 h-4 rounded border-gray-300 acccent-[#3b2b20]" />
-                </td>
-                
-                {columns.map((col) => (
-                   <td key={col.key} className={`py-4 px-4 text-right ${col.key === "horseName" ? "text-[#3b2b20] font-medium" : "text-gray-600"}`}>
-                      {row[col.key]}
-                   </td>
+                {[isRTL ? "اسم الخيل" : "Horse", isRTL ? "المكمل / العلف" : "Supplement / Feed", isRTL ? "المورد" : "Supplier", isRTL ? "الهاتف" : "Phone", isRTL ? "الكمية" : "Quantity", isRTL ? "التكلفة" : "Cost", isRTL ? "تاريخ التغيير" : "Change date", isRTL ? "تاريخ التنبيه" : "Notify date"].map((label) => (
+                  <th key={label} className="px-4 py-4 text-start">{label}</th>
                 ))}
-                
-                <td className="py-4 px-4 text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <button 
-                      onClick={() => openModal("edit", row)}
-                      className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => openModal("delete", row)}
-                      className="p-1.5 text-[#e53e3e] hover:bg-red-50 rounded-lg transition-colors border border-red-100"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
+                <th className="px-4 py-4 text-center">{t("common.actions")}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {records.map((record, index) => (
+                <tr key={record.id} className={`border-b ${index % 2 ? "bg-[#fdfbf7]" : "bg-white"}`}>
+                  <td className="px-4 py-4"><input type="checkbox" checked={selectedIds.includes(record.id)} onChange={() => setSelectedIds((current) => current.includes(record.id) ? current.filter((id) => id !== record.id) : [...current, record.id])} /></td>
+                  <td className="px-4 py-4 font-semibold text-[#3b2b20]">{isRTL ? record.horseArabicName || record.horseEnglishName : record.horseEnglishName || record.horseArabicName}</td>
+                  <td className="px-4 py-4">{isRTL ? record.supplementArabicName || record.supplementName : record.supplementName || record.supplementArabicName}</td>
+                  <td className="px-4 py-4">{record.supplierName || "-"}</td>
+                  <td className="px-4 py-4">{record.phoneNumber || "-"}</td>
+                  <td className="px-4 py-4">{record.quantity}</td>
+                  <td className="px-4 py-4">{record.cost}</td>
+                  <td className="px-4 py-4">{dateInputValue(record.changeDate) || "-"}</td>
+                  <td className="px-4 py-4">{dateInputValue(record.notifyOnDate) || "-"}</td>
+                  <td className="px-4 py-4">
+                    <div className="flex justify-center gap-2">
+                      <button onClick={() => openEdit(record)} className="rounded-lg border p-2 text-[#4b2f1a]" aria-label={t("common.edit")}><Edit className="h-4 w-4" /></button>
+                      <button onClick={() => setDeleteTarget(record)} className="rounded-lg border border-red-100 p-2 text-red-600" aria-label={t("common.delete")}><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!loading && !records.length && <tr><td colSpan={10} className="px-6 py-12 text-center text-gray-400">{t("common.noRecordsFound")}</td></tr>}
+              {loading && Array.from({ length: 5 }).map((_, index) => (
+                <tr key={index} className="animate-pulse border-b">
+                  <td colSpan={10} className="px-4 py-3"><div className="h-8 rounded-lg bg-gray-100" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {totalPages > 1 && (
+          <div className="mt-8 flex items-center justify-center gap-2">
+            <button disabled={page <= 1} onClick={() => setPage((value) => value - 1)} className="flex h-9 w-9 items-center justify-center rounded-full border disabled:opacity-40">{isRTL ? <ChevronRight /> : <ChevronLeft />}</button>
+            {pageNumbers.map((pageNumber) => <button key={pageNumber} onClick={() => setPage(pageNumber)} className={`h-9 w-9 rounded-full ${page === pageNumber ? "bg-[#3b2b20] text-white" : "border"}`}>{pageNumber}</button>)}
+            <button disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)} className="flex h-9 w-9 items-center justify-center rounded-full border disabled:opacity-40">{isRTL ? <ChevronLeft /> : <ChevronRight />}</button>
+          </div>
+        )}
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-center mt-8 gap-2">
-        <button 
-          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-          className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
-        >
-          {isRTL ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </button>
-        
-        {[1, 2, 3, 4, 5].map((page) => (
-          <button
-            key={page}
-            onClick={() => setCurrentPage(page)}
-            className={`w-8 h-8 rounded-full text-sm transition-colors ${
-              currentPage === page 
-                ? "bg-[#3b2b20] text-white" 
-                : "text-gray-600 hover:bg-gray-50 bg-white border border-gray-200"
-            }`}
-          >
-            {page}
-          </button>
-        ))}
-        
-        <span className="text-gray-400 tracking-widest px-1">...</span>
-        
-        <button
-          onClick={() => setCurrentPage(32)}
-          className={`w-8 h-8 rounded-full text-sm transition-colors ${
-            currentPage === 32
-              ? "bg-[#3b2b20] text-white" 
-              : "text-gray-600 hover:bg-gray-50 bg-white border border-gray-200"
-          }`}
-        >
-          32
-        </button>
-        
-        <button 
-          onClick={() => setCurrentPage(prev => Math.min(32, prev + 1))}
-          className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
-        >
-          {isRTL ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-        </button>
-      </div>
+      {formOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4" dir={direction}>
+          <form onSubmit={submitForm} className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-xl">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-[#3b2b20]">{editing ? (isRTL ? "تعديل سجل التغذية" : "Edit nutrition record") : (isRTL ? "إضافة سجل تغذية" : "Add nutrition record")}</h3>
+              <button type="button" onClick={() => setFormOpen(false)}><X /></button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <select required disabled={Boolean(editing)} value={form.horseId || ""} onChange={(event) => setForm({ ...form, horseId: Number(event.target.value) })} className="rounded-xl border px-4 py-3 disabled:bg-gray-100">
+                <option value="" disabled>{isRTL ? "اختر الخيل" : "Select horse"}</option>
+                {horses.map((horse) => <option key={horse.id} value={horse.localId ?? horse.id}>{isRTL ? horse.arabicName || horse.englishName : horse.englishName || horse.arabicName}</option>)}
+              </select>
+              <select required value={form.supplementId || ""} onChange={(event) => setForm({ ...form, supplementId: Number(event.target.value) })} className="rounded-xl border px-4 py-3">
+                <option value="" disabled>{isRTL ? "اختر المكمل أو العلف" : "Select supplement or feed"}</option>
+                {supplements.map((supplement) => <option key={supplement.id} value={supplement.id}>{isRTL ? supplement.arabicName || supplement.englishName : supplement.englishName || supplement.arabicName}</option>)}
+              </select>
+              <input value={form.supplierName} onChange={(event) => setForm({ ...form, supplierName: event.target.value })} placeholder={isRTL ? "اسم المورد" : "Supplier name"} className="rounded-xl border px-4 py-3" />
+              <input value={form.phoneNumber} onChange={(event) => setForm({ ...form, phoneNumber: event.target.value })} placeholder={isRTL ? "رقم المورد" : "Supplier phone"} className="rounded-xl border px-4 py-3" />
+              <input required min={0} step="any" type="number" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: Number(event.target.value) })} placeholder={isRTL ? "الكمية" : "Quantity"} className="rounded-xl border px-4 py-3" />
+              <input required min={0} step="any" type="number" value={form.cost} onChange={(event) => setForm({ ...form, cost: Number(event.target.value) })} placeholder={isRTL ? "التكلفة" : "Cost"} className="rounded-xl border px-4 py-3" />
+              <label className="flex flex-col gap-2 text-sm text-gray-600"><span>{isRTL ? "تاريخ التغيير" : "Change date"}</span><input required type="date" value={form.changeDate} onChange={(event) => setForm({ ...form, changeDate: event.target.value })} className="rounded-xl border px-4 py-3" /></label>
+              <label className="flex flex-col gap-2 text-sm text-gray-600"><span>{isRTL ? "تاريخ التنبيه" : "Notify date"}</span><input required type="date" value={form.notifyOnDate} onChange={(event) => setForm({ ...form, notifyOnDate: event.target.value })} className="rounded-xl border px-4 py-3" /></label>
+            </div>
+            <div className="mt-7 flex gap-3">
+              <button disabled={saving} className="rounded-xl bg-[#3b2b20] px-8 py-3 font-bold text-white disabled:opacity-50">{t("common.save")}</button>
+              <button type="button" onClick={() => setFormOpen(false)} className="rounded-xl border px-8 py-3">{t("common.cancel")}</button>
+            </div>
+          </form>
+        </div>
+      )}
 
-      <NutritionModals 
-        isOpen={modalState.isOpen} 
-        type={modalState.type} 
-        onClose={closeModal} 
-        recordData={modalState.record}
-        categoryTitle={isRTL ? config.titleAr : config.titleEn}
-      />
-    </div>
+      <DeleteConfirmModal open={Boolean(deleteTarget)} title={t("common.deleteRecord")} description={deleteTarget ? (isRTL ? deleteTarget.horseArabicName || deleteTarget.horseEnglishName : deleteTarget.horseEnglishName || deleteTarget.horseArabicName) : undefined} onCancel={() => !saving && setDeleteTarget(null)} onConfirm={confirmDelete} />
+      <DeleteConfirmModal open={batchDeleteOpen} title={t("common.deleteSelected")} description={t("common.deleteSelectedMsg")} onCancel={() => !saving && setBatchDeleteOpen(false)} onConfirm={confirmBatchDelete} />
+    </>
   );
 };

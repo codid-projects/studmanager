@@ -120,6 +120,7 @@
     "dragAndDrop": "سحب و إفلات",
     "availableHorses": "الخيل المتاحة في المربط",
     "production": "الإنتاج",
+    "birthsThisYear": "المواليد هذا العام",
     "males": "ذكور",
     "females": "إناث",
     "costAnalysis": "تحليل التكاليف",
@@ -203,7 +204,11 @@
     "all": "الكل",
     "vets": "أطباء",
     "suppliers": "موردين",
-    "others": "آخرون"
+    "others": "آخرون",
+    "email": "البريد الإلكتروني",
+    "selectGroup": "اختر المجموعة",
+    "editContact": "تعديل جهة الاتصال",
+    "deleteContact": "حذف جهة الاتصال؟"
   },
   "team": {
     "title": "إدارة الأعضاء",
@@ -439,6 +444,13 @@
   },
   "settings": {
     "title": "الإعدادات الأساسية",
+    "contactGroups": "مجموعات جهات الاتصال",
+    "supplements": "المكملات",
+    "englishName": "الاسم بالإنجليزية",
+    "arabicName": "الاسم بالعربية",
+    "defaultGroup": "افتراضية",
+    "description": "الوصف",
+    "type": "النوع",
     "housing": "الإيواء",
     "bloodTest": "تحليل الدم",
     "wormDose": "جرعة الديدان",

@@ -10,19 +10,20 @@ import { clearAuthCookie } from '@/lib/auth';
 
 const sidebarItems = [
   { key: 'dashboard' },
-  { key: 'team' },
-  { key: 'settings', route: 'settings' },
   { key: 'horses' },
+  { key: 'reproduction', route: 'reproduction' },
   { key: 'health' },
   { key: 'nutrition' },
   { key: 'performance' },
-  { key: 'reproduction', route: 'reproduction' },
   { key: 'expenses' },
-  { key: 'reports', route: 'reports' },
+  { key: 'revenue', route: 'invoices' },
+  { key: 'evaluations', route: 'calendar' },
   { key: 'contacts' },
   { key: 'news' },
-  { key: 'evaluations', route: 'calendar' },
   { key: 'database', route: 'database' },
+  { key: 'reports', route: 'reports' },
+  { key: 'team' },
+  { key: 'settings', route: 'settings' },
 ];
 
 interface SidebarItemProps {
@@ -98,6 +99,14 @@ function SidebarItem({ item, isActive, href, collapsed = false }: SidebarItemPro
         return (
           <img
             src="/sidebar/%D8%A7%D9%84%D9%85%D8%B5%D8%B1%D9%88%D9%81%D8%A7%D8%AA.svg"
+            alt=""
+            className="h-5 w-5 flex-shrink-0"
+          />
+        );
+      case 'revenue':
+        return (
+          <img
+            src="/svgs/drawer-eradat.svg"
             alt=""
             className="h-5 w-5 flex-shrink-0"
           />

@@ -120,6 +120,7 @@
     "dragAndDrop": "Drag & Drop",
     "availableHorses": "Available horses in stud",
     "production": "Production",
+    "birthsThisYear": "Births this year",
     "males": "Males",
     "females": "Females",
     "costAnalysis": "Cost analysis",
@@ -203,7 +204,11 @@
     "all": "All",
     "vets": "Vets",
     "suppliers": "Suppliers",
-    "others": "Others"
+    "others": "Others",
+    "email": "Email",
+    "selectGroup": "Select group",
+    "editContact": "Edit Contact",
+    "deleteContact": "Delete Contact?"
   },
   "team": {
     "title": "Team Management",
@@ -439,6 +444,13 @@
   },
   "settings": {
     "title": "Basic Settings",
+    "contactGroups": "Contact Groups",
+    "supplements": "Supplements",
+    "englishName": "English Name",
+    "arabicName": "Arabic Name",
+    "defaultGroup": "Default",
+    "description": "Description",
+    "type": "Type",
     "housing": "Housing",
     "bloodTest": "Blood Test",
     "wormDose": "Worm Dose",

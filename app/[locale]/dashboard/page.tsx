@@ -112,6 +112,50 @@ function ActivityRow({
   );
 }
 
+function DashboardSkeleton() {
+  return (
+    <div className="mx-auto max-w-[1280px] animate-pulse space-y-6" aria-busy="true" aria-label="Loading dashboard">
+      <section className="grid overflow-hidden rounded-2xl bg-[#e3dfd6] md:grid-cols-2">
+        {[0, 1].map((item) => (
+          <div key={item} className="flex min-h-[185px] flex-col items-center justify-center gap-4 border-white/50 px-7 py-8 first:md:border-e">
+            <div className="h-12 w-24 rounded-xl bg-white/55" />
+            <div className="h-7 w-44 rounded-lg bg-white/55" />
+            <div className="grid w-52 grid-cols-2 gap-5">
+              <div className="h-12 rounded-lg bg-white/45" />
+              <div className="h-12 rounded-lg bg-white/45" />
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[1.35fr_1fr]">
+        <div className="grid gap-4 md:grid-cols-[0.85fr_1fr_1fr]">
+          <div className="min-h-[270px] rounded-2xl bg-white p-6 shadow-sm">
+            <div className="h-7 w-36 rounded bg-[#eee9e3]" />
+            <div className="mt-8 space-y-7">
+              {[0, 1, 2].map((item) => <div key={item} className="h-8 rounded-lg bg-[#f2eee9]" />)}
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 md:col-span-2">
+            {[0, 1, 2, 3, 4].map((item) => (
+              <div key={item} className={`min-h-[125px] rounded-2xl bg-white p-6 shadow-sm ${item === 4 ? 'sm:col-span-2' : ''}`}>
+                <div className="ms-auto h-6 w-24 rounded bg-[#eee9e3]" />
+                <div className="ms-auto mt-4 h-7 w-36 rounded bg-[#f2eee9]" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="min-h-[370px] rounded-xl border border-[#e2ddd7] bg-white p-7 shadow-sm">
+          <div className="ms-auto h-8 w-40 rounded bg-[#eee9e3]" />
+          <div className="mt-9 space-y-5">
+            {[0, 1, 2, 3, 4].map((item) => <div key={item} className="h-7 rounded bg-[#f2eee9]" />)}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { locale, direction } = useLocale();
   const { t } = useTranslation();
@@ -122,6 +166,7 @@ export default function DashboardPage() {
   const [activityPage, setActivityPage] = useState(1);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityLoading, setActivityLoading] = useState(false);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
   const [activeView, setActiveView] = useState<ViewMode>('month');
   const isRTL = direction === 'rtl';
 
@@ -151,6 +196,7 @@ export default function DashboardPage() {
     let mounted = true;
 
     async function loadDashboardData() {
+      setDashboardLoading(true);
       const [dashboardResult, studResult] = await Promise.allSettled([
         clientApiFetch<ApiResult<DashboardDto> | DashboardDto>({
           backendPath: '/api/Dashboard',
@@ -174,6 +220,8 @@ export default function DashboardPage() {
       if (studResult.status === 'fulfilled') {
         setStud(unwrapResult(studResult.value) ?? emptyStud);
       }
+
+      setDashboardLoading(false);
     }
 
     loadDashboardData();
@@ -213,13 +261,21 @@ export default function DashboardPage() {
   const studName = locale === 'ar' ? stud.studArabicName || stud.studName : stud.studName || stud.studArabicName;
   const activityItems = activities.slice(0, 4);
 
+  if (dashboardLoading) {
+    return (
+      <MainLayout>
+        <DashboardSkeleton />
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       <div className={`mx-auto max-w-[1280px] space-y-6 ${isRTL ? '[direction:rtl]' : '[direction:ltr]'}`}>
         <section className="grid overflow-hidden rounded-2xl bg-[linear-gradient(110deg,#202315,#737116_58%,#9f9816)] text-white shadow-[0_18px_40px_rgba(45,36,18,0.16)] md:grid-cols-2">
           {[
             { title: t('dashboard.availableHorses'), data: dashboard.horsesInStud },
-            { title: t('dashboard.production'), data: dashboard.birthedThisYear },
+            { title: t('dashboard.production'), data: dashboard.bredByStud },
           ].map((item, index) => (
             <article
               key={item.title}
@@ -227,8 +283,7 @@ export default function DashboardPage() {
                 index === 0 ? 'md:border-e md:border-white/40' : ''
               }`}
             >
-              <div className="absolute inset-y-0 -start-10 w-2/3 bg-[radial-gradient(ellipse_at_center,rgba(14,16,10,0.42),transparent_62%)]" />
-              <div className="absolute -end-20 top-10 h-16 w-48 rotate-[-7deg] rounded-[100%] bg-[#b3a91b]/45" />
+              <div className="absolute inset-y-0 -start-1 w-2/3 bg-[radial-gradient(ellipse_at_center,rgba(14,16,10,0.42),transparent_62%)]" />
               <div className="relative">
                 <div className="text-5xl font-light leading-none sm:text-[3.35rem]">
                   {formatNumber(item.data?.total)}
@@ -304,12 +359,34 @@ export default function DashboardPage() {
                   icon: '/svgs/red-horse.svg',
                   color: 'text-[#d81c24]',
                 },
+                {
+                  label: t('dashboard.birthsThisYear'),
+                  value: formatNumber(dashboard.birthedThisYear?.total),
+                  icon: '/svgs/horse-active.svg',
+                  color: 'text-[#6f6d19]',
+                  meta: [
+                    `${t('dashboard.males')}: ${formatNumber(dashboard.birthedThisYear?.male)}`,
+                    `${t('dashboard.females')}: ${formatNumber(dashboard.birthedThisYear?.female)}`,
+                  ],
+                },
               ].map((item) => (
-                <article key={item.label} className="flex min-h-[125px] items-center justify-between rounded-2xl bg-white px-7 py-5 shadow-sm">
+                <article
+                  key={item.label}
+                  className={`flex min-h-[125px] items-center justify-between rounded-2xl bg-white px-7 py-5 shadow-sm ${
+                    item.meta ? 'sm:col-span-2' : ''
+                  }`}
+                >
                   <img src={item.icon} alt="" className="h-20 w-20 object-contain" />
                   <div className="text-end">
                     <div className={`text-xl font-black ${item.color}`}>{item.value}</div>
                     <div className="mt-3 text-xl font-bold text-[#22243c]">{item.label}</div>
+                    {item.meta && (
+                      <div className="mt-2 flex flex-wrap justify-end gap-3 text-sm font-semibold text-[#7a7069]">
+                        {item.meta.map((value) => (
+                          <span key={value}>{value}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </article>
               ))}

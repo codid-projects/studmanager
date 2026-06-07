@@ -90,6 +90,104 @@ export interface PagedResponse<T> {
   extraInfo?: unknown;
 }
 
+export interface ContactDto {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  groupId: number;
+  groupEnglishName: string;
+  groupArabicName: string;
+}
+
+export interface ContactPayload {
+  name: string;
+  email: string;
+  phone: string;
+  groupId: number;
+}
+
+export interface ContactGroupDto {
+  id: number;
+  englishName: string;
+  arabicName: string;
+  isDefault: boolean;
+}
+
+export interface ContactGroupPayload {
+  englishName: string;
+  arabicName: string;
+}
+
+export interface SupplementDto {
+  id: number;
+  englishName: string;
+  arabicName: string;
+  description: string;
+  type: string;
+}
+
+export interface SupplementPayload {
+  englishName: string;
+  arabicName: string;
+  description: string;
+  type: number;
+}
+
+export type NutritionTypeId = 1 | 2 | 3;
+
+export interface NutritionTypeDto {
+  id: NutritionTypeId;
+  name: string;
+}
+
+export interface NutritionRecordDto {
+  id: number;
+  horseId: number;
+  horseEnglishName: string;
+  horseArabicName: string;
+  supplementId: number;
+  supplementName: string;
+  supplementArabicName: string;
+  supplierId: number;
+  supplierName: string;
+  phoneNumber: string;
+  quantity: number;
+  cost: number;
+  type: NutritionTypeId;
+  typeName: string;
+  changeDate: string;
+  notifyOnDate: string;
+  isNotified: boolean;
+  creationDate: string;
+  modificationDate: string;
+}
+
+export interface CreateNutritionPayload {
+  horseId: number;
+  supplementId: number;
+  supplierId: number;
+  supplierName: string;
+  phoneNumber: string;
+  quantity: number;
+  cost: number;
+  type: NutritionTypeId;
+  changeDate: string;
+  notifyOnDate: string;
+}
+
+export interface UpdateNutritionPayload {
+  id: number;
+  supplementId: number;
+  supplierId: number;
+  supplierName: string;
+  phoneNumber: string;
+  quantity: number;
+  cost: number;
+  changeDate: string;
+  notifyOnDate: string;
+}
+
 export interface RoleDto {
   id: number;
   name: string | null;
