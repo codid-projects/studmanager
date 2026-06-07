@@ -67,6 +67,7 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse, onEdit,
     raw.horseMotherArabicName ?? raw.motherArabicName ?? raw.damArabicName,
     raw.horseMotherEnglishName ?? raw.motherEnglishName ?? raw.damEnglishName,
   );
+  const strain = localized(raw.strainAr, raw.strainEn);
   const summaryUrl = useMemo(
     () => (studbookId ? `https://studbook-web-next-js.vercel.app/horses/${studbookId}` : ""),
     [studbookId],
@@ -230,6 +231,7 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse, onEdit,
                 {[
                   [isRTL ? "الاسم" : "Name", horseName],
                   [isRTL ? "تاريخ الميلاد" : "Date of Birth", horse.birthDate || "-"],
+                  [isRTL ? "الرسن" : "Strain", strain],
                   [isRTL ? "الأب" : "Father", fatherName],
                   [isRTL ? "الأم" : "Mother", motherName],
                 ].map(([label, value]) => (

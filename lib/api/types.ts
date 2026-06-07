@@ -246,6 +246,8 @@ export interface HorseAttachmentDto {
 
 export interface HorseInfoDto extends HorseListItemDto {
   studbookId: number | null;
+  lineEn?: string | null;
+  lineAr?: string | null;
   bornIn: string | null;
   currentlyIn: string | null;
   height: string | null;
