@@ -463,7 +463,6 @@
     "description": "Description",
     "type": "Type",
     "pending": "Pending",
-    "integrationPending": "This section is a UI preview. API integration is not available yet.",
     "housing": "Housing",
     "bloodTest": "Blood Test",
     "wormDose": "Worm Dose",

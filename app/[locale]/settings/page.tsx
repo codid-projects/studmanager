@@ -280,14 +280,7 @@ export default function SettingsPage() {
               )}
 
               {!integrated && (
-                <div className="relative min-h-[400px]">
-                  <div className="pointer-events-none opacity-45">
-                    <SettingsForm activeTab={activeTab} />
-                  </div>
-                  <div className="absolute inset-x-6 bottom-6 rounded-2xl border border-amber-200 bg-amber-50/95 px-4 py-3 text-sm font-medium text-amber-800">
-                    {t("settings.integrationPending")}
-                  </div>
-                </div>
+                <SettingsForm activeTab={activeTab} />
               )}
             </div>
           </div>
@@ -299,13 +292,12 @@ export default function SettingsPage() {
           </div>
         )}
 
-        <div className={integrated ? "" : "pointer-events-none opacity-45"}>
+        <div>
           <div className="relative mb-6 w-full sm:w-80">
             <input
               type="text"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              disabled={!integrated}
               placeholder={t("common.search")}
               className={`w-full rounded-2xl border border-gray-200 py-3 shadow-sm outline-none focus:ring-2 focus:ring-[#4B2F1A] ${
                 isRTL ? "pl-4 pr-12 text-right" : "pl-12 pr-4 text-left"
