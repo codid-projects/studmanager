@@ -246,15 +246,14 @@ export function HorsesPageClient({
   const filtersQuery = useMemo(() => {
     const search = debouncedSearchQuery || undefined;
     const gender = genderFilter || undefined;
-    const strainId = toFilterId(strainFilter);
-    const specailLineId = toFilterId(lineFilter);
+    const strain = strainFilter || undefined;
+    const line = lineFilter || undefined;
 
     return {
       search,
       gender,
-      strainId,
-      specailLineId,
-      specialLineId: specailLineId,
+      strain,
+      line,
     };
   }, [debouncedSearchQuery, genderFilter, lineFilter, strainFilter]);
 
@@ -358,18 +357,16 @@ export function HorsesPageClient({
             pageSize: HORSES_PAGE_SIZE,
             search: filtersQuery.search,
             gender: filtersQuery.gender,
-            strainId: filtersQuery.strainId,
-            specailLineId: filtersQuery.specailLineId,
-            specialLineId: filtersQuery.specialLineId,
+            strain: filtersQuery.strain,
+            line: filtersQuery.line,
           },
           nextQuery: {
             pageNumber,
             pageSize: HORSES_PAGE_SIZE,
             search: filtersQuery.search,
             gender: filtersQuery.gender,
-            strainId: filtersQuery.strainId,
-            specailLineId: filtersQuery.specailLineId,
-            specialLineId: filtersQuery.specialLineId,
+            strain: filtersQuery.strain,
+            line: filtersQuery.line,
             locale,
           },
           locale: localeCode,
@@ -685,9 +682,7 @@ export function HorsesPageClient({
       <div className={`p-4 sm:p-6 ${isRTL ? 'text-right' : 'text-left'}`}>
         <div className="flex flex-col gap-4 rounded-[18px] border border-[#eee3da] bg-white/90 p-4 shadow-[0_12px_30px_rgba(49,28,17,0.06)] sm:rounded-[24px] sm:p-5">
           <div
-            className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${
-              isRTL ? 'sm:flex-row-reverse' : ''
-            }`}
+            className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between `}
           >
             <h1 className="shrink-0 text-lg font-semibold text-text-dark sm:text-2xl">
               {t('horses.title')}
