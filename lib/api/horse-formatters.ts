@@ -101,6 +101,7 @@ export function toHorseCardModel(horse: HorseListItemDto, locale: LocaleCode) {
     ...meta,
     image: horse.horseProfileImage || mediaUrl(horse.images?.[0]) || DEFAULT_HORSE_IMAGE,
     gender: horse.gender ?? '',
+    isSold: horse.isSold ?? false,
   };
 }
 

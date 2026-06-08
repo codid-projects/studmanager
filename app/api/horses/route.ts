@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
       pageSize: Number(searchParams.get('pageSize') ?? 24),
       search: searchParams.get('search') ?? undefined,
       gender: searchParams.get('gender') ?? undefined,
+      strain: searchParams.get('strain') ?? undefined,
+      line: searchParams.get('line') ?? undefined,
     });
 
     return NextResponse.json(result);

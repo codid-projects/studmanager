@@ -16,6 +16,7 @@ import {
   HorseVideosTab,
   HorseProfileSkeleton,
   HorseFormModal,
+  HorseRatingModal,
 } from '@/components/horses';
 import type { HorseFormData } from '@/components/horses/HorseFormModal';
 import { RelatedHorsesTable } from '@/components/horses/profile/RelatedHorsesTable';
@@ -39,6 +40,8 @@ import type {
   HorseInfoDto,
   HorsePedigreeNode,
   HorseListItemDto,
+  HorseRatingPayload,
+  HorseRatingResponse,
   ExternalHorseDashboardInformation,
   HorseSiblingsDto,
   LocaleCode,
@@ -90,6 +93,7 @@ function toHorseInfoFallback(horse: HorseListItemDto): HorseInfoDto {
     isMare: false,
     isStrain: false,
     isSpecial: false,
+    isSold: horse.isSold ?? false,
     owner: null,
     breeder: null,
   };
@@ -195,6 +199,11 @@ export function HorseProfilePageClient({
   const [relatedError, setRelatedError] = useState('');
   const [dashboard, setDashboard] = useState<ExternalHorseDashboardInformation | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isRatingOpen, setIsRatingOpen] = useState(false);
+  const [rating, setRating] = useState<HorseRatingResponse | null>(null);
+  const [ratingSaving, setRatingSaving] = useState(false);
+  const [ratingError, setRatingError] = useState('');
+  const [soldLoading, setSoldLoading] = useState(false);
   const [pedigreeParents, setPedigreeParents] = useState({ fatherName: '', motherName: '' });
 
   const profileHorse = horse ? toProfileHorseModel(horse, locale as LocaleCode) : null;
@@ -321,6 +330,81 @@ export function HorseProfilePageClient({
 
     setHorse(unwrapResult(refreshed));
     setIsEditOpen(false);
+  };
+
+  useEffect(() => {
+    if (!horseId || !horse) return;
+    let mounted = true;
+
+    clientApiFetch<ApiResult<HorseRatingResponse>>({
+      backendPath: `/api/Horses/${horseId}/rating`,
+      nextPath: `/api/horses/${horseId}/rating`,
+      nextQuery: { locale },
+      locale: locale as LocaleCode,
+    }).then((result) => {
+      if (mounted) setRating(result.data ?? null);
+    }).catch(() => {
+      if (mounted) setRating(null);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [horseId, horse?.id, locale]);
+
+  const handleSoldChange = async (isSold: boolean) => {
+    if (!horseId || soldLoading) return;
+    setSoldLoading(true);
+    setLocalError('');
+
+    try {
+      const result = await clientApiFetch<ApiResult<boolean>>({
+        method: 'PATCH',
+        backendPath: `/api/Horses/${horseId}/sold`,
+        nextPath: `/api/horses/${horseId}/sold`,
+        nextQuery: { locale },
+        locale: locale as LocaleCode,
+        body: { isSold },
+      });
+
+      if (result.succeeded === false) throw new Error(result.message || t('common.error'));
+
+      setHorse((current) => current
+        ? { ...current, isSold, soldAt: isSold ? new Date().toISOString() : null }
+        : current);
+    } catch (requestError) {
+      setLocalError(requestError instanceof Error ? requestError.message : t('common.error'));
+    } finally {
+      setSoldLoading(false);
+    }
+  };
+
+  const handleSaveRating = async (payload: HorseRatingPayload) => {
+    if (!horseId) return;
+    setRatingSaving(true);
+    setRatingError('');
+
+    try {
+      const result = await clientApiFetch<ApiResult<HorseRatingResponse>>({
+        method: 'PUT',
+        backendPath: `/api/Horses/${horseId}/rating`,
+        nextPath: `/api/horses/${horseId}/rating`,
+        nextQuery: { locale },
+        locale: locale as LocaleCode,
+        body: payload,
+      });
+
+      if (result.succeeded === false || !result.data) {
+        throw new Error(result.message || t('common.error'));
+      }
+
+      setRating(result.data);
+      setIsRatingOpen(false);
+    } catch (requestError) {
+      setRatingError(requestError instanceof Error ? requestError.message : t('common.error'));
+    } finally {
+      setRatingSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -580,6 +664,12 @@ export function HorseProfilePageClient({
               fatherName={pedigreeParents.fatherName}
               motherName={pedigreeParents.motherName}
               onEdit={() => setIsEditOpen(true)}
+              isSold={horse?.isSold}
+              soldLoading={soldLoading}
+              onSoldChange={handleSoldChange}
+              onRate={() => setIsRatingOpen(true)}
+              averageRating={rating?.averageScore}
+              ratingsCount={rating?.ratingsCount}
             />
             <HorsePedigreeStats
               loading={!dashboard}
@@ -631,6 +721,15 @@ export function HorseProfilePageClient({
               initialData={editInitialData}
               onClose={() => setIsEditOpen(false)}
               onSubmit={handleProfileEdit}
+            />
+            <HorseRatingModal
+              open={isRatingOpen}
+              horseName={locale === 'ar' ? profileHorse.nameAr : profileHorse.nameEn}
+              rating={rating}
+              saving={ratingSaving}
+              error={ratingError}
+              onClose={() => setIsRatingOpen(false)}
+              onSave={handleSaveRating}
             />
           </>
         )}

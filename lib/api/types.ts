@@ -134,6 +134,11 @@ export interface SupplementPayload {
   type: number;
 }
 
+export interface LineageNameDto {
+  englishName: string;
+  arabicName: string;
+}
+
 export type NutritionTypeId = 1 | 2 | 3;
 
 export interface NutritionTypeDto {
@@ -225,6 +230,42 @@ export interface HorseListItemDto {
   specialEn: string | null;
   specialAr: string | null;
   isActive: boolean;
+  isSold?: boolean;
+  soldAt?: string | null;
+}
+
+export interface HorseRatingPayload {
+  balance: number;
+  quality: number;
+  presence: number;
+  tailCarriage: number;
+  headMuzzle: number;
+  neckMitbah: number;
+  shoulderChest: number;
+  toplineCroup: number;
+  forelimbs: number;
+  hindlimbsHooves: number;
+  trotImpulsion: number;
+  walkRhythm: number;
+  notes?: string;
+}
+
+export interface HorseRatingDto extends HorseRatingPayload {
+  id: number;
+  arabianTypeScore: number;
+  headNeckScore: number;
+  bodyToplineScore: number;
+  hoovesLimbsScore: number;
+  movementScore: number;
+  totalScore: number;
+  evaluatorName: string;
+  ratedAt: string | null;
+}
+
+export interface HorseRatingResponse {
+  myRating: HorseRatingDto | null;
+  averageScore: number | null;
+  ratingsCount: number;
 }
 
 export interface StudDto {

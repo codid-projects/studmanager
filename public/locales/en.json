@@ -366,6 +366,12 @@
     "female": "Female",
     "editHorse": "Edit Horse",
     "gender": "Gender",
+    "strainFilter": "Filter by strain",
+    "specialLineFilter": "Filter by special line",
+    "searchStrains": "Search strains...",
+    "searchSpecialLines": "Search special lines...",
+    "noStrainsFound": "No matching strains found.",
+    "noSpecialLinesFound": "No matching special lines found.",
     "birthDate": "Birth Date",
     "color": "Select Color",
     "height": "Horse Height (cm)",
@@ -403,7 +409,14 @@
     "reproductionProfile": "Reproduction profile",
     "markAsSold": "Mark as sold",
     "sold": "Sold",
-    "soldLocalOnly": "Temporary state on this page only; no backend is connected."
+    "markAvailable": "Mark as available",
+    "rateHorse": "Rate horse",
+    "ratingTitle": "Purebred Arabian Horse Evaluation",
+    "yourScore": "Your score",
+    "averageRating": "Average rating",
+    "ratingsCount": "Evaluations",
+    "ratingNotes": "Judge notes",
+    "saveRating": "Save evaluation"
   },
   "matingTest": {
     "title": "Pedigree Analysis",

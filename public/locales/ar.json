@@ -366,6 +366,12 @@
     "female": "أنثى",
     "editHorse": "تعديل خيل",
     "gender": "الجنس",
+    "strainFilter": "تصفية حسب الرسن",
+    "specialLineFilter": "تصفية حسب الخط الخاص",
+    "searchStrains": "ابحث في الأرسان...",
+    "searchSpecialLines": "ابحث في الخطوط الخاصة...",
+    "noStrainsFound": "لا توجد أرسان مطابقة.",
+    "noSpecialLinesFound": "لا توجد خطوط خاصة مطابقة.",
     "birthDate": "تاريخ الميلاد",
     "color": "اختر اللون",
     "height": "طول الخيل (سم)",
@@ -403,7 +409,14 @@
     "reproductionProfile": "ملف التناسليات",
     "markAsSold": "تحديد كمباع",
     "sold": "تم البيع",
-    "soldLocalOnly": "حالة مؤقتة على هذه الصفحة فقط، بدون ربط بالخادم."
+    "markAvailable": "تحديد كمتاح",
+    "rateHorse": "تقييم الخيل",
+    "ratingTitle": "بطاقة تقييم الخيل العربية الأصيلة",
+    "yourScore": "نتيجتك",
+    "averageRating": "متوسط التقييم",
+    "ratingsCount": "عدد التقييمات",
+    "ratingNotes": "ملاحظات الحكم",
+    "saveRating": "حفظ التقييم"
   },
   "matingTest": {
     "title": "تحليل الرسن",

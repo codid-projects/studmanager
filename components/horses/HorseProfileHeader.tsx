@@ -25,9 +25,26 @@ interface HorseProfileHeaderProps {
   onEdit?: () => void;
   fatherName?: string;
   motherName?: string;
+  isSold?: boolean;
+  soldLoading?: boolean;
+  onSoldChange?: (isSold: boolean) => void;
+  onRate?: () => void;
+  averageRating?: number | null;
+  ratingsCount?: number;
 }
 
-export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse, onEdit, fatherName: pedigreeFatherName, motherName: pedigreeMotherName }) => {
+export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
+  horse,
+  onEdit,
+  fatherName: pedigreeFatherName,
+  motherName: pedigreeMotherName,
+  isSold = false,
+  soldLoading = false,
+  onSoldChange,
+  onRate,
+  averageRating,
+  ratingsCount = 0,
+}) => {
   const { locale, direction, t } = useLocale();
   const isRTL = direction === "rtl";
   const router = useRouter();
@@ -42,7 +59,6 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse, onEdit,
   const [previewOpen, setPreviewOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryMode, setSummaryMode] = useState<"qr" | "summary">("summary");
-  const [isSold, setIsSold] = useState(false);
 
   const horseName = locale === "ar" ? horse.nameAr : horse.nameEn;
   const raw = horse.raw ?? {};
@@ -167,6 +183,22 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse, onEdit,
 
         {/* Action Area */}
         <div className={`flex flex-wrap items-center gap-3 ${isRTL ? "flex-row-reverse" : ""}`}>
+          {onRate ? (
+            <button
+              type="button"
+              onClick={onRate}
+              className="flex h-12 items-center gap-2 rounded-xl bg-[#1c3b2b] px-4 font-semibold text-white transition hover:bg-[#28543d]"
+            >
+              <span className="text-lg">★</span>
+              <span>{t("horses.rateHorse")}</span>
+              {averageRating != null ? (
+                <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs">
+                  {averageRating.toFixed(1)} / 100 ({ratingsCount})
+                </span>
+              ) : null}
+            </button>
+          ) : null}
+
           <button
             type="button"
             onClick={() => router.push(reproductionUrl)}
@@ -178,16 +210,16 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse, onEdit,
 
           <button
             type="button"
-            onClick={() => setIsSold((current) => !current)}
+            onClick={() => onSoldChange?.(!isSold)}
+            disabled={soldLoading || !onSoldChange}
             className={`flex h-12 items-center gap-2 rounded-xl border px-4 font-semibold transition-colors ${
               isSold
                 ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                 : "border-[#d9c9bd] bg-white text-[#3d2a1b] hover:bg-[#fbf8f4]"
-            }`}
-            title={t("horses.soldLocalOnly")}
+            } disabled:cursor-not-allowed disabled:opacity-60`}
           >
             {isSold ? <BadgeCheck className="h-5 w-5" /> : <CircleDollarSign className="h-5 w-5" />}
-            <span>{isSold ? t("horses.sold") : t("horses.markAsSold")}</span>
+            <span>{soldLoading ? t("common.loading") : isSold ? t("horses.markAvailable") : t("horses.markAsSold")}</span>
           </button>
 
           {onEdit ? (

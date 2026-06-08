@@ -4,6 +4,8 @@ import type {
   CreateHorsePayload,
   HorseInfoDto,
   HorseListItemDto,
+  HorseRatingPayload,
+  HorseRatingResponse,
   HorseSiblingsDto,
   ImportHorseDto,
   PagedResponse,
@@ -29,6 +31,8 @@ export async function getHorses(params: {
   pageSize?: number;
   search?: string;
   gender?: string;
+  strain?: string;
+  line?: string;
 } = {}) {
   return apiFetch<PagedResponse<HorseListItemDto>>('/api/Horses', {
     query: {
@@ -36,6 +40,8 @@ export async function getHorses(params: {
       pageSize: params.pageSize ?? 24,
       search: params.search,
       gender: params.gender,
+      strain: params.strain,
+      line: params.line,
     },
   });
 }
@@ -72,6 +78,7 @@ function toHorseInfoFallback(horse: HorseListItemDto): HorseInfoDto {
     isMare: false,
     isStrain: false,
     isSpecial: false,
+    isSold: horse.isSold ?? false,
     owner: null,
     breeder: null,
   };
@@ -139,6 +146,28 @@ export async function deleteHorse(localId: string | number) {
   return apiFetch<ApiResult<null> | ApiResult<boolean> | null>(`/api/Horses/${localId}`, {
     method: 'DELETE',
   });
+}
+
+export async function setHorseSoldStatus(localId: string | number, isSold: boolean) {
+  return apiFetch<ApiResult<boolean>>(`/api/Horses/${localId}/sold`, {
+    method: 'PATCH',
+    body: { isSold },
+  });
+}
+
+export async function getHorseRating(localId: string | number) {
+  const payload = await apiFetch<ApiResult<HorseRatingResponse>>(
+    `/api/Horses/${localId}/rating`,
+  );
+  return unwrapResult(payload);
+}
+
+export async function saveHorseRating(localId: string | number, rating: HorseRatingPayload) {
+  const payload = await apiFetch<ApiResult<HorseRatingResponse>>(
+    `/api/Horses/${localId}/rating`,
+    { method: 'PUT', body: rating },
+  );
+  return unwrapResult(payload);
 }
 
 export async function getHorseOffsprings(localId: string | number, pageNumber = 1, pageSize = 15) {
