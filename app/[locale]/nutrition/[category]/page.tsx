@@ -3,6 +3,7 @@
 import { use } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { NutritionCategoryTable } from "@/components/nutrition/NutritionCategoryTable";
+import { NutritionAssistant } from "@/components/nutrition/assistant/NutritionAssistant";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useLocale, useTranslation } from "@/lib/locale-context";
@@ -41,7 +42,11 @@ export default function NutritionCategoryPage(props: NutritionCategoryPageProps)
           )}
         </Link>
 
-        <NutritionCategoryTable categoryId={params.category} />
+        {params.category === "nutrition-assistant" ? (
+          <NutritionAssistant />
+        ) : (
+          <NutritionCategoryTable categoryId={params.category} />
+        )}
       </div>
     </MainLayout>
   );

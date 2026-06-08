@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useLocale } from "@/lib/locale-context";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import horsePlaceholder from "@/app/assets/imgs/horse-placehodler.png";
-import { Pencil, QrCode, X } from "lucide-react";
+import { BadgeCheck, CircleDollarSign, HeartPulse, Pencil, QrCode, X } from "lucide-react";
 
 interface Horse {
   id: string;
@@ -28,7 +28,7 @@ interface HorseProfileHeaderProps {
 }
 
 export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse, onEdit, fatherName: pedigreeFatherName, motherName: pedigreeMotherName }) => {
-  const { locale, direction } = useLocale();
+  const { locale, direction, t } = useLocale();
   const isRTL = direction === "rtl";
   const router = useRouter();
   const pathname = usePathname();
@@ -42,6 +42,7 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse, onEdit,
   const [previewOpen, setPreviewOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryMode, setSummaryMode] = useState<"qr" | "summary">("summary");
+  const [isSold, setIsSold] = useState(false);
 
   const horseName = locale === "ar" ? horse.nameAr : horse.nameEn;
   const raw = horse.raw ?? {};
@@ -75,6 +76,17 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse, onEdit,
   const qrImageUrl = summaryUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(summaryUrl)}`
     : "";
+  const normalizedGender = String(horse.gender).toLowerCase();
+  const reproductionTab =
+    normalizedGender.includes("female") ||
+    normalizedGender.includes("mare") ||
+    normalizedGender.includes("filly")
+      ? "mares"
+      : "stallions";
+  const reproductionUrl =
+    `/${locale}/reproduction?tab=${reproductionTab}` +
+    `&horseId=${encodeURIComponent(horse.id)}` +
+    `&horseName=${encodeURIComponent(horseName)}`;
 
   useEffect(() => {
     if (searchParams.get("horseSummary") === "1") {
@@ -155,6 +167,29 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({ horse, onEdit,
 
         {/* Action Area */}
         <div className={`flex flex-wrap items-center gap-3 ${isRTL ? "flex-row-reverse" : ""}`}>
+          <button
+            type="button"
+            onClick={() => router.push(reproductionUrl)}
+            className="flex h-12 items-center gap-2 rounded-xl border border-[#d9c9bd] bg-white px-4 font-semibold text-[#3d2a1b] transition-colors hover:bg-[#fbf8f4]"
+          >
+            <HeartPulse className="h-5 w-5" />
+            <span>{t("horses.reproductionProfile")}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsSold((current) => !current)}
+            className={`flex h-12 items-center gap-2 rounded-xl border px-4 font-semibold transition-colors ${
+              isSold
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-[#d9c9bd] bg-white text-[#3d2a1b] hover:bg-[#fbf8f4]"
+            }`}
+            title={t("horses.soldLocalOnly")}
+          >
+            {isSold ? <BadgeCheck className="h-5 w-5" /> : <CircleDollarSign className="h-5 w-5" />}
+            <span>{isSold ? t("horses.sold") : t("horses.markAsSold")}</span>
+          </button>
+
           {onEdit ? (
             <button
               type="button"

@@ -74,6 +74,7 @@
     }
   },
   "reproductionPage": {
+    "selectedHorse": "Selected horse",
     "tabs": {
       "mares": "Mares",
       "stallions": "Stallions",
@@ -398,7 +399,11 @@
     "imageUploadTitle": "Upload Images",
     "videoUploadTitle": "Upload Videos",
     "viewFull": "View full",
-    "manualApiPending": "Manual horse creation is not available in the provided API contract yet."
+    "manualApiPending": "Manual horse creation is not available in the provided API contract yet.",
+    "reproductionProfile": "Reproduction profile",
+    "markAsSold": "Mark as sold",
+    "sold": "Sold",
+    "soldLocalOnly": "Temporary state on this page only; no backend is connected."
   },
   "matingTest": {
     "title": "Pedigree Analysis",
@@ -457,6 +462,8 @@
     "defaultGroup": "Default",
     "description": "Description",
     "type": "Type",
+    "pending": "Pending",
+    "integrationPending": "This section is a UI preview. API integration is not available yet.",
     "housing": "Housing",
     "bloodTest": "Blood Test",
     "wormDose": "Worm Dose",
@@ -483,11 +490,11 @@
     "title": "Database",
     "pedigreeTab": "Pedigree Certificate",
     "matingTab": "Mating Test",
-    "pedigreeNote": "Please note that the horse must be registered in our database.",
+    "pedigreeNote": "Search the external Studbook database to view any available horse pedigree.",
     "matingNoteHeader": "Here you can choose father and mother for a theoretical mating test.",
-    "matingNoteSub": "Please note that both parents must be registered in our database before using them in the mating test.",
+    "matingNoteSub": "The father and mother are selected directly from the external Studbook database.",
     "selectHorse": "Select Horse",
-    "selectHorseHint": "Search registered horses to view the pedigree certificate.",
+    "selectHorseHint": "Search the external Studbook database to view the pedigree certificate.",
     "fatherName": "Father's Name",
     "motherName": "Mother's Name",
     "matingResult": "Mating Test",
@@ -752,5 +759,87 @@
         "currentEmbryos": "Current embryos"
       }
     }
+  },
+  "nutritionAssistant": {
+    "title": "Nutrition Assistant",
+    "subtitle": "Calculate the horse's daily nutrient requirements",
+    "unitSystem": "Unit system",
+    "units": {
+      "metric": "Metric / kilograms",
+      "imperial": "Avoirdupois / pounds"
+    },
+    "activity": "Horse activity",
+    "activities": {
+      "maintenance": "Maintenance",
+      "stallion": "Breeding Stallion",
+      "working": "Working / Performance",
+      "lactating": "Lactating",
+      "pregnant": "Pregnant",
+      "growing": "Growing"
+    },
+    "fields": {
+      "bodyWeight": "Body weight",
+      "workIntensity": "Work intensity",
+      "lactationMonth": "Month of lactation",
+      "gestationMonth": "Month of gestation",
+      "matureWeight": "Expected mature body weight",
+      "ageMonths": "Age in months",
+      "dailyGain": "Average daily gain",
+      "inTraining": "Horse in training"
+    },
+    "intensities": {
+      "light": "Light",
+      "moderate": "Moderate",
+      "intense": "Intense"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "day": "day",
+    "calculate": "Calculate",
+    "reset": "Reset",
+    "print": "Print report",
+    "reportTitle": "Nutrient Requirements Report",
+    "dailyRequirements": "Daily requirements",
+    "horseDescription": "Horse description",
+    "description": {
+      "activity": "Class / activity",
+      "bodyWeight": "Body weight"
+    },
+    "table": {
+      "nutrient": "Nutrient",
+      "total": "Total requirement",
+      "basis": "Concentration / basis"
+    },
+    "validation": {
+      "bodyWeight": "Body weight out of expected range, reenter data.",
+      "gestationMonth": "Month Gestation out of expected range, reenter data.",
+      "lactationMonth": "Month Lactation out of expected range, reenter data.",
+      "matureWeight": "Expected mature weight is invalid, reenter data.",
+      "age": "Age out of young horse range, reenter data.",
+      "dailyGain": "Avg Daily Gain out of expected range, reenter data."
+    },
+    "nutrients": {
+      "dryMatter": "Dry Matter Intake",
+      "digestibleEnergy": "Digestible Energy",
+      "crudeProtein": "Crude Protein",
+      "lysine": "Lysine",
+      "calcium": "Calcium",
+      "phosphorus": "Phosphorus",
+      "magnesium": "Magnesium",
+      "potassium": "Potassium",
+      "sodium": "Sodium",
+      "sulfur": "Sulfur",
+      "iron": "Iron",
+      "zinc": "Zinc",
+      "copper": "Copper",
+      "manganese": "Manganese",
+      "iodine": "Iodine",
+      "cobalt": "Cobalt",
+      "selenium": "Selenium",
+      "vitaminA": "Vitamin A",
+      "vitaminD": "Vitamin D",
+      "vitaminE": "Vitamin E"
+    },
+    "formulaNotice": "Planning estimates based on NRC 1989 equation patterns. A qualified equine nutritionist must verify the coefficients before therapeutic ration formulation."
   }
 }

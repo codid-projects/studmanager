@@ -1,10 +1,10 @@
 'use client';
 
 import { useLocale, useTranslation } from '@/lib/locale-context';
-import { SettingCategory } from './SettingsTabs';
+import type { PendingSettingCategory } from './SettingsTabs';
 
 interface SettingsFormProps {
-  activeTab: SettingCategory;
+  activeTab: PendingSettingCategory;
 }
 
 export function SettingsForm({ activeTab }: SettingsFormProps) {
@@ -12,7 +12,7 @@ export function SettingsForm({ activeTab }: SettingsFormProps) {
   const { t } = useTranslation();
   const isRTL = direction === 'rtl';
 
-  const fields: Record<SettingCategory, { key: string; label: string; placeholder: string; hasPhoneIcon?: boolean }[]> = {
+  const fields: Record<PendingSettingCategory, { key: string; label: string; placeholder: string; hasPhoneIcon?: boolean }[]> = {
     housing: [
       { key: 'numPlaces', label: t('settings.numPlaces'), placeholder: t('settings.numPlaces') },
       { key: 'numHorses', label: t('settings.numHorses'), placeholder: t('settings.numHorses') },

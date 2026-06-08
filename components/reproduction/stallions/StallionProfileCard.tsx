@@ -9,6 +9,8 @@ type Props = {
   direction: "rtl" | "ltr";
   query: string;
   onQueryChange: (v: string) => void;
+  horseId?: string | null;
+  horseName?: string | null;
 };
 
 export const StallionProfileCard: FC<Props> = ({
@@ -16,6 +18,8 @@ export const StallionProfileCard: FC<Props> = ({
   direction,
   query,
   onQueryChange,
+  horseId,
+  horseName,
 }) => {
   const isRTL = direction === "rtl";
 
@@ -27,7 +31,7 @@ export const StallionProfileCard: FC<Props> = ({
         }`}
       >
         <Link
-          href={`/${locale}/horses/1`}
+          href={`/${locale}/horses/${horseId || "1"}`}
           className="flex h-11 w-full items-center justify-center rounded-2xl bg-[#4b2f1a] px-4 text-sm font-semibold text-white sm:w-auto sm:min-w-[220px]"
         >
           {locale === "ar" ? "رؤية الملف الشخصي" : "View profile"}
@@ -43,7 +47,7 @@ export const StallionProfileCard: FC<Props> = ({
           </span>
           <input
             value={query}
-            // onChange={(e) => setQuery(e.target.value)}
+            onChange={(event) => onQueryChange(event.target.value)}
             className={`w-full h-11 rounded-2xl border border-[#ece2da] bg-white text-sm outline-none ${
               isRTL ? "pr-10 text-right" : "pl-10 text-left"
             }`}
@@ -71,7 +75,7 @@ export const StallionProfileCard: FC<Props> = ({
                 {locale === "ar" ? "الاسم" : "Name"} :
               </span>
               <span className="text-[#5f525a]">
-                {locale === "ar" ? "اسم" : "Name"}
+                {horseName || (locale === "ar" ? "اسم" : "Name")}
               </span>
             </div>
 

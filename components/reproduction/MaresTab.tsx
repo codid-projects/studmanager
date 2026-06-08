@@ -8,7 +8,13 @@ import MaresOverviewTab from "./tabs/MaresOverviewTab";
 
 type TabKey = "overview" | "transfer" | "control";
 
-export default function MaresTab() {
+export default function MaresTab({
+  initialHorseId,
+  initialHorseName,
+}: {
+  initialHorseId?: string | null;
+  initialHorseName?: string | null;
+}) {
   const { direction, t } = useLocale();
   const isRTL = direction === "rtl";
 
@@ -72,7 +78,9 @@ export default function MaresTab() {
       </div>
 
       {/* Tab content */}
-      {active === "overview" && <MaresOverviewTab />}
+      {active === "overview" && (
+        <MaresOverviewTab initialHorseId={initialHorseId} initialHorseName={initialHorseName} />
+      )}
       {active === "transfer" && <EmbryoTransferTab />}
       {active === "control" && <ReproductionControlTab />}
     </div>

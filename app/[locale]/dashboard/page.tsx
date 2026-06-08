@@ -288,43 +288,60 @@ export default function DashboardPage() {
   return (
     <MainLayout>
       <div className={`mx-auto max-w-[1280px] space-y-6 ${isRTL ? '[direction:rtl]' : '[direction:ltr]'}`}>
-        <section className="grid overflow-hidden rounded-2xl bg-[linear-gradient(110deg,#202315,#737116_58%,#9f9816)] text-white shadow-[0_18px_40px_rgba(45,36,18,0.16)] md:grid-cols-2">
-          {[
-            { title: t('dashboard.availableHorses'), data: dashboard.horsesInStud },
-            { title: t('dashboard.production'), data: dashboard.bredByStud },
-          ].map((item, index) => (
-            <article
-              key={item.title}
-              className={`relative min-h-[185px] overflow-hidden px-7 py-8 text-center sm:px-10 ${
-                index === 0 ? 'md:border-e md:border-white/40' : ''
-              }`}
-            >
-              <div className="absolute inset-y-0 -start-1 w-2/3 bg-[radial-gradient(ellipse_at_center,rgba(14,16,10,0.42),transparent_62%)]" />
-              <div className="relative">
-                <div className="text-5xl font-light leading-none sm:text-[3.35rem]">
-                  {formatNumber(item.data?.total)}
-                </div>
-                <h2 className="mt-4 text-2xl font-semibold sm:text-[2rem]">{item.title}</h2>
-                <div className="mx-auto mt-4 grid max-w-[220px] grid-cols-2 divide-x divide-white/55 text-2xl">
-                  <div className="px-4">
-                    <div>{formatNumber(item.data?.male)}</div>
-                    <div className="mt-1 flex items-center justify-center gap-1 text-base">
-                      <span>{t('dashboard.males')}</span>
-                      <Mars className="h-5 w-5" />
-                    </div>
-                  </div>
-                  <div className="px-4">
-                    <div>{formatNumber(item.data?.female)}</div>
-                    <div className="mt-1 flex items-center justify-center gap-1 text-base">
-                      <span>{t('dashboard.females')}</span>
-                      <Venus className="h-5 w-5" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </article>
-          ))}
-        </section>
+       <section
+  dir={isRTL ? "rtl" : "ltr"}
+  className="relative grid overflow-hidden rounded-2xl bg-[linear-gradient(110deg,#202315,#737116_58%,#9f9816)] text-white shadow-[0_18px_40px_rgba(45,36,18,0.16)] md:grid-cols-2"
+>
+  <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 hidden w-px -translate-x-1/2 bg-white/40 md:block" />
+
+  {[
+    { title: t("dashboard.availableHorses"), data: dashboard.horsesInStud },
+    { title: t("dashboard.production"), data: dashboard.bredByStud },
+  ].map((item) => (
+    <article
+      key={item.title}
+      className="relative min-h-[185px] overflow-hidden px-7 py-8 text-center sm:px-10"
+    >
+      <div className="absolute inset-y-0 -start-1 w-2/3 bg-[radial-gradient(ellipse_at_center,rgba(14,16,10,0.42),transparent_62%)]" />
+
+      <div className="relative">
+        <div className="text-5xl font-light leading-none sm:text-[3.35rem]">
+          {formatNumber(item.data?.total)}
+        </div>
+
+        <h2 className="mt-4 text-2xl font-semibold sm:text-[2rem]">
+          {item.title}
+        </h2>
+
+        <div className="mx-auto mt-4 grid max-w-[220px] grid-cols-2 text-2xl">
+          <div
+            className={`px-4 ${
+              isRTL
+                ? "border-l border-white/55"
+                : "border-r border-white/55"
+            }`}
+          >
+            <div>{formatNumber(item.data?.male)}</div>
+
+            <div className="mt-1 flex items-center justify-center gap-1 text-base">
+              <span>{t("dashboard.males")}</span>
+              <Mars className="h-5 w-5" />
+            </div>
+          </div>
+
+          <div className="px-4">
+            <div>{formatNumber(item.data?.female)}</div>
+
+            <div className="mt-1 flex items-center justify-center gap-1 text-base">
+              <span>{t("dashboard.females")}</span>
+              <Venus className="h-5 w-5" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+  ))}
+</section>
 
         <section className="grid gap-5 xl:grid-cols-[1.35fr_1fr]">
           <div className="grid gap-4 md:grid-cols-[0.85fr_1fr_1fr]">

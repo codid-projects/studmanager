@@ -1,11 +1,11 @@
 'use client';
 
 import { useLocale, useTranslation } from '@/lib/locale-context';
-import { SettingCategory } from './SettingsTabs';
+import type { PendingSettingCategory } from './SettingsTabs';
 import { Edit2, Trash2 } from 'lucide-react';
 
 interface SettingsTableProps {
-  activeTab: SettingCategory;
+  activeTab: PendingSettingCategory;
 }
 
 export function SettingsTable({ activeTab }: SettingsTableProps) {
@@ -13,7 +13,7 @@ export function SettingsTable({ activeTab }: SettingsTableProps) {
   const { t } = useTranslation();
   const isRTL = direction === 'rtl';
 
-  const columns: Record<SettingCategory, { key: string; label: string }[]> = {
+  const columns: Record<PendingSettingCategory, { key: string; label: string }[]> = {
     housing: [
       { key: 'numPlaces', label: t('settings.numPlaces') },
       { key: 'numHorses', label: t('settings.numHorses') },

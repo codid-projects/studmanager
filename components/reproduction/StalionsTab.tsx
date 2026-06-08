@@ -23,10 +23,16 @@ function tagToType(tag: string): StallionType {
   return "vet";
 }
 
-export default function StallionsTab() {
+export default function StallionsTab({
+  initialHorseId,
+  initialHorseName,
+}: {
+  initialHorseId?: string | null;
+  initialHorseName?: string | null;
+}) {
   const { locale, direction, t } = useLocale();
 
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialHorseName ?? "");
 
   // Use stable ids for tab keys, translate labels via JSON
   const tags: { key: "natural" | "fresh" | "frozen" | "vet"; label: string }[] =
@@ -181,6 +187,8 @@ export default function StallionsTab() {
           direction={direction}
           query={query}
           onQueryChange={setQuery}
+          horseId={initialHorseId}
+          horseName={initialHorseName}
         />
 
         <StallionToolbar

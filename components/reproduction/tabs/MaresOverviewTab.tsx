@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useLocale } from "@/lib/locale-context";
 import ReproductionRecordsTable, {
   type RecordItem,
@@ -98,11 +99,17 @@ const dummyRows: RecordItem[] = [
   },
 ];
 
-export default function MaresOverviewTab() {
+export default function MaresOverviewTab({
+  initialHorseId,
+  initialHorseName,
+}: {
+  initialHorseId?: string | null;
+  initialHorseName?: string | null;
+}) {
   const { locale, direction, t } = useLocale();
   const isRTL = direction === "rtl";
 
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialHorseName ?? "");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [rows, setRows] = useState<RecordItem[]>(dummyRows);
 
@@ -165,9 +172,12 @@ export default function MaresOverviewTab() {
             isRTL ? "sm:flex-row-reverse" : ""
           }`}
         >
-          <button className="h-11 px-4 rounded-2xl bg-[#4b2f1a] text-white text-sm font-semibold flex items-center justify-center w-full sm:w-auto max-w-full">
+          <Link
+            href={`/${locale}/horses/${initialHorseId || "1"}`}
+            className="flex h-11 w-full max-w-full items-center justify-center rounded-2xl bg-[#4b2f1a] px-4 text-sm font-semibold text-white sm:w-auto"
+          >
             {t("reproduction.maresOverview.viewProfile")}
-          </button>
+          </Link>
 
           <div className="relative w-full min-w-0">
             <span
@@ -207,7 +217,7 @@ export default function MaresOverviewTab() {
                   {t("common.name")} :
                 </span>
                 <span className="text-[#5f525a] break-words min-w-0">
-                  {locale === "ar" ? dummyHorse.nameAr : dummyHorse.nameEn}
+                  {initialHorseName || (locale === "ar" ? dummyHorse.nameAr : dummyHorse.nameEn)}
                 </span>
               </div>
 

@@ -3,38 +3,24 @@
 import { useState } from 'react';
 import { Dna, HeartHandshake, Search } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { ExternalHorsePicker } from '@/components/horses/ExternalHorsePicker';
 import { HorsePedigreeTree } from '@/components/horses/HorsePedigreeTree';
-import { HorsePicker } from '@/components/horses/HorsePicker';
-import { clientApiFetch } from '@/lib/api/client';
 import { getTestMatingTree } from '@/lib/api/external-horses';
-import { horseDisplayName } from '@/lib/api/horse-formatters';
+import { getLocalizedName } from '@/lib/api/localization';
 import type {
-  ApiResult,
+  ExternalHorseSearchItem,
   ExternalTreeNode,
-  HorseInfoDto,
-  HorseListItemDto,
-  LocaleCode,
 } from '@/lib/api/types';
 import { useLocale, useTranslation } from '@/lib/locale-context';
 
 type SelectedHorse = {
-  localId: number;
+  studbookId: number;
   name: string;
-  studbookId?: number | null;
 };
 
-function unwrapHorse(payload: ApiResult<HorseInfoDto> | HorseInfoDto): HorseInfoDto {
-  if (payload && typeof payload === 'object' && 'data' in payload) {
-    return payload.data as HorseInfoDto;
-  }
-
-  return payload as HorseInfoDto;
-}
-
 export default function DatabasePage() {
-  const { direction, locale } = useLocale();
+  const { direction } = useLocale();
   const { t } = useTranslation();
-  const localeCode = locale as LocaleCode;
   const isRTL = direction === 'rtl';
   const [activeTab, setActiveTab] = useState<'pedigree' | 'mating'>('pedigree');
   const [pedigreePickerOpen, setPedigreePickerOpen] = useState(false);
@@ -45,34 +31,18 @@ export default function DatabasePage() {
   const [matingLoading, setMatingLoading] = useState(false);
   const [matingMessage, setMatingMessage] = useState('');
 
-  const toSelectedHorse = (horse: HorseListItemDto): SelectedHorse => ({
-    localId: horse.localId ?? horse.id,
-    name: horseDisplayName(horse, localeCode),
+  const toSelectedHorse = (horse: ExternalHorseSearchItem): SelectedHorse => ({
+    studbookId: horse.id,
+    name: getLocalizedName(horse.englishName, horse.arabicName, isRTL),
   });
 
   const selectParent = (
-    horse: HorseListItemDto,
+    horse: ExternalHorseSearchItem,
     setter: (selected: SelectedHorse) => void,
   ) => {
     setter(toSelectedHorse(horse));
     setMatingTree(null);
     setMatingMessage('');
-  };
-
-  const getHorseDetail = async (horse: SelectedHorse) => {
-    if (horse.studbookId !== undefined) return horse;
-
-    const payload = await clientApiFetch<ApiResult<HorseInfoDto> | HorseInfoDto>({
-      backendPath: `/api/Horses/${horse.localId}`,
-      nextPath: `/api/horses/${horse.localId}`,
-      locale: localeCode,
-    });
-    const detail = unwrapHorse(payload);
-
-    return {
-      ...horse,
-      studbookId: detail.studbookId,
-    };
   };
 
   const runMatingTest = async () => {
@@ -86,21 +56,9 @@ export default function DatabasePage() {
     setMatingTree(null);
 
     try {
-      const [resolvedFather, resolvedMother] = await Promise.all([
-        getHorseDetail(father),
-        getHorseDetail(mother),
-      ]);
-      setFather(resolvedFather);
-      setMother(resolvedMother);
-
-      if (!resolvedFather.studbookId || !resolvedMother.studbookId) {
-        setMatingMessage(t('database.parentsNeedStudbook'));
-        return;
-      }
-
       const result = await getTestMatingTree({
-        horseFatherStudbookId: resolvedFather.studbookId,
-        horseMotherStudbookId: resolvedMother.studbookId,
+        horseFatherStudbookId: father.studbookId,
+        horseMotherStudbookId: mother.studbookId,
         levels: 6,
       });
       setMatingTree(result.data ?? []);
@@ -178,8 +136,8 @@ export default function DatabasePage() {
                   </div>
                 </div>
 
-                <HorsePicker
-                  value={pedigreeHorse?.localId ?? null}
+                <ExternalHorsePicker
+                  value={pedigreeHorse?.studbookId ?? null}
                   selectedLabel={pedigreeHorse?.name}
                   onChange={(horse) => setPedigreeHorse(toSelectedHorse(horse))}
                   placeholder={t('database.selectHorse')}
@@ -196,10 +154,10 @@ export default function DatabasePage() {
                 </h2>
                 {pedigreeHorse ? (
                   <HorsePedigreeTree
-                    key={pedigreeHorse.localId}
+                    key={pedigreeHorse.studbookId}
                     horse={{
-                      id: String(pedigreeHorse.localId),
-                      localId: pedigreeHorse.localId,
+                      id: String(pedigreeHorse.studbookId),
+                      studbookId: pedigreeHorse.studbookId,
                       name: pedigreeHorse.name,
                     }}
                     showTitle={false}
@@ -220,8 +178,8 @@ export default function DatabasePage() {
                   <label className="block text-sm font-bold text-[#3b2b20]">
                     {t('database.fatherName')}
                   </label>
-                  <HorsePicker
-                    value={father?.localId ?? null}
+                  <ExternalHorsePicker
+                    value={father?.studbookId ?? null}
                     selectedLabel={father?.name}
                     onChange={(horse) => selectParent(horse, setFather)}
                     gender="Male"
@@ -234,8 +192,8 @@ export default function DatabasePage() {
                   <label className="block text-sm font-bold text-[#3b2b20]">
                     {t('database.motherName')}
                   </label>
-                  <HorsePicker
-                    value={mother?.localId ?? null}
+                  <ExternalHorsePicker
+                    value={mother?.studbookId ?? null}
                     selectedLabel={mother?.name}
                     onChange={(horse) => selectParent(horse, setMother)}
                     gender="Female"

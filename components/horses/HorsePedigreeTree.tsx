@@ -243,10 +243,14 @@ const PedigreeBox = ({
   node,
   top,
   onClick,
+  highlighted,
+  onDuplicateHover,
 }: {
   node: PedigreeNode;
   top: number;
   onClick: (node: PedigreeNode) => void;
+  highlighted: boolean;
+  onDuplicateHover: (id: string | null) => void;
 }) => {
   return (
     <div
@@ -260,10 +264,20 @@ const PedigreeBox = ({
       <button
         type="button"
         onClick={() => onClick(node)}
-        className="flex h-full w-full items-center justify-center gap-1 rounded-[8px] border border-dashed border-[#bbb3aa] bg-[#f7f3ee]/80 px-2 text-center font-serif text-[13px] leading-none text-[#2c3953] shadow-[0_1px_0_rgba(0,0,0,0.02)] transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#4a2b1a]/30 sm:text-[12px] md:text-[13px] lg:text-[14px] xl:text-[15px]"
+        onMouseEnter={() => node.duplicateColor && onDuplicateHover(node.id)}
+        onMouseLeave={() => node.duplicateColor && onDuplicateHover(null)}
+        onFocus={() => node.duplicateColor && onDuplicateHover(node.id)}
+        onBlur={() => node.duplicateColor && onDuplicateHover(null)}
+        className="relative flex h-full w-full items-center justify-center gap-1 rounded-[8px] border border-dashed border-[#bbb3aa] bg-[#f7f3ee]/80 px-2 text-center font-serif text-[13px] leading-none text-[#2c3953] shadow-[0_1px_0_rgba(0,0,0,0.02)] transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#4a2b1a]/30 sm:text-[12px] md:text-[13px] lg:text-[14px] xl:text-[15px]"
         style={node.duplicateColor ? {
           backgroundColor: node.duplicateColor.background,
           borderColor: node.duplicateColor.border,
+          borderWidth: highlighted ? "3px" : "1px",
+          boxShadow: highlighted
+            ? `0 0 0 3px ${node.duplicateColor.border}35, 0 5px 14px rgba(0,0,0,0.16)`
+            : undefined,
+          transform: highlighted ? "scale(1.04)" : undefined,
+          zIndex: highlighted ? 10 : undefined,
           direction: "ltr",
           unicodeBidi: "isolate",
         } : {
@@ -310,6 +324,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
   const [summaryHorse, setSummaryHorse] = useState<ExternalHorseSummaryItem | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState("");
+  const [hoveredDuplicateId, setHoveredDuplicateId] = useState<string | null>(null);
 
   const orderedColumns = useMemo(() => [...apiColumns].reverse(), [apiColumns]);
   const maxLeafCount = useMemo(
@@ -744,10 +759,12 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
                   >
                     {column.map((node, nodeIndex) => (
                       <PedigreeBox
-                        key={node.id}
+                        key={`${columnIndex}-${nodeIndex}-${node.id}`}
                         node={node}
                         top={getTopPercent(column.length, nodeIndex, maxLeafCount)}
                         onClick={handleNodeClick}
+                        highlighted={Boolean(node.duplicateColor && hoveredDuplicateId === node.id)}
+                        onDuplicateHover={setHoveredDuplicateId}
                       />
                     ))}
                   </div>
