@@ -81,6 +81,7 @@ function toHorseInfoFallback(horse: HorseListItemDto): HorseInfoDto {
     isSold: horse.isSold ?? false,
     owner: null,
     breeder: null,
+    box: null,
   };
 }
 

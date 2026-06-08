@@ -426,6 +426,14 @@ export function HorseProfilePageClient({
         body: {},
       });
 
+      // Check for 409 Conflict first
+      if (result.statusCode === 409) {
+        const errorMessage = locale === 'ar' 
+          ? 'هذه الحظيرة مأخوذة بالفعل' 
+          : 'This box is already taken';
+        throw new Error(errorMessage);
+      }
+
       if (result.statusCode === 200 || result.succeeded === true) {
         const updatedHorse = result.data ?? result;
         setHorse(unwrapResult(updatedHorse));
@@ -434,15 +442,26 @@ export function HorseProfilePageClient({
         setTimeout(() => {
           window.location.reload();
         }, 500);
-      } else if (result.statusCode === 409) {
-        const errorMessage = locale === 'ar' 
-          ? 'هذه الحظيرة مأخوذة بالفعل' 
-          : 'This box is already taken';
-        throw new Error(errorMessage);
       } else {
         throw new Error(result.message || t('common.error'));
       }
     } catch (requestError) {
+      // Check if error has status 409 (from clientApiFetch)
+      if (requestError instanceof Error && (requestError as any).status === 409) {
+        const errorMessage = locale === 'ar' 
+          ? 'هذه الحظيرة مأخوذة بالفعل' 
+          : 'This box is already taken';
+        throw new Error(errorMessage);
+      }
+      
+      // Check if this is already our custom error message
+      if (requestError instanceof Error && (
+        requestError.message.includes('already taken') || 
+        requestError.message.includes('مأخوذة بالفعل')
+      )) {
+        throw requestError;
+      }
+      
       const errorMessage = requestError instanceof Error ? requestError.message : t('common.error');
       throw new Error(errorMessage);
     } finally {
