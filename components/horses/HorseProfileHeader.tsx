@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useLocale } from "@/lib/locale-context";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import horsePlaceholder from "@/app/assets/imgs/horse-placehodler.png";
-import { BadgeCheck, CircleDollarSign, HeartPulse, Pencil, QrCode, X } from "lucide-react";
+import { BadgeCheck, CircleDollarSign, HeartPulse, Home, Pencil, QrCode, X } from "lucide-react";
 
 interface Horse {
   id: string;
@@ -31,6 +31,8 @@ interface HorseProfileHeaderProps {
   onRate?: () => void;
   averageRating?: number | null;
   ratingsCount?: number;
+  box?: string | null;
+  onOpenAssignBox?: () => void;
 }
 
 export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
@@ -44,6 +46,8 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
   onRate,
   averageRating,
   ratingsCount = 0,
+  box = null,
+  onOpenAssignBox,
 }) => {
   const { locale, direction, t } = useLocale();
   const isRTL = direction === "rtl";
@@ -179,10 +183,43 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
           <h1 className="text-3xl md:text-4xl font-bold text-[#2a2a2a]">
             {horseName}
           </h1>
+          {box && (
+            <div className="mt-3 flex items-center gap-2">
+              <div className="flex items-center gap-2 rounded-lg bg-[#3d2a1b]/10 px-3 py-1.5">
+                <Home className="h-4 w-4 text-[#3d2a1b]" />
+                <span className="text-xs font-medium text-[#7a6c63]">
+                  {isRTL ? "رقم الحظيرة" : "Box"}:
+                </span>
+                <span className="text-sm font-semibold text-[#3d2a1b]">
+                  {box}
+                </span>
+              </div>
+              {onOpenAssignBox && (
+                <button
+                  type="button"
+                  onClick={onOpenAssignBox}
+                  className="text-xs font-medium text-[#7a6c63] hover:text-[#3d2a1b] transition-colors underline"
+                >
+                  {isRTL ? "تعديل" : "Edit"}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Action Area */}
         <div className={`flex flex-wrap items-center gap-3 ${isRTL ? "flex-row-reverse" : ""}`}>
+          {!box && onOpenAssignBox && (
+            <button
+              type="button"
+              onClick={onOpenAssignBox}
+              className="flex h-12 items-center gap-2 rounded-xl border border-[#d9c9bd] bg-white px-4 font-semibold text-[#3d2a1b] transition-colors hover:bg-[#fbf8f4]"
+            >
+              <Home className="h-5 w-5" />
+              <span>{isRTL ? "تعيين حظيرة" : "Assign Box"}</span>
+            </button>
+          )}
+
           {onRate ? (
             <button
               type="button"

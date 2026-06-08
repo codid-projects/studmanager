@@ -17,6 +17,7 @@ import {
   HorseProfileSkeleton,
   HorseFormModal,
   HorseRatingModal,
+  AssignBoxModal,
 } from '@/components/horses';
 import type { HorseFormData } from '@/components/horses/HorseFormModal';
 import { RelatedHorsesTable } from '@/components/horses/profile/RelatedHorsesTable';
@@ -93,6 +94,7 @@ function toHorseInfoFallback(horse: HorseListItemDto): HorseInfoDto {
     isMare: false,
     isStrain: false,
     isSpecial: false,
+    box: null,
     isSold: horse.isSold ?? false,
     owner: null,
     breeder: null,
@@ -204,6 +206,8 @@ export function HorseProfilePageClient({
   const [ratingSaving, setRatingSaving] = useState(false);
   const [ratingError, setRatingError] = useState('');
   const [soldLoading, setSoldLoading] = useState(false);
+  const [isAssignBoxOpen, setIsAssignBoxOpen] = useState(false);
+  const [boxAssignLoading, setBoxAssignLoading] = useState(false);
   const [pedigreeParents, setPedigreeParents] = useState({ fatherName: '', motherName: '' });
 
   const profileHorse = horse ? toProfileHorseModel(horse, locale as LocaleCode) : null;
@@ -404,6 +408,45 @@ export function HorseProfilePageClient({
       setRatingError(requestError instanceof Error ? requestError.message : t('common.error'));
     } finally {
       setRatingSaving(false);
+    }
+  };
+
+  const handleAssignBox = async (boxName: string) => {
+    if (!horseId || boxAssignLoading) return;
+    setBoxAssignLoading(true);
+
+    try {
+      const result = await clientApiFetch<ApiResult<HorseInfoDto>>({
+        method: 'POST',
+        backendPath: `/api/Horses/${horseId}/assign-box`,
+        nextPath: `/api/horses/${horseId}/assign-box`,
+        backendQuery: { box: boxName },
+        nextQuery: { locale, box: boxName },
+        locale: locale as LocaleCode,
+        body: {},
+      });
+
+      if (result.statusCode === 200 || result.succeeded === true) {
+        const updatedHorse = result.data ?? result;
+        setHorse(unwrapResult(updatedHorse));
+        setIsAssignBoxOpen(false);
+        // Auto-refresh page after successful assignment
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+      } else if (result.statusCode === 409) {
+        const errorMessage = locale === 'ar' 
+          ? 'هذه الحظيرة مأخوذة بالفعل' 
+          : 'This box is already taken';
+        throw new Error(errorMessage);
+      } else {
+        throw new Error(result.message || t('common.error'));
+      }
+    } catch (requestError) {
+      const errorMessage = requestError instanceof Error ? requestError.message : t('common.error');
+      throw new Error(errorMessage);
+    } finally {
+      setBoxAssignLoading(false);
     }
   };
 
@@ -670,6 +713,8 @@ export function HorseProfilePageClient({
               onRate={() => setIsRatingOpen(true)}
               averageRating={rating?.averageScore}
               ratingsCount={rating?.ratingsCount}
+              box={horse?.box ?? null}
+              onOpenAssignBox={() => setIsAssignBoxOpen(true)}
             />
             <HorsePedigreeStats
               loading={!dashboard}
@@ -730,6 +775,13 @@ export function HorseProfilePageClient({
               error={ratingError}
               onClose={() => setIsRatingOpen(false)}
               onSave={handleSaveRating}
+            />
+            <AssignBoxModal
+              open={isAssignBoxOpen}
+              horseId={horseId}
+              currentBox={horse?.box ?? null}
+              onClose={() => setIsAssignBoxOpen(false)}
+              onSubmit={handleAssignBox}
             />
           </>
         )}

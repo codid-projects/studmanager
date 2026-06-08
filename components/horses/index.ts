@@ -14,3 +14,4 @@ export { HorseCompetitionTab } from './HorseCompetitionTab';
 export { HorseProfileSkeleton } from './HorseProfileSkeleton';
 export { HorseAnalyticsTab } from './HorseAnalyticsTab';
 export { HorseRatingModal } from './HorseRatingModal';
+export { AssignBoxModal } from './AssignBoxModal';

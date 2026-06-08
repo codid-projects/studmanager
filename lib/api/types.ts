@@ -312,6 +312,7 @@ export interface HorseInfoDto extends HorseListItemDto {
   isMare: boolean;
   isStrain: boolean;
   isSpecial: boolean;
+  box: string | null;
   owner: StudDto | null;
   breeder: StudDto | null;
 }
