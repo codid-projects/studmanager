@@ -46,6 +46,9 @@ export function LineageFilterPicker({
     );
   }, [locale, options, search]);
 
+  const selectedOption = options.find((option) => label(option) === value);
+  const selectedLabel = selectedOption ? label(selectedOption) : value;
+
   function close() {
     setOpen(false);
     setSearch("");
@@ -56,10 +59,24 @@ export function LineageFilterPicker({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-11 w-full items-center justify-between gap-2 rounded-2xl border border-[#eadfd7] bg-[#fffdfb] px-4 text-sm font-medium text-[#2c2330] outline-none transition hover:border-[#cdb9aa] focus:border-[#5a3b25] focus:ring-2 focus:ring-[#5a3b25]/10"
+        aria-expanded={open}
+        className={`group flex min-h-14 w-full items-center gap-3 rounded-2xl border-2 px-4 py-2 text-sm outline-none transition ${
+          value
+            ? "border-[#bda18d] bg-[#f7eee7] shadow-[0_5px_14px_rgba(75,47,26,0.08)]"
+            : "border-[#dfcfc3] bg-[#fbf6f1]"
+        } hover:border-[#a98770] hover:bg-[#f7eee7] focus:border-[#5a3b25] focus:ring-2 focus:ring-[#5a3b25]/10`}
       >
-        <span className="truncate">{value || placeholder}</span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-[#806e61]" />
+        <span className={`min-w-0 flex-1 ${direction === "rtl" ? "text-right" : "text-left"}`}>
+          <span className={`block truncate ${value ? "text-[11px] font-semibold text-[#927b6c]" : "text-sm font-medium text-[#6f625a]"}`}>
+            {placeholder}
+          </span>
+          {value ? (
+            <span className="mt-0.5 block truncate font-bold text-[#3b2314]">
+              {selectedLabel}
+            </span>
+          ) : null}
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-[#806e61] transition-transform group-hover:translate-y-0.5" />
       </button>
 
       {open && (
@@ -68,9 +85,14 @@ export function LineageFilterPicker({
           dir={direction}
           onMouseDown={(event) => event.target === event.currentTarget && close()}
         >
-          <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b px-5 py-4">
-              <h3 className="text-xl font-bold text-[#3b2b20]">{placeholder}</h3>
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-[#eadfd7] bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#eee3da] bg-[#fffaf5] px-5 py-4">
+              <div>
+                <span className="mb-1 block text-xs font-semibold text-[#9a8170]">
+                  {t("horses.chooseFilter")}
+                </span>
+                <h3 className="text-xl font-bold text-[#3b2b20]">{placeholder}</h3>
+              </div>
               <button type="button" onClick={close} className="rounded-full p-2 hover:bg-gray-100" aria-label={t("common.cancel")}>
                 <X className="h-5 w-5" />
               </button>
@@ -104,7 +126,7 @@ export function LineageFilterPicker({
                   );
                 })
               ) : (
-                <div className="py-10 text-center text-sm text-gray-500">{emptyText}</div>
+                <div className="rounded-2xl bg-[#fbf8f4] px-4 py-10 text-center text-sm text-gray-500">{emptyText}</div>
               )}
             </div>
           </div>

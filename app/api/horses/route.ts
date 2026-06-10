@@ -15,6 +15,11 @@ export async function GET(request: NextRequest) {
       gender: searchParams.get('gender') ?? undefined,
       strain: searchParams.get('strain') ?? undefined,
       line: searchParams.get('line') ?? undefined,
+      microship: searchParams.get('microship') ?? undefined,
+      isActive:
+        searchParams.get('isActive') === null
+          ? undefined
+          : searchParams.get('isActive') === 'true',
     });
 
     return NextResponse.json(result);

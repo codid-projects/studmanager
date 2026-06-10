@@ -33,6 +33,8 @@ export async function getHorses(params: {
   gender?: string;
   strain?: string;
   line?: string;
+  microship?: string;
+  isActive?: boolean;
 } = {}) {
   return apiFetch<PagedResponse<HorseListItemDto>>('/api/Horses', {
     query: {
@@ -42,6 +44,8 @@ export async function getHorses(params: {
       gender: params.gender,
       strain: params.strain,
       line: params.line,
+      microship: params.microship,
+      isActive: params.isActive,
     },
   });
 }

@@ -141,6 +141,8 @@ export function HorsesPageClient({
   const [genderFilter, setGenderFilter] = useState('');
   const [strainFilter, setStrainFilter] = useState('');
   const [lineFilter, setLineFilter] = useState('');
+  const [microshipFilter, setMicroshipFilter] = useState('');
+  const [isActiveFilter, setIsActiveFilter] = useState<'' | 'true' | 'false'>('');
 
   const [strains, setStrains] = useState<LineageNameDto[]>([]);
   const [specialLines, setSpecialLines] = useState<LineageNameDto[]>([]);
@@ -179,8 +181,10 @@ export function HorsesPageClient({
       gender: isRTL ? 'النوع' : 'Gender',
       strain: isRTL ? 'السلالة' : 'Strain',
       line: isRTL ? 'الخط' : 'Line',
+      microship: t('horses.microshipFilterLabel'),
+      status: t('horses.statusFilterLabel'),
     }),
-    [isRTL, pageInfo.totalCount],
+    [isRTL, pageInfo.totalCount, t],
   );
 
   useEffect(() => {
@@ -248,17 +252,34 @@ export function HorsesPageClient({
     const gender = genderFilter || undefined;
     const strain = strainFilter || undefined;
     const line = lineFilter || undefined;
+    const microship = microshipFilter.trim() || undefined;
+    const isActive =
+      isActiveFilter === '' ? undefined : isActiveFilter === 'true';
 
     return {
       search,
       gender,
       strain,
       line,
+      microship,
+      isActive,
     };
-  }, [debouncedSearchQuery, genderFilter, lineFilter, strainFilter]);
+  }, [
+    debouncedSearchQuery,
+    genderFilter,
+    isActiveFilter,
+    lineFilter,
+    microshipFilter,
+    strainFilter,
+  ]);
 
   const hasActiveFilters = Boolean(
-    debouncedSearchQuery || genderFilter || strainFilter || lineFilter,
+    debouncedSearchQuery ||
+      genderFilter ||
+      strainFilter ||
+      lineFilter ||
+      microshipFilter.trim() ||
+      isActiveFilter,
   );
 
   const activeFilterBadges = useMemo<FilterBadge[]>(() => {
@@ -308,19 +329,44 @@ export function HorsesPageClient({
       });
     }
 
+    if (microshipFilter.trim()) {
+      badges.push({
+        key: 'microship',
+        label: uiText.microship,
+        value: microshipFilter.trim(),
+        onClear: () => setMicroshipFilter(''),
+      });
+    }
+
+    if (isActiveFilter) {
+      badges.push({
+        key: 'isActive',
+        label: uiText.status,
+        value:
+          isActiveFilter === 'true'
+            ? t('horses.activeHorses')
+            : t('horses.inactiveHorses'),
+        onClear: () => setIsActiveFilter(''),
+      });
+    }
+
     return badges;
   }, [
     debouncedSearchQuery,
     genderFilter,
+    isActiveFilter,
     lineFilter,
     localeCode,
+    microshipFilter,
     specialLines,
     strainFilter,
     strains,
     t,
     uiText.gender,
     uiText.line,
+    uiText.microship,
     uiText.search,
+    uiText.status,
     uiText.strain,
   ]);
 
@@ -330,6 +376,8 @@ export function HorsesPageClient({
     setGenderFilter('');
     setStrainFilter('');
     setLineFilter('');
+    setMicroshipFilter('');
+    setIsActiveFilter('');
   };
 
   const loadHorsesPage = useCallback(
@@ -359,6 +407,8 @@ export function HorsesPageClient({
             gender: filtersQuery.gender,
             strain: filtersQuery.strain,
             line: filtersQuery.line,
+            microship: filtersQuery.microship,
+            isActive: filtersQuery.isActive,
           },
           nextQuery: {
             pageNumber,
@@ -367,6 +417,8 @@ export function HorsesPageClient({
             gender: filtersQuery.gender,
             strain: filtersQuery.strain,
             line: filtersQuery.line,
+            microship: filtersQuery.microship,
+            isActive: filtersQuery.isActive,
             locale,
           },
           locale: localeCode,
@@ -707,14 +759,14 @@ export function HorsesPageClient({
             ) : null}
           </div>
 
-          <div className="grid w-full gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(240px,2fr)_160px_minmax(180px,1fr)_minmax(180px,1fr)_auto]">
-            <div className="relative min-w-0 sm:col-span-2 xl:col-span-1">
+          <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-12">
+            <div className="relative min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-4">
               <input
                 type="search"
                 value={mainSearchQuery}
                 onChange={(event) => setMainSearchQuery(event.target.value)}
                 placeholder={t('common.search')}
-                className={`h-11 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] text-sm text-[#2c2330] outline-none transition placeholder:text-[#b9ada4] focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 ${
+                className={`h-14 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] text-sm text-[#2c2330] outline-none transition placeholder:text-[#b9ada4] focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 ${
                   isRTL ? 'pr-11 text-right' : 'pl-11 text-left'
                 }`}
               />
@@ -743,7 +795,7 @@ export function HorsesPageClient({
               value={genderFilter}
               onChange={(event) => setGenderFilter(event.target.value)}
               aria-label={t('horses.gender')}
-              className={`h-11 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] px-4 text-sm font-medium text-[#2c2330] outline-none transition focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 sm:w-40 ${
+              className={`h-14 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] px-4 text-sm font-medium text-[#2c2330] outline-none transition focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 xl:col-span-2 ${
                 isRTL ? 'text-right' : 'text-left'
               }`}
             >
@@ -752,30 +804,65 @@ export function HorsesPageClient({
               <option value="Female">{t('horses.female')}</option>
             </select>
 
-            <LineageFilterPicker
-              value={strainFilter}
-              options={strains}
-              placeholder={t('horses.strainFilter')}
-              searchPlaceholder={t('horses.searchStrains')}
-              emptyText={t('horses.noStrainsFound')}
-              loading={lineagesLoading}
-              onChange={(value) => setStrainFilter(String(value))}
-            />
+            <div className="xl:col-span-3">
+              <LineageFilterPicker
+                value={strainFilter}
+                options={strains}
+                placeholder={t('horses.strainFilter')}
+                searchPlaceholder={t('horses.searchStrains')}
+                emptyText={t('horses.noStrainsFound')}
+                loading={lineagesLoading}
+                onChange={(value) => setStrainFilter(String(value))}
+              />
+            </div>
 
-            <LineageFilterPicker
-              value={lineFilter}
-              options={specialLines}
-              placeholder={t('horses.specialLineFilter')}
-              searchPlaceholder={t('horses.searchSpecialLines')}
-              emptyText={t('horses.noSpecialLinesFound')}
-              loading={lineagesLoading}
-              onChange={(value) => setLineFilter(String(value))}
-            />
+            <div className="xl:col-span-3">
+              <LineageFilterPicker
+                value={lineFilter}
+                options={specialLines}
+                placeholder={t('horses.specialLineFilter')}
+                searchPlaceholder={t('horses.searchSpecialLines')}
+                emptyText={t('horses.noSpecialLinesFound')}
+                loading={lineagesLoading}
+                onChange={(value) => setLineFilter(String(value))}
+              />
+            </div>
+
+            <div className="relative min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-4">
+              <input
+                type="search"
+                value={microshipFilter}
+                onChange={(event) => setMicroshipFilter(event.target.value)}
+                placeholder={t('horses.microshipFilter')}
+                aria-label={t('horses.microshipFilterLabel')}
+                className={`h-14 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] px-4 pt-4 text-sm font-semibold text-[#2c2330] outline-none transition placeholder:text-transparent focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 ${
+                  isRTL ? 'text-right' : 'text-left'
+                }`}
+              />
+              <span className={`pointer-events-none absolute top-2 text-[11px] font-semibold text-[#927b6c] ${isRTL ? 'right-4' : 'left-4'}`}>
+                {t('horses.microshipFilter')}
+              </span>
+            </div>
+
+            <select
+              value={isActiveFilter}
+              onChange={(event) =>
+                setIsActiveFilter(event.target.value as '' | 'true' | 'false')
+              }
+              aria-label={t('horses.statusFilterLabel')}
+              className={`h-14 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] px-4 text-sm font-medium text-[#2c2330] outline-none transition focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 xl:col-span-3 ${
+                isRTL ? 'text-right' : 'text-left'
+              }`}
+            >
+              <option value="">{t('horses.allStatuses')}</option>
+              <option value="true">{t('horses.activeHorses')}</option>
+              <option value="false">{t('horses.inactiveHorses')}</option>
+            </select>
 
             <button
               type="button"
               onClick={() => setIsStudbookOpen(true)}
-              className="flex h-11 w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-[#311C11] px-5 text-sm font-semibold text-primary-light shadow-[0_10px_22px_rgba(49,28,17,0.18)] transition hover:bg-[#442819] sm:w-auto"
+              className="flex h-14 w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-[#311C11] px-5 text-sm font-semibold text-primary-light shadow-[0_10px_22px_rgba(49,28,17,0.18)] transition hover:bg-[#442819] sm:col-span-2 lg:col-span-1 xl:col-span-2"
             >
               + {t('horses.addNew')}
             </button>
