@@ -1,10 +1,21 @@
 import { apiFetch } from "./http";
-import type { LineageNameDto } from "./types";
+import type { ApiResult, LineageNameDto } from "./types";
 
-export function getStrains() {
-  return apiFetch<LineageNameDto[]>("/api/DropDowns/strains");
+type LineagePayload = LineageNameDto[] | ApiResult<LineageNameDto[]>;
+
+function normalizeLineages(payload: LineagePayload): LineageNameDto[] {
+  if (Array.isArray(payload)) return payload;
+  return Array.isArray(payload?.data) ? payload.data : [];
 }
 
-export function getSpecialLines() {
-  return apiFetch<LineageNameDto[]>("/api/DropDowns/special-lines");
+export async function getStrains() {
+  return normalizeLineages(
+    await apiFetch<LineagePayload>("/api/DropDowns/strains"),
+  );
+}
+
+export async function getSpecialLines() {
+  return normalizeLineages(
+    await apiFetch<LineagePayload>("/api/DropDowns/special-lines"),
+  );
 }

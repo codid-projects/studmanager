@@ -13,6 +13,7 @@ import ReproductionRecordsTable, {
 import { dummyByType, type StallionType } from "./stallions/dummy";
 import { StallionProfileCard } from "./stallions/StallionProfileCard";
 import { StallionToolbar } from "./stallions/StallionToolbar";
+import { BreedingPagination } from "./BreedingPagination";
 
 function tagToType(tag: string): StallionType {
   // store Arabic-only keys as "stable ids" for mapping
@@ -217,6 +218,7 @@ export default function StallionsTab({
           onEdit={handleEdit}
           onDelete={(row) => setToDelete(row)}
         />
+        <BreedingPagination direction={direction} />
       </div>
 
       <DeleteConfirmModal

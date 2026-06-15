@@ -598,17 +598,18 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
   const birthDateInputRef = useRef<HTMLInputElement>(null);
   const objectImagePreviewRef = useRef<string | null>(null);
   const modalTitle = initialData ? t('horses.editHorse') : t('horses.addNew');
-  const defaultStudName = defaultStud
+  const defaultStudbookId = defaultStud?.studbookId ?? undefined;
+  const defaultStudName = defaultStud && defaultStudbookId
     ? getLocalizedName(defaultStud.studName, defaultStud.studArabicName, isArabic)
     : '';
   const applyDefaultStud = (target: 'owner' | 'breeder') => {
-    if (!defaultStud) return;
+    if (!defaultStud || !defaultStudbookId) return;
 
     setFormData((prev) => ({
       ...prev,
       ...(target === 'owner'
-        ? { ownerStudbookId: defaultStud.id, ownerName: defaultStudName }
-        : { breederStudbookId: defaultStud.id, breederName: defaultStudName }),
+        ? { ownerStudbookId: defaultStudbookId, ownerName: defaultStudName }
+        : { breederStudbookId: defaultStudbookId, breederName: defaultStudName }),
     }));
   };
 
@@ -618,6 +619,24 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
     { id: 3, label: t('horses.step3') || 'بيانات التعريف' },
     { id: 4, label: t('horses.step4') || 'تحميل الصور و الفيديوهات' },
   ];
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverscroll = document.body.style.overscrollBehavior;
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'contain';
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overscrollBehavior = previousBodyOverscroll;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -820,7 +839,6 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
     }
 
     if (step === 2) {
-      if (!formData.birthDate) errors.birthDate = messages.required;
       if (!formData.gender) errors.gender = messages.required;
     }
 
@@ -925,7 +943,7 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-2 md:p-4 lg:p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-black/40 p-2 md:p-4 lg:p-6"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) handleClose();
       }}

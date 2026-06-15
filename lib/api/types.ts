@@ -37,6 +37,37 @@ export type ActivityDto = {
 
 export type ActivityTypeEnum = 1 | 2 | 3;
 
+export type CalendarEventType = 1 | 2 | 3 | 4;
+
+export type CalendarEventDto = {
+  id: number;
+  title: string;
+  titleAr: string;
+  description: string | null;
+  descriptionAr: string | null;
+  start: string;
+  end: string | null;
+  allDay: boolean;
+  type: string;
+  color: string | null;
+  relatedEntityType: string | null;
+  relatedEntityId: number | null;
+};
+
+export type CalendarEventPayload = {
+  title: string;
+  titleAr: string;
+  description?: string | null;
+  descriptionAr?: string | null;
+  eventDate: string;
+  endDate?: string | null;
+  isAllDay: boolean;
+  eventType: CalendarEventType;
+  color?: string | null;
+  relatedEntityType?: string | null;
+  relatedEntityId?: number | null;
+};
+
 export type AttachmentDto = {
   attachmentId?: number | null;
   mediaType: string | null;
@@ -315,6 +346,46 @@ export interface HorseInfoDto extends HorseListItemDto {
   box: string | null;
   owner: StudDto | null;
   breeder: StudDto | null;
+}
+
+export interface HousingHorseDto {
+  id: number;
+  slotNumber?: number | null;
+  englishName: string | null;
+  arabicName: string | null;
+  horseProfileImage: string | null;
+}
+
+export interface HousingUnitDto {
+  code: string;
+  nameEn: string;
+  nameAr: string;
+  groupEn: string;
+  groupAr: string;
+  type: 'box' | 'barn';
+  capacity: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  horses: HousingHorseDto[];
+}
+
+export interface HousingMapDto {
+  width: number;
+  height: number;
+  mapKey?: string | null;
+  entityType?: string | null;
+  entityId?: number | null;
+  units: HousingUnitDto[];
+}
+
+export interface UpdateHousingUnitCapacityPayload {
+  capacity: number;
+  mapKey?: string | null;
+  entityType?: string | null;
+  entityId?: number | null;
 }
 
 export interface StudbookHorseDto {

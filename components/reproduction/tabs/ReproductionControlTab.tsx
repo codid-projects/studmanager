@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useLocale } from "@/lib/locale-context";
-import { Search } from "lucide-react";
+import { Download, Plus, Search, Trash2 } from "lucide-react";
 import ReproductionControlTable, {
   type ReproductionControlRow,
 } from "@/components/reproduction/tables/ReproductionControlTable";
-import { FaDownload } from "react-icons/fa6";
 import ReproductionControlModal from "@/components/reproduction/modals/ReproductionControlModal";
+import { BreedingPagination } from "@/components/reproduction/BreedingPagination";
 
 const dummyReproductionControlRows: ReproductionControlRow[] = Array.from({
   length: 10,
@@ -81,41 +81,53 @@ export default function ReproductionControlTab() {
     setEditingRow(null);
   }
 
+  function deleteSelected() {
+    setRows((current) =>
+      current.filter((row) => !selectedIds.includes(row.id)),
+    );
+    setSelectedIds([]);
+  }
+
+  function deleteRow(row: ReproductionControlRow) {
+    setRows((current) => current.filter((item) => item.id !== row.id));
+    setSelectedIds((current) => current.filter((id) => id !== row.id));
+  }
+
   return (
-    <div className="space-y-4">
-      {/* Top actions + search (responsive) */}
+    <div className="space-y-5">
       <div
-        className={`flex items-center justify-between gap-3 flex-wrap ${
-          isRTL ? "flex-row-reverse" : ""
+        className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${
+          isRTL ? "sm:flex-row-reverse" : ""
         }`}
       >
         <div className="flex items-center gap-2">
           <button
-            onClick={openAddModal}
-            className="h-11 px-4 rounded-2xl bg-[#4b2f1a] text-white text-sm font-semibold flex items-center gap-2"
+            disabled={selectedIds.length === 0}
+            onClick={deleteSelected}
+            className={`flex h-11 flex-1 items-center justify-center gap-2 rounded-[13px] px-4 text-sm font-bold sm:flex-none ${
+              selectedIds.length === 0
+                ? "cursor-not-allowed bg-[#eee9e5] text-[#b5aaa3]"
+                : "bg-[#fff0ed] text-[#b53d32] hover:bg-[#ffe5df]"
+            }`}
           >
-            <span className="text-lg leading-none">＋</span>
+            <Trash2 className="h-4 w-4" />
+            {t("common.delete")}
+          </button>
+          <button
+            onClick={openAddModal}
+            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-[13px] bg-[#4b2f1a] px-5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(75,47,26,0.15)] hover:bg-[#3c2515] sm:flex-none"
+          >
+            <Plus className="h-[18px] w-[18px]" />
             {t("common.addNewRecord")}
           </button>
 
           <button
             disabled={selectedIds.length === 0}
-            className={`h-11 px-4 rounded-2xl text-sm font-semibold flex items-center gap-2 ${
-              selectedIds.length === 0
-                ? "bg-[#e7e2de] text-[#9a8f88]"
-                : "bg-[#d9534f] text-white"
-            }`}
-          >
-            {t("common.delete")}
-          </button>
-
-          <button
-            disabled={selectedIds.length === 0}
-            className="h-11 px-4 rounded-2xl text-sm font-semibold flex items-center gap-2"
+            className="flex h-11 w-11 items-center justify-center rounded-[13px] border border-[#e7dbd3] bg-white text-[#4b2f1a] disabled:cursor-not-allowed disabled:text-[#b5aaa3]"
             aria-label={t("common.download")}
             title={t("common.download")}
           >
-            <FaDownload className="h-8 w-6" color="#4b2f1a" />
+            <Download className="h-[18px] w-[18px]" />
           </button>
         </div>
 
@@ -125,13 +137,13 @@ export default function ReproductionControlTab() {
               isRTL ? "right-4" : "left-4"
             }`}
           >
-            <Search className="h-4 w-4" />
+            <Search className="h-[18px] w-[18px]" />
           </span>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className={`w-full h-11 rounded-2xl border border-[#ece2da] bg-white text-sm outline-none ${
-              isRTL ? "pr-10 text-right" : "pl-10 text-left"
+            className={`h-11 w-full rounded-[13px] border border-[#e9ded6] bg-white text-sm outline-none placeholder:text-[#b7a9a0] focus:border-[#8b6b52] focus:ring-4 focus:ring-[#8b6b52]/10 ${
+              isRTL ? "pr-11 text-right" : "pl-11 text-left"
             }`}
             placeholder={t("common.search")}
           />
@@ -147,7 +159,7 @@ export default function ReproductionControlTab() {
         onToggleSelect={toggleSelect}
         onToggleSelectAll={toggleSelectAll}
         onEdit={openEditModal}
-        onDelete={() => {}}
+        onDelete={deleteRow}
       />
 
       {/* NEW: Modal for add/edit */}
@@ -162,16 +174,7 @@ export default function ReproductionControlTab() {
         onSubmit={handleModalSubmit}
       />
 
-      {/* Pagination (responsive placeholder) */}
-      <div className="flex items-center justify-center gap-2 pt-2">
-        <button className="h-9 w-9 rounded-full border bg-white">‹</button>
-        <div className="h-9 w-9 rounded-full bg-[#4b2f1a] text-white flex items-center justify-center text-sm">
-          1
-        </div>
-        <button className="h-9 w-9 rounded-full border bg-white">2</button>
-        <button className="h-9 w-9 rounded-full border bg-white">3</button>
-        <button className="h-9 w-9 rounded-full border bg-white">›</button>
-      </div>
+      <BreedingPagination direction={direction} />
     </div>
   );
 }

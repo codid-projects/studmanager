@@ -2,6 +2,7 @@
 
 import type { FC } from "react";
 import { useLocale } from "@/lib/locale-context";
+import { Plus, Trash2 } from "lucide-react";
 
 type Props = {
   locale: string;
@@ -27,52 +28,23 @@ export const StallionToolbar: FC<Props> = ({
   const isRTL = direction === "rtl";
 
   return (
-    <div className="mt-4 space-y-3 w-full max-w-full overflow-x-hidden">
-      {/* Buttons: stack on mobile, row on >=sm */}
+    <div className="mt-5 w-full max-w-full space-y-4 overflow-x-hidden">
       <div
-        className={`flex flex-col sm:flex-row gap-3 w-full ${
+        className={`flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${
           isRTL ? "sm:flex-row-reverse" : ""
         }`}
       >
-        <button
-          className="h-11 px-4 rounded-2xl bg-[#4b2f1a] text-white font-bold w-full sm:w-auto"
-          onClick={onAdd}
-        >
-          {t("common.addNewRecord")}
-        </button>
-
-        <button
-          disabled={selectedCount === 0}
-          onClick={onDeleteSelected}
-          className={`h-11 px-4 rounded-2xl text-white font-bold transition w-full sm:w-auto ${
-            selectedCount === 0
-              ? "bg-gray-300 cursor-not-allowed"
-              : "bg-[#c2463a]"
-          }`}
-        >
-          {t("common.delete")}
-        </button>
-      </div>
-
-      {/* Tags:
-          - Mobile: horizontal scroll (no wrap) to avoid overflow
-          - Desktop: wrap as before
-      */}
-      <div className="w-full">
         <div
-          className={`flex gap-2 overflow-x-auto whitespace-nowrap py-1 sm:hidden ${
-            isRTL ? "justify-start" : "justify-start"
-          }`}
-          style={{ WebkitOverflowScrolling: "touch" }}
+          className="flex min-w-0 gap-2 overflow-x-auto rounded-[16px] bg-[#eee6e0] p-1.5"
         >
           {tags.map((b) => (
             <button
               key={b}
               onClick={() => onTagChange(b)}
-              className={`shrink-0 px-4 py-2 rounded-full text-sm border ${
+              className={`h-10 shrink-0 rounded-xl px-4 text-sm font-semibold transition ${
                 activeTag === b
-                  ? "bg-[#fff6e7] border-[#bfae87]"
-                  : "bg-white border-[#e8e2dd]"
+                  ? "bg-white text-[#4b2f1a] shadow-[0_5px_14px_rgba(75,47,26,0.1)]"
+                  : "text-[#807168] hover:text-[#4b2f1a]"
               }`}
             >
               {b}
@@ -80,24 +52,26 @@ export const StallionToolbar: FC<Props> = ({
           ))}
         </div>
 
-        <div
-          className={`hidden sm:flex gap-3 flex-wrap ${
-            isRTL ? "justify-start" : "justify-end"
-          } w-full`}
-        >
-          {tags.map((b) => (
-            <button
-              key={b}
-              onClick={() => onTagChange(b)}
-              className={`px-4 py-2 rounded-full text-sm border ${
-                activeTag === b
-                  ? "bg-[#fff6e7] border-[#bfae87]"
-                  : "bg-white border-[#e8e2dd]"
-              }`}
-            >
-              {b}
-            </button>
-          ))}
+        <div className="flex shrink-0 gap-2">
+          <button
+            disabled={selectedCount === 0}
+            onClick={onDeleteSelected}
+            className={`flex h-11 items-center justify-center gap-2 rounded-[13px] px-4 text-sm font-bold transition ${
+              selectedCount === 0
+                ? "cursor-not-allowed bg-[#eee9e5] text-[#b5aaa3]"
+                : "bg-[#fff0ed] text-[#b53d32] hover:bg-[#ffe5df]"
+            }`}
+          >
+            <Trash2 className="h-4 w-4" strokeWidth={1.8} />
+            {t("common.delete")}
+          </button>
+          <button
+            className="flex h-11 items-center justify-center gap-2 rounded-[13px] bg-[#4b2f1a] px-5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(75,47,26,0.15)] hover:bg-[#3c2515]"
+            onClick={onAdd}
+          >
+            <Plus className="h-[18px] w-[18px]" strokeWidth={2} />
+            {t("common.addNewRecord")}
+          </button>
         </div>
       </div>
     </div>

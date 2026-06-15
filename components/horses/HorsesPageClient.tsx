@@ -16,6 +16,7 @@ import { clientApiFetch } from '@/lib/api/client';
 import { buildCreateHorseFormData } from '@/lib/api/create-horse-form-data';
 import { createHorse } from '@/lib/api/create-horse';
 import { localizeApiMessage } from '@/lib/api/errors';
+import { buildChangedHorsePayload } from '@/lib/api/horse-update-payload';
 import { fetchSpecialLines, fetchStrains } from '@/lib/api/lineage-client';
 import { isDirectApiMode } from '@/lib/api/transport';
 import type {
@@ -667,6 +668,13 @@ export function HorsesPageClient({
     if (!editingHorseId) return;
 
     try {
+      const payload = buildChangedHorsePayload(data, editInitialData);
+
+      if (Object.keys(payload).length === 0) {
+        setEditingHorseId(null);
+        return;
+      }
+
       const result = await clientApiFetch<
         ApiResult<number> | ApiResult<null> | ApiResult<boolean>
       >({
@@ -675,7 +683,7 @@ export function HorsesPageClient({
         nextPath: `/api/horses/${editingHorseId}`,
         nextQuery: { locale },
         locale: localeCode,
-        body: buildCreateHorseFormData(toHorsePayload(data, 'update')),
+        body: buildCreateHorseFormData(payload, { includeEmptyStrings: true }),
       });
 
       if (result?.succeeded === false) {

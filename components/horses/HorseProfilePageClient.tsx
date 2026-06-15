@@ -23,6 +23,7 @@ import type { HorseFormData } from '@/components/horses/HorseFormModal';
 import { RelatedHorsesTable } from '@/components/horses/profile/RelatedHorsesTable';
 import { clientApiFetch } from '@/lib/api/client';
 import { buildCreateHorseFormData } from '@/lib/api/create-horse-form-data';
+import { buildChangedHorsePayload } from '@/lib/api/horse-update-payload';
 import {
   getExternalHorseDashboard,
   getHorseFamilyAnalysisTree,
@@ -36,7 +37,6 @@ import { getLocalizedName } from '@/lib/api/localization';
 import { isDirectApiMode } from '@/lib/api/transport';
 import type {
   ApiResult,
-  CreateHorsePayload,
   HorseFamilyTreeItem,
   HorseInfoDto,
   HorsePedigreeNode,
@@ -267,50 +267,15 @@ export function HorseProfilePageClient({
       }
     : null;
 
-  const toUpdatePayload = (data: HorseFormData): CreateHorsePayload => ({
-    EnglishName: data.nameEn,
-    ArabicName: data.nameAr,
-    KnownAs: data.knownAs,
-    StrainEn: horse?.strainEn ?? undefined,
-    StrainAr: horse?.strainAr ?? undefined,
-    SpecialEn: horse?.specialEn ?? undefined,
-    SpecialAr: horse?.specialAr ?? undefined,
-    DateofBirth: data.birthDate,
-    Gender: data.gender,
-    BornIn: data.birthCountry,
-    CurrentlyIn: data.currentCountry,
-    Color: data.color,
-    Height: data.height,
-    AdditionalInformation: data.description,
-    FaceSpecialMarkings: data.faceMarks,
-    FrontRightLeg: data.frontRightLeg,
-    FrontLeftLeg: data.frontLeftLeg,
-    BackRightLeg: data.backRightLeg,
-    BackLeftLeg: data.backLeftLeg,
-    SpecialNotes: data.notes,
-    RegistrationNumber: data.registrationNumber,
-    MicrochipID: data.microchipId,
-    UELNNumber: data.uelnNumber,
-    InternationalFEIRegistrationNumber: data.feiRegistrationNumber,
-    NationalSportRegistrationNumber: data.nationalRegistrationNumber,
-    PassportNumber: data.passportNumber,
-    HorseProfileImage: data.image instanceof File ? data.image : null,
-    ClearHorseProfileImage: Boolean(horse?.horseProfileImage) && !data.image && !data.imagePreview,
-    RemoveImageIds: data.removeImageIds?.filter((id) => id > 0),
-    NewImages: data.newImages,
-    NewVideos: data.videoLink ? [data.videoLink] : [],
-    HorseFatherStudbookId: data.fatherStudbookId,
-    HorseMotherStudbookId: data.motherStudbookId,
-    OwnerStudbookId: data.ownerStudbookId,
-    BreederStudbookId: data.breederStudbookId,
-    IsStallion: data.gender === 'Male',
-    IsMare: data.gender === 'Female',
-    IsStrain: horse?.isStrain,
-    IsSpecial: horse?.isSpecial,
-  });
-
   const handleProfileEdit = async (data: HorseFormData) => {
     if (!horseId) return;
+
+    const payload = buildChangedHorsePayload(data, editInitialData);
+
+    if (Object.keys(payload).length === 0) {
+      setIsEditOpen(false);
+      return;
+    }
 
     const result = await clientApiFetch<ApiResult<number> | ApiResult<null> | ApiResult<boolean>>({
       method: 'PUT',
@@ -318,7 +283,7 @@ export function HorseProfilePageClient({
       nextPath: `/api/horses/${horseId}`,
       nextQuery: { locale },
       locale: locale as LocaleCode,
-      body: buildCreateHorseFormData(toUpdatePayload(data)),
+      body: buildCreateHorseFormData(payload, { includeEmptyStrings: true }),
     });
 
     if (result?.succeeded === false) {
@@ -416,7 +381,7 @@ export function HorseProfilePageClient({
     setBoxAssignLoading(true);
 
     try {
-      const result = await clientApiFetch<ApiResult<HorseInfoDto>>({
+      const result = await clientApiFetch<ApiResult<never>>({
         method: 'POST',
         backendPath: `/api/Horses/${horseId}/assign-box`,
         nextPath: `/api/horses/${horseId}/assign-box`,
@@ -435,13 +400,8 @@ export function HorseProfilePageClient({
       }
 
       if (result.statusCode === 200 || result.succeeded === true) {
-        const updatedHorse = result.data ?? result;
-        setHorse(unwrapResult(updatedHorse));
+        setHorse((current) => (current ? { ...current, box: boxName } : current));
         setIsAssignBoxOpen(false);
-        // Auto-refresh page after successful assignment
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
       } else {
         throw new Error(result.message || t('common.error'));
       }

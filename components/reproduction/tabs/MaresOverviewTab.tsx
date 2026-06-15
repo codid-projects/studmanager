@@ -6,8 +6,20 @@ import { useLocale } from "@/lib/locale-context";
 import ReproductionRecordsTable, {
   type RecordItem,
 } from "@/components/reproduction/ReproductionRecordsTable";
-import { Search } from "lucide-react";
+import {
+  Baby,
+  CalendarDays,
+  Dna,
+  HeartPulse,
+  MapPin,
+  Plus,
+  Search,
+  Trash2,
+  Warehouse,
+} from "lucide-react";
 import ReproductionRecordModal from "@/components/reproduction/modals/ReproductionRecordModal";
+import horsePlaceholder from "@/app/assets/imgs/horse-placehodler.png";
+import { BreedingPagination } from "@/components/reproduction/BreedingPagination";
 
 type SummaryCard = {
   titleKey: string;
@@ -54,6 +66,8 @@ const summaryCards: SummaryCard[] = [
   },
   { titleKey: "reproduction.maresOverview.summary.currentEmbryos", value: 5 },
 ];
+
+const summaryIcons = [Baby, CalendarDays, HeartPulse, Dna, Dna, Baby];
 
 // Table dummy JSON (matches screenshot columns)
 const dummyRows: RecordItem[] = [
@@ -163,18 +177,29 @@ export default function MaresOverviewTab({
     setEditingRow(null);
   }
 
+  function deleteSelected() {
+    setRows((current) =>
+      current.filter((row) => !selectedIds.includes(row.id)),
+    );
+    setSelectedIds([]);
+  }
+
+  function deleteRow(row: RecordItem) {
+    setRows((current) => current.filter((item) => item.id !== row.id));
+    setSelectedIds((current) => current.filter((id) => id !== row.id));
+  }
+
   return (
-    <div className="space-y-6 w-full max-w-full overflow-x-hidden">
-      {/* Top card (search + info) */}
-      <div className="rounded-2xl bg-white shadow-sm p-4 sm:p-6 w-full max-w-full overflow-x-hidden">
+    <div className="w-full max-w-full space-y-6 overflow-x-hidden">
+      <div className="overflow-hidden rounded-[24px] border border-[#ede3dc] bg-white shadow-[0_14px_40px_rgba(75,47,26,0.055)]">
         <div
-          className={`flex flex-col sm:flex-row sm:items-center gap-3 ${
+          className={`flex flex-col gap-3 border-b border-[#f0e8e2] bg-[#fffdfb] p-4 sm:flex-row sm:items-center sm:p-5 ${
             isRTL ? "sm:flex-row-reverse" : ""
           }`}
         >
           <Link
             href={`/${locale}/horses/${initialHorseId || "1"}`}
-            className="flex h-11 w-full max-w-full items-center justify-center rounded-2xl bg-[#4b2f1a] px-4 text-sm font-semibold text-white sm:w-auto"
+            className="order-2 flex h-12 w-full items-center justify-center rounded-[14px] bg-[#4b2f1a] px-6 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(75,47,26,0.16)] hover:bg-[#3c2515] sm:order-none sm:w-auto sm:min-w-[190px]"
           >
             {t("reproduction.maresOverview.viewProfile")}
           </Link>
@@ -185,145 +210,169 @@ export default function MaresOverviewTab({
                 isRTL ? "right-4" : "left-4"
               }`}
             >
-              <Search className="h-4 w-4" />
+              <Search className="h-[18px] w-[18px]" strokeWidth={1.8} />
             </span>
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className={`w-full max-w-full h-11 rounded-2xl border border-[#ece2da] bg-white text-sm outline-none ${
-                isRTL ? "pr-10 text-right" : "pl-10 text-left"
+              className={`h-12 w-full rounded-[14px] border border-[#e9ded6] bg-white text-sm text-[#342720] outline-none placeholder:text-[#b7a9a0] focus:border-[#8b6b52] focus:ring-4 focus:ring-[#8b6b52]/10 ${
+                isRTL ? "pr-11 text-right" : "pl-11 text-left"
               }`}
               placeholder={t("reproduction.maresOverview.searchPlaceholder")}
             />
           </div>
         </div>
 
-        {/* Mobile: stack, Desktop: keep same */}
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 items-start w-full max-w-full">
-          <div className="w-full max-w-full">
-            <div className="w-full aspect-[2/2] rounded-2xl overflow-hidden bg-[#f3f1ef]">
+        <div
+          className={`grid gap-6 p-5 sm:p-6 lg:grid-cols-[210px_1fr] ${
+            isRTL ? "lg:[direction:rtl]" : ""
+          }`}
+        >
+          <div className="w-full">
+            <div className="aspect-[1.08/1] w-full overflow-hidden rounded-[18px] bg-[#f3efeb]">
               <img
-                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQfquc1pFNFujzgkuv6_xka95bqkKHoR4jE5w&s"
-                alt="mare"
-                className="w-full h-full object-cover"
+                src={horsePlaceholder.src}
+                alt={initialHorseName || dummyHorse.nameEn}
+                className="h-full w-full object-cover"
               />
             </div>
           </div>
 
           <div className={`${isRTL ? "text-right" : "text-left"} min-w-0`}>
-            <div className="text-sm">
-              <div className="flex gap-2 mb-5 min-w-0">
-                <span className="font-bold text-[#2c2330] whitespace-nowrap">
-                  {t("common.name")} :
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-[#2c211c]">
+                  {initialHorseName ||
+                    (locale === "ar" ? dummyHorse.nameAr : dummyHorse.nameEn)}
+                </h2>
+                <p className="mt-1 text-sm text-[#9a877b]">
+                  {locale === "ar" ? "فرس عربية أصيلة" : "Purebred Arabian mare"}
+                </p>
+              </div>
+              <span className="rounded-full bg-[#f5efbb] px-3 py-1.5 text-xs font-bold text-[#594424]">
+                {locale === "ar" ? "نشطة للتكاثر" : "Breeding active"}
+              </span>
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="flex items-center gap-3 rounded-2xl bg-[#fbf8f5] p-3.5">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#6a4a34] shadow-sm">
+                  <Warehouse className="h-5 w-5" strokeWidth={1.7} />
                 </span>
-                <span className="text-[#5f525a] break-words min-w-0">
-                  {initialHorseName || (locale === "ar" ? dummyHorse.nameAr : dummyHorse.nameEn)}
-                </span>
+                <div>
+                  <p className="text-[11px] text-[#a18f84]">{t("common.farm")}</p>
+                  <p className="mt-0.5 text-sm font-semibold text-[#3e3029]">
+                    {locale === "ar" ? dummyHorse.farmAr : dummyHorse.farmEn}
+                  </p>
+                </div>
               </div>
 
-              <div className="flex gap-2 mb-5 min-w-0">
-                <span className="font-bold text-[#2c2330] whitespace-nowrap">
-                  {t("common.farm")} :
+              <div className="flex items-center gap-3 rounded-2xl bg-[#fbf8f5] p-3.5">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#6a4a34] shadow-sm">
+                  <CalendarDays className="h-5 w-5" strokeWidth={1.7} />
                 </span>
-                <span className="text-[#5f525a] break-words min-w-0">
-                  {locale === "ar" ? dummyHorse.farmAr : dummyHorse.farmEn}
-                </span>
+                <div>
+                  <p className="text-[11px] text-[#a18f84]">{t("common.dob")}</p>
+                  <p className="mt-0.5 text-sm font-semibold text-[#3e3029]">
+                    {dummyHorse.dob}
+                  </p>
+                </div>
               </div>
 
-              <div className="flex gap-2 mb-5 min-w-0">
-                <span className="font-bold text-[#2c2330] whitespace-nowrap">
-                  {t("common.dob")} :
+              <div className="flex items-center gap-3 rounded-2xl bg-[#fbf8f5] p-3.5">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#6a4a34] shadow-sm">
+                  <MapPin className="h-5 w-5" strokeWidth={1.7} />
                 </span>
-                <span className="text-[#5f525a] break-words min-w-0">
-                  {dummyHorse.dob}
-                </span>
-              </div>
-
-              <div className="flex gap-2 mb-5 min-w-0">
-                <span className="font-bold text-[#2c2330] whitespace-nowrap">
-                  {t("common.bornIn")} :
-                </span>
-                <span className="text-[#5f525a] break-words min-w-0">
-                  {locale === "ar" ? dummyHorse.bornInAr : dummyHorse.bornInEn}
-                </span>
-              </div>
-
-              <div className="flex gap-2 mb-5 min-w-0">
-                <span className="font-bold text-[#2c2330] whitespace-nowrap">
-                  {t("common.currentlyIn")} :
-                </span>
-                <span className="text-[#5f525a] break-words min-w-0">
-                  {locale === "ar"
-                    ? dummyHorse.currentInAr
-                    : dummyHorse.currentInEn}
-                </span>
+                <div>
+                  <p className="text-[11px] text-[#a18f84]">
+                    {t("common.currentlyIn")}
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold text-[#3e3029]">
+                    {locale === "ar"
+                      ? dummyHorse.currentInAr
+                      : dummyHorse.currentInEn}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {summaryCards.map((c, idx) => (
-          <div
-            key={idx}
-            className="rounded-2xl bg-white shadow-sm p-5 border border-[#f2ece7] text-center"
-          >
-            <div className="text-sm font-bold text-[#2c2330]">
-              {t(c.titleKey)}
-            </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {summaryCards.map((c, idx) => {
+          const Icon = summaryIcons[idx];
+          return (
+            <div
+              key={c.titleKey}
+              className="rounded-[20px] border border-[#ede3dc] bg-white p-5 shadow-[0_10px_30px_rgba(75,47,26,0.045)]"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-bold text-[#3a2c25]">
+                  {t(c.titleKey)}
+                </div>
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f7f1ec] text-[#6a4a34]">
+                  <Icon className="h-5 w-5" strokeWidth={1.7} />
+                </span>
+              </div>
 
-            {c.sub ? (
-              <div className="mt-4 grid grid-cols-2 gap-3 text-center">
-                {c.sub.map((s, i) => (
-                  <div key={i}>
-                    <div className="text-xs text-[#6f625b]">
-                      {t(s.labelKey)}
+              {c.sub ? (
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  {c.sub.map((s) => (
+                    <div key={s.labelKey} className="rounded-xl bg-[#fbf8f5] p-3">
+                      <div className="text-xs text-[#88766b]">
+                        {t(s.labelKey)}
+                      </div>
+                      <div className="mt-1 text-2xl font-bold text-[#2c211c]">
+                        {s.value}
+                      </div>
                     </div>
-                    <div className="mt-1 text-xl font-extrabold text-[#2c2330]">
-                      {s.value}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="mt-3 text-3xl font-extrabold text-[#2c2330]">
-                {c.value}
-              </div>
-            )}
-          </div>
-        ))}
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-5 text-3xl font-bold text-[#2c211c]">
+                  {c.value}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Section header + actions */}
       <div
-        className={`flex items-center justify-between gap-3 flex-wrap ${
-          isRTL ? "flex-row-reverse" : ""
+        className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${
+          isRTL ? "sm:flex-row-reverse" : ""
         }`}
       >
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <button
-            onClick={openAddModal}
-            className="h-11 px-4 rounded-2xl bg-[#4b2f1a] text-white text-sm font-semibold w-full sm:w-auto"
-          >
-            {t("common.addNewRecord")}
-          </button>
-
-          <button
-            disabled={selectedIds.length === 0}
-            className={`h-11 px-4 rounded-2xl text-sm font-semibold w-full sm:w-auto ${
-              selectedIds.length === 0
-                ? "bg-[#e7e2de] text-[#9a8f88]"
-                : "bg-[#d9534f] text-white"
-            }`}
-          >
-            {t("common.deleteAll")}
-          </button>
+        <div>
+          <p className="text-xs font-semibold text-[#9b8779]">
+            {locale === "ar" ? "سجل التكاثر" : "Breeding history"}
+          </p>
+          <h3 className="mt-1 text-xl font-bold text-[#2c211c]">
+            {t("reproduction.maresOverview.recordsTitle")}
+          </h3>
         </div>
 
-        <div className="text-lg font-bold text-[#2c2330] w-full sm:w-auto">
-          {t("reproduction.maresOverview.recordsTitle")}
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <button
+            disabled={selectedIds.length === 0}
+            onClick={deleteSelected}
+            className={`flex h-11 flex-1 items-center justify-center gap-2 rounded-[13px] px-4 text-sm font-bold sm:flex-none ${
+              selectedIds.length === 0
+                ? "cursor-not-allowed bg-[#eee9e5] text-[#b5aaa3]"
+                : "bg-[#fff0ed] text-[#b53d32] hover:bg-[#ffe5df]"
+            }`}
+          >
+            <Trash2 className="h-4 w-4" />
+            {t("common.deleteAll")}
+          </button>
+          <button
+            onClick={openAddModal}
+            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-[13px] bg-[#4b2f1a] px-5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(75,47,26,0.15)] hover:bg-[#3c2515] sm:flex-none"
+          >
+            <Plus className="h-[18px] w-[18px]" />
+            {t("common.addNewRecord")}
+          </button>
         </div>
       </div>
 
@@ -336,7 +385,7 @@ export default function MaresOverviewTab({
         onToggleSelect={toggleSelect}
         onToggleSelectAll={toggleSelectAll}
         onEdit={openEditModal}
-        onDelete={() => {}}
+        onDelete={deleteRow}
       />
 
       {/* NEW: Modal */}
@@ -351,16 +400,7 @@ export default function MaresOverviewTab({
         onSubmit={handleModalSubmit}
       />
 
-      {/* pagination placeholder (responsive) */}
-      <div className="flex items-center justify-center gap-2 pt-2">
-        <button className="h-9 w-9 rounded-full border bg-white">‹</button>
-        <div className="h-9 w-9 rounded-full bg-[#4b2f1a] text-white flex items-center justify-center text-sm">
-          1
-        </div>
-        <button className="h-9 w-9 rounded-full border bg-white">2</button>
-        <button className="h-9 w-9 rounded-full border bg-white">3</button>
-        <button className="h-9 w-9 rounded-full border bg-white">›</button>
-      </div>
+      <BreedingPagination direction={direction} />
     </div>
   );
 }

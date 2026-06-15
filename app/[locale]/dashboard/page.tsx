@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -8,7 +8,6 @@ import {
   Info,
   Leaf,
   Mars,
-  MoreHorizontal,
   Venus,
   X,
 } from 'lucide-react';
@@ -18,6 +17,7 @@ import { useLocale, useTranslation } from '@/lib/locale-context';
 import type {
   ActivityDto,
   ApiResult,
+  CalendarEventDto,
   DashboardDto,
   DefaultStudDto,
   PagedResponse,
@@ -77,12 +77,37 @@ function timeAgo(value: string | null, locale: string) {
   return rtf.format(-Math.round(hours / 24), 'day');
 }
 
-function getActivityTone(type: string | null) {
-  const normalized = (type ?? '').toLowerCase();
-  if (normalized.includes('health')) return 'bg-[#fff1f2] text-[#dc2626]';
-  if (normalized.includes('expense') || normalized.includes('sale')) return 'bg-[#fff7ed] text-[#b45309]';
-  if (normalized.includes('birth') || normalized.includes('horse')) return 'bg-[#eef2d5] text-[#6b6b33]';
-  return 'bg-[#f1eef6] text-[#6b5a75]';
+function getDaysInMonth(year: number, month: number) {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function getMonthStartOffset(year: number, month: number, isRTL: boolean) {
+  const day = new Date(year, month, 1).getDay();
+  return isRTL ? (day + 1) % 7 : day;
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function toDateKey(date: Date | string) {
+  const resolved = typeof date === 'string' ? new Date(date) : date;
+  return `${resolved.getFullYear()}-${String(resolved.getMonth() + 1).padStart(2, '0')}-${String(resolved.getDate()).padStart(2, '0')}`;
+}
+
+function isDarkColor(hex: string) {
+  const normalized = hex.replace('#', '');
+  if (normalized.length !== 6) return false;
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 < 145;
+}
+
+function getCalendarEventColor(event: CalendarEventDto) {
+  return event.color || '#ffe0b2';
 }
 
 function ActivityRow({
@@ -184,6 +209,11 @@ export default function DashboardPage() {
   const [activityLoading, setActivityLoading] = useState(false);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [activeView, setActiveView] = useState<ViewMode>('month');
+  const [calendarDate, setCalendarDate] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEventDto[]>([]);
   const isRTL = direction === 'rtl';
 
   async function loadActivities(pageNumber: number, pageSize = 6) {
@@ -248,25 +278,76 @@ export default function DashboardPage() {
     };
   }, [locale]);
 
-  const days = [
-    t('days.saturday'),
-    t('days.sunday'),
-    t('days.monday'),
-    t('days.tuesday'),
-    t('days.wednesday'),
-    t('days.thursday'),
-    t('days.friday'),
-  ];
+  useEffect(() => {
+    let mounted = true;
+    const from = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1);
+    const to = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0, 23, 59, 59);
 
-  const calendarWeeks = [
-    [1, 2, 3, 4, 5, 6, 7],
-    [8, 9, 10, 11, 12, 13, 14],
-    [15, 16, 17, 18, 19, 20, 21],
-    [22, 23, 24, 25, 26, 27, 28],
-    [29, 30, 31, `1 ${t('months.february')}`, 2, 3, 4],
-  ];
-  const displayDays = isRTL ? [...days].reverse() : days;
-  const displayCalendarWeeks = isRTL ? calendarWeeks.map((week) => [...week].reverse()) : calendarWeeks;
+    async function loadCalendarEvents() {
+      try {
+        const payload = await clientApiFetch<ApiResult<CalendarEventDto[]> | CalendarEventDto[]>({
+          backendPath: '/api/Calendar',
+          nextPath: '/api/calendar',
+          query: { from: from.toISOString(), to: to.toISOString(), locale },
+          locale,
+        });
+
+        if (mounted) setCalendarEvents(unwrapResult(payload) ?? []);
+      } catch {
+        if (mounted) setCalendarEvents([]);
+      }
+    }
+
+    loadCalendarEvents();
+
+    return () => {
+      mounted = false;
+    };
+  }, [calendarDate, locale]);
+
+  const displayDays = useMemo(
+    () =>
+      isRTL
+        ? [
+            t('days.saturday'),
+            t('days.sunday'),
+            t('days.monday'),
+            t('days.tuesday'),
+            t('days.wednesday'),
+            t('days.thursday'),
+            t('days.friday'),
+          ]
+        : [
+            t('days.sunday'),
+            t('days.monday'),
+            t('days.tuesday'),
+            t('days.wednesday'),
+            t('days.thursday'),
+            t('days.friday'),
+            t('days.saturday'),
+          ],
+    [isRTL, t],
+  );
+  const calendarCells = useMemo(() => {
+    const firstDay = getMonthStartOffset(calendarDate.getFullYear(), calendarDate.getMonth(), isRTL);
+    const daysInMonth = getDaysInMonth(calendarDate.getFullYear(), calendarDate.getMonth());
+    const cells: Date[] = [];
+
+    for (let i = firstDay; i > 0; i -= 1) cells.push(addDays(new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1), -i));
+    for (let day = 1; day <= daysInMonth; day += 1) cells.push(new Date(calendarDate.getFullYear(), calendarDate.getMonth(), day));
+    while (cells.length % 7 !== 0) cells.push(addDays(cells[cells.length - 1], 1));
+
+    return cells;
+  }, [calendarDate, isRTL]);
+  const calendarEventsByDay = useMemo(
+    () =>
+      calendarEvents.reduce((map, event) => {
+        const key = toDateKey(event.start);
+        map.set(key, [...(map.get(key) ?? []), event]);
+        return map;
+      }, new Map<string, CalendarEventDto[]>()),
+    [calendarEvents],
+  );
 
   const viewTabs = [
     { key: 'day' as const, label: t('calendar.viewDay') },
@@ -601,15 +682,34 @@ export default function DashboardPage() {
           <article className="rounded-2xl bg-white p-5 shadow-sm sm:p-7" dir={direction}>
             <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-2 text-[#4b2f1a]">
-                <button className="flex h-10 w-10 items-center justify-center rounded-full border border-[#4b2f1a] text-xl">
+                <button
+                  onClick={() => setCalendarDate((date) => new Date(date.getFullYear(), date.getMonth() + 1, 1))}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[#4b2f1a] text-xl"
+                >
                   <ChevronRight className="h-5 w-5" />
                 </button>
-                <button className="flex h-10 w-10 items-center justify-center rounded-full border border-[#4b2f1a] text-xl">
+                <button
+                  onClick={() => setCalendarDate((date) => new Date(date.getFullYear(), date.getMonth() - 1, 1))}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[#4b2f1a] text-xl"
+                >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
               </div>
               <div className="text-3xl font-semibold text-[#20203c]">
-                2025 <span className="font-bold">{t('months.january')}</span>
+                {calendarDate.getFullYear()} <span className="font-bold">{[
+                  t('months.january'),
+                  t('months.february'),
+                  t('months.march'),
+                  t('months.april'),
+                  t('months.may'),
+                  t('months.jun'),
+                  t('months.july'),
+                  t('months.august'),
+                  t('months.september'),
+                  t('months.october'),
+                  t('months.november'),
+                  t('months.december'),
+                ][calendarDate.getMonth()]}</span>
               </div>
               <div className="flex overflow-hidden rounded-md border border-[#4b2f1a] text-base font-semibold">
                 {viewTabs.map((tab) => (
@@ -632,15 +732,32 @@ export default function DashboardPage() {
                   {day}
                 </div>
               ))}
-              {displayCalendarWeeks.flatMap((week, weekIndex) =>
-                week.map((day, dayIndex) => {
+              {calendarCells.map((day, dayIndex) => {
+                  const dayEvents = calendarEventsByDay.get(toDateKey(day)) ?? [];
+                  const outside = day.getMonth() !== calendarDate.getMonth();
                   return (
-                    <div key={`${weekIndex}-${dayIndex}`} className="relative min-h-[105px] border-b border-s border-[#d6d0ca] p-3 sm:min-h-[145px]">
-                      <div className={`text-lg font-bold ${typeof day === 'string' ? 'text-[#c8c2bd]' : 'text-[#20203c]'}`}>{day}</div>
+                    <div key={`${toDateKey(day)}-${dayIndex}`} className="relative min-h-[105px] border-b border-s border-[#d6d0ca] p-3 sm:min-h-[145px]">
+                      <div className={`text-lg font-bold ${outside ? 'text-[#c8c2bd]' : 'text-[#20203c]'}`}>{day.getDate()}</div>
+                      <div className="mt-3 space-y-1">
+                        {dayEvents.slice(0, activeView === 'month' ? 2 : 4).map((event) => {
+                          const color = getCalendarEventColor(event);
+                          return (
+                            <div
+                              key={event.id}
+                              className="truncate rounded-md px-2 py-1 text-xs font-semibold"
+                              style={{ backgroundColor: color, color: isDarkColor(color) ? '#fff' : '#3b2f20' }}
+                            >
+                              {locale === 'ar' ? event.titleAr || event.title : event.title || event.titleAr}
+                            </div>
+                          );
+                        })}
+                        {dayEvents.length > (activeView === 'month' ? 2 : 4) && (
+                          <div className="text-xs font-semibold text-[#8c847c]">+{dayEvents.length - (activeView === 'month' ? 2 : 4)}</div>
+                        )}
+                      </div>
                     </div>
                   );
-                }),
-              )}
+                })}
             </div>
           </article>
 
@@ -649,8 +766,27 @@ export default function DashboardPage() {
               <h3 className="text-3xl font-bold text-[#4b2f1a]">{t('dashboard.event')}</h3>
               <p className="text-base text-[#c8c2bd]">{t('dashboard.dragAndDrop')}</p>
             </div>
-            <div className="flex min-h-[420px] items-center justify-center rounded-xl border border-dashed border-[#ded6ce] text-center text-lg font-semibold text-[#8c847c]">
-              {t('common.noRecordsFound')}
+            <div className="min-h-[420px] space-y-3 rounded-xl border border-dashed border-[#ded6ce] p-3">
+              {calendarEvents.length === 0 ? (
+                <div className="flex min-h-[390px] items-center justify-center text-center text-lg font-semibold text-[#8c847c]">
+                  {t('common.noRecordsFound')}
+                </div>
+              ) : (
+                calendarEvents.slice(0, 8).map((event) => {
+                  const color = getCalendarEventColor(event);
+                  return (
+                    <div key={event.id} className="rounded-xl bg-[#f8f4f0] p-3 text-start">
+                      <div className="mb-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                      <div className="text-sm font-bold text-[#4b2f1a]">
+                        {locale === 'ar' ? event.titleAr || event.title : event.title || event.titleAr}
+                      </div>
+                      <div className="mt-1 text-xs font-semibold text-[#8c847c]">
+                        {new Date(event.start).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </aside>
         </section>

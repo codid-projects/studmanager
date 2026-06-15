@@ -30,6 +30,10 @@ export function LineageFilterPicker({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   useBodyScrollLock(open);
+  const safeOptions = useMemo(
+    () => (Array.isArray(options) ? options : []),
+    [options],
+  );
 
   const label = (option: LineageNameDto) =>
     locale === "ar"
@@ -38,15 +42,15 @@ export function LineageFilterPicker({
 
   const filtered = useMemo(() => {
     const query = search.trim().toLocaleLowerCase(locale as LocaleCode);
-    if (!query) return options;
-    return options.filter((option) =>
+    if (!query) return safeOptions;
+    return safeOptions.filter((option) =>
       [option.englishName, option.arabicName].some((name) =>
         name?.toLocaleLowerCase(locale as LocaleCode).includes(query),
       ),
     );
-  }, [locale, options, search]);
+  }, [locale, safeOptions, search]);
 
-  const selectedOption = options.find((option) => label(option) === value);
+  const selectedOption = safeOptions.find((option) => label(option) === value);
   const selectedLabel = selectedOption ? label(selectedOption) : value;
 
   function close() {

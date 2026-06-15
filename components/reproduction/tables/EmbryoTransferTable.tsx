@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, Trash2 } from "lucide-react";
+import { Edit3, Trash2 } from "lucide-react";
 import { useLocale } from "@/lib/locale-context";
 
 export type EmbryoTransferRow = {
@@ -63,11 +63,11 @@ export default function EmbryoTransferTable({
   }
 
   return (
-    <div className="overflow-auto bg-white rounded-2xl shadow-sm mt-4 border border-[#f2ece7]">
-      <table className="min-w-[980px] w-full">
+    <div className="mt-4 overflow-auto rounded-[20px] border border-[#eadfd7] bg-white shadow-[0_12px_34px_rgba(75,47,26,0.05)]">
+      <table className="w-full min-w-[1080px]">
         <thead>
-          <tr className="text-sm text-white bg-[#4b2f1a] w-full">
-            <th className={`py-3 px-3 ${isRTL ? "text-right" : "text-left"}`}>
+          <tr className="w-full bg-[#4b2f1a] text-[13px] font-semibold text-white">
+            <th className={`px-4 py-4 ${isRTL ? "text-right" : "text-left"}`}>
               <input
                 type="checkbox"
                 checked={allSelected}
@@ -76,34 +76,34 @@ export default function EmbryoTransferTable({
               />
             </th>
 
-            <th className={`py-3 px-3 ${isRTL ? "text-right" : "text-left"}`}>
+            <th className={`px-4 py-4 ${isRTL ? "text-right" : "text-left"}`}>
               {headers.stallion}
             </th>
-            <th className={`py-3 px-3 ${isRTL ? "text-right" : "text-left"}`}>
+            <th className={`px-4 py-4 ${isRTL ? "text-right" : "text-left"}`}>
               {headers.futureMare}
             </th>
-            <th className={`py-3 px-3 ${isRTL ? "text-right" : "text-left"}`}>
+            <th className={`px-4 py-4 ${isRTL ? "text-right" : "text-left"}`}>
               {headers.collectionDate}
             </th>
-            <th className={`py-3 px-3 ${isRTL ? "text-right" : "text-left"}`}>
+            <th className={`px-4 py-4 ${isRTL ? "text-right" : "text-left"}`}>
               {headers.tankName}
             </th>
-            <th className={`py-3 px-3 ${isRTL ? "text-right" : "text-left"}`}>
+            <th className={`px-4 py-4 ${isRTL ? "text-right" : "text-left"}`}>
               {headers.type}
             </th>
-            <th className={`py-3 px-3 ${isRTL ? "text-right" : "text-left"}`}>
+            <th className={`px-4 py-4 ${isRTL ? "text-right" : "text-left"}`}>
               {headers.forSale}
             </th>
-            <th className={`py-3 px-3 ${isRTL ? "text-right" : "text-left"}`}>
+            <th className={`px-4 py-4 ${isRTL ? "text-right" : "text-left"}`}>
               {headers.price}
             </th>
-            <th className={`py-3 px-3 ${isRTL ? "text-right" : "text-left"}`}>
+            <th className={`px-4 py-4 ${isRTL ? "text-right" : "text-left"}`}>
               {headers.canister}
             </th>
-            <th className={`py-3 px-3 ${isRTL ? "text-right" : "text-left"}`}>
+            <th className={`px-4 py-4 ${isRTL ? "text-right" : "text-left"}`}>
               {headers.color}
             </th>
-            <th className={`py-3 px-3 ${isRTL ? "text-right" : "text-left"}`}>
+            <th className={`px-4 py-4 ${isRTL ? "text-right" : "text-left"}`}>
               {headers.actions}
             </th>
           </tr>
@@ -111,8 +111,8 @@ export default function EmbryoTransferTable({
 
         <tbody>
           {rows.map((row) => (
-            <tr key={row.id} className="border-t last:border-b bg-white">
-              <td className="py-3 px-3">
+            <tr key={row.id} className="border-t border-[#f1e9e3] bg-white transition hover:bg-[#fdfaf7]">
+              <td className="px-4 py-4">
                 <input
                   type="checkbox"
                   checked={selectedIds.includes(row.id)}
@@ -121,28 +121,28 @@ export default function EmbryoTransferTable({
                 />
               </td>
 
-              <td className="py-3 px-3 text-sm text-[#2c2330]">
+              <td className="px-4 py-4 text-sm font-semibold text-[#352821]">
                 {row.stallion}
               </td>
-              <td className="py-3 px-3 text-sm text-[#2c2330]">
+              <td className="px-4 py-4 text-sm font-semibold text-[#352821]">
                 {row.futureMare}
               </td>
-              <td className="py-3 px-3 text-sm text-[#2c2330]">
+              <td className="px-4 py-4 text-sm text-[#75675f]">
                 {row.collectionDate}
               </td>
-              <td className="py-3 px-3 text-sm text-[#2c2330]">
+              <td className="px-4 py-4 text-sm text-[#75675f]">
                 {row.tankName}
               </td>
-              <td className="py-3 px-3 text-sm text-[#2c2330]">{row.type}</td>
-              <td className="py-3 px-3 text-sm text-[#2c2330]">
+              <td className="px-4 py-4 text-sm text-[#75675f]">{row.type}</td>
+              <td className="px-4 py-4 text-sm text-[#75675f]">
                 {row.forSale}
               </td>
-              <td className="py-3 px-3 text-sm text-[#2c2330]">{row.price}</td>
-              <td className="py-3 px-3 text-sm text-[#2c2330]">
+              <td className="px-4 py-4 text-sm font-semibold text-[#55443b]">{row.price}</td>
+              <td className="px-4 py-4 text-sm text-[#75675f]">
                 {row.canister}
               </td>
 
-              <td className="py-3 px-3">
+              <td className="px-4 py-4">
                 <div className="flex items-center justify-center">
                   <span
                     className={`inline-block h-3 w-3 rounded-full ${dotClass(row.color)}`}
@@ -152,19 +152,19 @@ export default function EmbryoTransferTable({
               </td>
 
               <td
-                className={`py-3 px-3 flex gap-2 justify-end ${
+                className={`flex justify-end gap-2 px-4 py-4 ${
                   isRTL ? "flex-row-reverse" : ""
                 }`}
               >
                 <button
-                  className="p-2 rounded-lg bg-white border border-[#e8e2dd]"
+                  className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#e6dad2] bg-white hover:bg-[#f8f2ed]"
                   aria-label={t("common.edit")}
                   onClick={() => onEdit(row)}
                 >
-                  <Edit className="h-4 w-4 text-[#6b584f]" />
+                  <Edit3 className="h-4 w-4 text-[#6b584f]" />
                 </button>
                 <button
-                  className="p-2 rounded-lg bg-white border border-[#e8e2dd]"
+                  className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#f0d8d3] bg-[#fff8f6] hover:bg-[#fff0ed]"
                   aria-label={t("common.delete")}
                   onClick={() => onDelete(row)}
                 >

@@ -1,7 +1,18 @@
 import type { CreateHorsePayload, UploadFilePayload } from './types';
 
-export const appendValue = (formData: FormData, key: string, value: unknown) => {
-  if (value === undefined || value === null || value === '') return;
+export const appendValue = (
+  formData: FormData,
+  key: string,
+  value: unknown,
+  options: { includeEmptyStrings?: boolean } = {},
+) => {
+  if (
+    value === undefined ||
+    value === null ||
+    (value === '' && !options.includeEmptyStrings)
+  ) {
+    return;
+  }
 
   if (typeof value === 'boolean') {
     formData.append(key, value ? 'true' : 'false');
@@ -45,59 +56,62 @@ function formatDateOnly(value?: string) {
   return date.toISOString().slice(0, 10);
 }
 
-export const buildCreateHorseFormData = (payload: CreateHorsePayload) => {
+export const buildCreateHorseFormData = (
+  payload: CreateHorsePayload,
+  options: { includeEmptyStrings?: boolean } = {},
+) => {
   const formData = new FormData();
 
-  appendValue(formData, 'EnglishName', payload.EnglishName);
-  appendValue(formData, 'ArabicName', payload.ArabicName);
-  appendValue(formData, 'KnownAs', payload.KnownAs);
+  appendValue(formData, 'EnglishName', payload.EnglishName, options);
+  appendValue(formData, 'ArabicName', payload.ArabicName, options);
+  appendValue(formData, 'KnownAs', payload.KnownAs, options);
   appendFile(formData, 'HorseProfileImage', payload.HorseProfileImage);
-  appendValue(formData, 'ClearHorseProfileImage', payload.ClearHorseProfileImage);
+  appendValue(formData, 'ClearHorseProfileImage', payload.ClearHorseProfileImage, options);
 
-  appendValue(formData, 'StrainEn', payload.StrainEn);
-  appendValue(formData, 'StrainAr', payload.StrainAr);
-  appendValue(formData, 'SpecialEn', payload.SpecialEn);
-  appendValue(formData, 'SpecialAr', payload.SpecialAr);
+  appendValue(formData, 'StrainEn', payload.StrainEn, options);
+  appendValue(formData, 'StrainAr', payload.StrainAr, options);
+  appendValue(formData, 'SpecialEn', payload.SpecialEn, options);
+  appendValue(formData, 'SpecialAr', payload.SpecialAr, options);
 
-  appendValue(formData, 'DateofBirth', formatDateOnly(payload.DateofBirth));
-  appendValue(formData, 'Gender', payload.Gender);
-  appendValue(formData, 'BornIn', payload.BornIn);
-  appendValue(formData, 'CurrentlyIn', payload.CurrentlyIn);
-  appendValue(formData, 'Color', payload.Color);
-  appendValue(formData, 'Height', payload.Height);
+  appendValue(formData, 'DateofBirth', formatDateOnly(payload.DateofBirth), options);
+  appendValue(formData, 'Gender', payload.Gender, options);
+  appendValue(formData, 'BornIn', payload.BornIn, options);
+  appendValue(formData, 'CurrentlyIn', payload.CurrentlyIn, options);
+  appendValue(formData, 'Color', payload.Color, options);
+  appendValue(formData, 'Height', payload.Height, options);
 
-  appendValue(formData, 'AdditionalInformation', payload.AdditionalInformation);
-  appendValue(formData, 'FaceSpecialMarkings', payload.FaceSpecialMarkings);
-  appendValue(formData, 'FrontRightLeg', payload.FrontRightLeg);
-  appendValue(formData, 'FrontLeftLeg', payload.FrontLeftLeg);
-  appendValue(formData, 'BackRightLeg', payload.BackRightLeg);
-  appendValue(formData, 'BackLeftLeg', payload.BackLeftLeg);
-  appendValue(formData, 'SpecialNotes', payload.SpecialNotes);
+  appendValue(formData, 'AdditionalInformation', payload.AdditionalInformation, options);
+  appendValue(formData, 'FaceSpecialMarkings', payload.FaceSpecialMarkings, options);
+  appendValue(formData, 'FrontRightLeg', payload.FrontRightLeg, options);
+  appendValue(formData, 'FrontLeftLeg', payload.FrontLeftLeg, options);
+  appendValue(formData, 'BackRightLeg', payload.BackRightLeg, options);
+  appendValue(formData, 'BackLeftLeg', payload.BackLeftLeg, options);
+  appendValue(formData, 'SpecialNotes', payload.SpecialNotes, options);
 
-  appendValue(formData, 'RegistrationNumber', payload.RegistrationNumber);
-  appendValue(formData, 'MicrochipID', payload.MicrochipID);
-  appendValue(formData, 'UELNNumber', payload.UELNNumber);
-  appendValue(formData, 'InternationalFEIRegistrationNumber', payload.InternationalFEIRegistrationNumber);
-  appendValue(formData, 'NationalSportRegistrationNumber', payload.NationalSportRegistrationNumber);
-  appendValue(formData, 'PassportNumber', payload.PassportNumber);
+  appendValue(formData, 'RegistrationNumber', payload.RegistrationNumber, options);
+  appendValue(formData, 'MicrochipID', payload.MicrochipID, options);
+  appendValue(formData, 'UELNNumber', payload.UELNNumber, options);
+  appendValue(formData, 'InternationalFEIRegistrationNumber', payload.InternationalFEIRegistrationNumber, options);
+  appendValue(formData, 'NationalSportRegistrationNumber', payload.NationalSportRegistrationNumber, options);
+  appendValue(formData, 'PassportNumber', payload.PassportNumber, options);
 
   payload.Images?.forEach((image) => appendFile(formData, 'Images', image));
   payload.NewImages?.forEach((image) => appendFile(formData, 'NewImages', image));
-  payload.RemoveImageIds?.forEach((id) => appendValue(formData, 'RemoveImageIds', id));
-  payload.Videos?.forEach((video) => appendValue(formData, 'Videos', video));
-  payload.NewVideos?.forEach((video) => appendValue(formData, 'NewVideos', video));
-  payload.RemoveVideoIds?.forEach((id) => appendValue(formData, 'RemoveVideoIds', id));
+  payload.RemoveImageIds?.forEach((id) => appendValue(formData, 'RemoveImageIds', id, options));
+  payload.Videos?.forEach((video) => appendValue(formData, 'Videos', video, options));
+  payload.NewVideos?.forEach((video) => appendValue(formData, 'NewVideos', video, options));
+  payload.RemoveVideoIds?.forEach((id) => appendValue(formData, 'RemoveVideoIds', id, options));
 
-  appendValue(formData, 'HorseFatherStudbookId', payload.HorseFatherStudbookId);
-  appendValue(formData, 'HorseMotherStudbookId', payload.HorseMotherStudbookId);
-  appendValue(formData, 'OwnerStudbookId', payload.OwnerStudbookId);
-  appendValue(formData, 'BreederStudbookId', payload.BreederStudbookId);
+  appendValue(formData, 'HorseFatherStudbookId', payload.HorseFatherStudbookId, options);
+  appendValue(formData, 'HorseMotherStudbookId', payload.HorseMotherStudbookId, options);
+  appendValue(formData, 'OwnerStudbookId', payload.OwnerStudbookId, options);
+  appendValue(formData, 'BreederStudbookId', payload.BreederStudbookId, options);
 
-  appendValue(formData, 'IsStallion', payload.IsStallion);
-  appendValue(formData, 'IsMare', payload.IsMare);
-  appendValue(formData, 'IsStrain', payload.IsStrain);
-  appendValue(formData, 'IsSpecial', payload.IsSpecial);
-  appendValue(formData, 'Box', payload.Box);
+  appendValue(formData, 'IsStallion', payload.IsStallion, options);
+  appendValue(formData, 'IsMare', payload.IsMare, options);
+  appendValue(formData, 'IsStrain', payload.IsStrain, options);
+  appendValue(formData, 'IsSpecial', payload.IsSpecial, options);
+  appendValue(formData, 'Box', payload.Box, options);
 
   return formData;
 };

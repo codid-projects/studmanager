@@ -3,6 +3,7 @@ import type {
   ApiResult,
   CreateHorsePayload,
   HorseInfoDto,
+  HousingMapDto,
   HorseListItemDto,
   HorseRatingPayload,
   HorseRatingResponse,
@@ -173,6 +174,28 @@ export async function saveHorseRating(localId: string | number, rating: HorseRat
     { method: 'PUT', body: rating },
   );
   return unwrapResult(payload);
+}
+
+export async function getHousingMap(query?: {
+  mapKey?: string | null;
+  entityType?: string | null;
+  entityId?: string | number | null;
+}) {
+  const payload = await apiFetch<ApiResult<HousingMapDto>>('/api/Housing/map', {
+    query,
+  });
+  return unwrapResult(payload);
+}
+
+export async function assignHorseToHousing(
+  localId: string | number,
+  box: string,
+) {
+  return apiFetch<ApiResult<never>>(`/api/Horses/${localId}/assign-box`, {
+    method: 'POST',
+    query: { box },
+    body: {},
+  });
 }
 
 export async function getHorseOffsprings(localId: string | number, pageNumber = 1, pageSize = 15) {

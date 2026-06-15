@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, Trash2 } from "lucide-react";
+import { Edit3, Trash2 } from "lucide-react";
 import { useLocale } from "@/lib/locale-context";
 
 export type RecordItem = {
@@ -40,13 +40,13 @@ export default function ReproductionRecordsTable({
   return (
     <div className="mt-4">
       <div
-        className="w-full max-w-full overflow-x-auto overflow-y-hidden rounded-xl bg-white shadow-sm overscroll-x-contain"
+        className="w-full max-w-full overflow-x-auto overflow-y-hidden rounded-[20px] border border-[#eadfd7] bg-white shadow-[0_12px_34px_rgba(75,47,26,0.05)] overscroll-x-contain"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
         <table className="w-full min-w-[820px]">
           <thead>
-            <tr className="text-sm text-white bg-[#4b2f1a]">
-              <th className="py-3 px-3 text-start whitespace-nowrap">
+            <tr className="bg-[#4b2f1a] text-[13px] font-semibold text-white">
+              <th className="px-4 py-4 text-start whitespace-nowrap">
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -54,22 +54,22 @@ export default function ReproductionRecordsTable({
                   aria-label="select all"
                 />
               </th>
-              <th className="py-3 px-3 text-start whitespace-nowrap">
+              <th className="px-4 py-4 text-start whitespace-nowrap">
                 {locale === "ar" ? "الفرس المستقبلية" : "Future Horse"}
               </th>
-              <th className="py-3 px-3 text-start whitespace-nowrap">
+              <th className="px-4 py-4 text-start whitespace-nowrap">
                 {t("performance.date")}
               </th>
-              <th className="py-3 px-3 text-start whitespace-nowrap">
+              <th className="px-4 py-4 text-start whitespace-nowrap">
                 {locale === "ar" ? "النتائج الأولية" : "Results"}
               </th>
-              <th className="py-3 px-3 text-start whitespace-nowrap">
+              <th className="px-4 py-4 text-start whitespace-nowrap">
                 {t("performance.cost")}
               </th>
-              <th className="py-3 px-3 text-start whitespace-nowrap">
+              <th className="px-4 py-4 text-start whitespace-nowrap">
                 {locale === "ar" ? "المكان" : "Location"}
               </th>
-              <th className="py-3 px-3 text-start whitespace-nowrap">
+              <th className="px-4 py-4 text-start whitespace-nowrap">
                 {t("common.actions")}
               </th>
             </tr>
@@ -77,8 +77,8 @@ export default function ReproductionRecordsTable({
 
           <tbody className={isRTL ? "text-right" : "text-left"}>
             {rows.map((row) => (
-              <tr key={row.id} className="border-t last:border-b">
-                <td className="py-3 px-3 whitespace-nowrap">
+              <tr key={row.id} className="border-t border-[#f1e9e3] transition hover:bg-[#fdfaf7]">
+                <td className="px-4 py-4 whitespace-nowrap">
                   <input
                     type="checkbox"
                     checked={selectedIds.includes(row.id)}
@@ -87,38 +87,46 @@ export default function ReproductionRecordsTable({
                   />
                 </td>
 
-                <td className="py-3 px-3 text-sm whitespace-nowrap">
+                <td className="px-4 py-4 text-sm font-semibold text-[#352821] whitespace-nowrap">
                   {row.horse}
                 </td>
-                <td className="py-3 px-3 text-sm whitespace-nowrap">
+                <td className="px-4 py-4 text-sm text-[#75675f] whitespace-nowrap">
                   {row.dob || ""}
                 </td>
-                <td className="py-3 px-3 text-sm whitespace-nowrap">
-                  {row.results || (locale === "ar" ? "النتائج الأولية" : "—")}
+                <td className="px-4 py-4 text-sm whitespace-nowrap">
+                  <span
+                    className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+                      /فشل|fail/i.test(row.results || "")
+                        ? "bg-[#fff0ed] text-[#bd4a3e]"
+                        : "bg-[#eef7ef] text-[#478253]"
+                    }`}
+                  >
+                    {row.results || (locale === "ar" ? "النتائج الأولية" : "Pending")}
+                  </span>
                 </td>
-                <td className="py-3 px-3 text-sm whitespace-nowrap">
+                <td className="px-4 py-4 text-sm font-semibold text-[#55443b] whitespace-nowrap">
                   {row.price || ""}
                 </td>
-                <td className="py-3 px-3 text-sm whitespace-nowrap">
+                <td className="px-4 py-4 text-sm text-[#75675f] whitespace-nowrap">
                   {row.location || ""}
                 </td>
 
                 <td
-                  className={`py-3 px-3 whitespace-nowrap ${isRTL ? "text-left" : "text-right"}`}
+                  className={`px-4 py-4 whitespace-nowrap ${isRTL ? "text-left" : "text-right"}`}
                 >
                   <div
                     className={`flex gap-2 ${isRTL ? "justify-start flex-row-reverse" : "justify-end"}`}
                   >
                     <button
-                      className="p-2 rounded-lg bg-white border"
+                      className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#e6dad2] bg-white transition hover:bg-[#f8f2ed]"
                       aria-label={t("common.edit")}
                       onClick={() => onEdit(row)}
                     >
-                      <Edit className="h-4 w-4 text-[#6b584f]" />
+                      <Edit3 className="h-4 w-4 text-[#6b584f]" />
                     </button>
                     <button
                       onClick={() => onDelete(row)}
-                      className="p-2 rounded-lg bg-white border text-red-600"
+                      className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#f0d8d3] bg-[#fff8f6] text-[#c34c40] transition hover:bg-[#fff0ed]"
                       aria-label={t("common.delete")}
                     >
                       <Trash2 className="h-4 w-4" />
