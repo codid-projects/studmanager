@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Calculator } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { Calculator, X } from "lucide-react";
 import { useTranslation } from "@/lib/locale-context";
 import { DEFAULT_NUTRITION_FORM } from "@/lib/nutrition-assistant/formDefaults";
 import { calculateNutrientRequirements } from "@/lib/nutrition-assistant/nutrientCalculator";
 import { toMetricInput, validateNutritionForm } from "@/lib/nutrition-assistant/nutritionValidation";
 import { kgToDisplay, weightToKg } from "@/lib/nutrition-assistant/unitConversions";
 import type { FormErrors, NutritionFormValues, NutritionResult } from "@/lib/nutrition-assistant/types";
+import { FeedMixBuilder } from "./FeedMixBuilder";
 import { NutritionInputForm } from "./NutritionInputForm";
 import { NutritionResultReport } from "./NutritionResultReport";
 
@@ -17,6 +19,24 @@ export function NutritionAssistant() {
   const [values, setValues] = useState<NutritionFormValues>(DEFAULT_NUTRITION_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [result, setResult] = useState<NutritionResult | null>(null);
+  const [resultOpen, setResultOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!resultOpen) return;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [resultOpen]);
 
   function updateValue<K extends keyof NutritionFormValues>(key: K, value: NutritionFormValues[K]) {
     setValues((current) => {
@@ -35,7 +55,10 @@ export function NutritionAssistant() {
       };
     });
     setErrors((current) => ({ ...current, [key]: undefined }));
-    if (key !== "unitSystem") setResult(null);
+    if (key !== "unitSystem") {
+      setResult(null);
+      setResultOpen(false);
+    }
   }
 
   function submit(event: React.FormEvent) {
@@ -44,12 +67,14 @@ export function NutritionAssistant() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
     setResult(calculateNutrientRequirements(toMetricInput(values)));
+    setResultOpen(true);
   }
 
   function reset() {
     setValues(DEFAULT_NUTRITION_FORM);
     setErrors({});
     setResult(null);
+    setResultOpen(false);
   }
 
   return (
@@ -68,9 +93,34 @@ export function NutritionAssistant() {
         </div>
         <div className="p-6 sm:p-8">
           <NutritionInputForm values={values} errors={errors} t={t} onChange={updateValue} onSubmit={submit} onReset={reset} />
+          <FeedMixBuilder result={result} t={t} />
         </div>
       </section>
-      {result && <NutritionResultReport result={result} unitSystem={values.unitSystem} t={t} />}
+      {mounted && result && resultOpen ? createPortal(
+        <div
+          className="fixed inset-0 z-[2147483640] flex items-start justify-center overflow-y-auto overscroll-contain bg-[#1a120d]/55 p-3 pt-4 sm:p-5 sm:pt-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("reportTitle")}
+          onMouseDown={() => setResultOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-5xl rounded-[2rem] bg-white shadow-2xl"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setResultOpen(false)}
+              className="fixed right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#3b2b20] shadow-md ring-1 ring-[#eadfd7] hover:bg-[#faf6f2]"
+              aria-label={t("close")}
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <NutritionResultReport result={result} unitSystem={values.unitSystem} t={t} />
+          </div>
+        </div>,
+        document.body,
+      ) : null}
     </div>
   );
 }

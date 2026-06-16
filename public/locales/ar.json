@@ -270,7 +270,50 @@
     "eventName": "اسم العنصر",
     "viewDay": "يوم",
     "viewWeek": "أسبوع",
-    "viewMonth": "شهر"
+    "viewMonth": "شهر",
+    "events": "أحداث",
+    "addEvent": "إضافة حدث",
+    "editEvent": "تعديل حدث",
+    "titleEn": "العنوان بالإنجليزية",
+    "titleAr": "العنوان بالعربية",
+    "descriptionEn": "الوصف بالإنجليزية",
+    "descriptionAr": "الوصف بالعربية",
+    "allDay": "طوال اليوم",
+    "color": "اللون",
+    "types": {
+      "general": "عام",
+      "nutrition": "تغذية",
+      "ovulationExamination": "فحص تبويض",
+      "mareBreedingSoundness": "فحص جاهزية الفرس"
+    }
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "markAllRead": "تحديد الكل كمقروء",
+    "empty": "لا توجد إشعارات",
+    "newActivity": "نشاط جديد",
+    "defaultBody": "تم تسجيل نشاط جديد.",
+    "types": {
+      "horseAdded": "إضافة خيل",
+      "horseUpdated": "تحديث خيل",
+      "horseDeleted": "حذف خيل",
+      "nutritionRecordAdded": "إضافة سجل تغذية",
+      "nutritionRecordUpdated": "تحديث سجل تغذية",
+      "nutritionRecordDeleted": "حذف سجل تغذية",
+      "nutritionNotification": "تنبيه تغذية",
+      "ovulationExaminationAdded": "إضافة فحص تبويض",
+      "ovulationExaminationUpdated": "تحديث فحص تبويض",
+      "ovulationExaminationDeleted": "حذف فحص تبويض",
+      "mareBreedingSoundnessAdded": "إضافة فحص جاهزية الفرس",
+      "mareBreedingSoundnessUpdated": "تحديث فحص جاهزية الفرس",
+      "mareBreedingSoundnessDeleted": "حذف فحص جاهزية الفرس"
+    },
+    "entities": {
+      "horse": "الخيل",
+      "nutritionRecord": "سجل التغذية",
+      "ovulationExamination": "فحص التبويض",
+      "mareBreedingSoundness": "فحص جاهزية الفرس"
+    }
   },
   "reports": {
     "title": "التقارير",
@@ -782,10 +825,10 @@
   "nutritionAssistant": {
     "title": "مساعد التغذية",
     "subtitle": "حساب الاحتياجات الغذائية اليومية للحصان",
-    "unitSystem": "نظام الوحدات",
+    "unitSystem": "وحدة الوزن",
     "units": {
-      "metric": "متري / كيلوغرام",
-      "imperial": "أفوردوبوا / رطل"
+      "metric": "كيلوغرام",
+      "imperial": "رطل"
     },
     "activity": "نشاط الحصان",
     "activities": {
@@ -806,6 +849,16 @@
       "dailyGain": "متوسط الزيادة اليومية",
       "inTraining": "الحصان في التدريب"
     },
+    "hints": {
+      "bodyWeight": "اكتب الوزن التقريبي الحالي للحصان. إذا كان الرقم تقديريًا يمكن تعديله لاحقًا.",
+      "workIntensity": "اختر أقرب مستوى للعمل اليومي أو التدريب.",
+      "lactationMonth": "اكتب شهر الرضاعة الحالي حسب حالة الفرس.",
+      "gestationMonth": "اكتب شهر الحمل الحالي حسب المتابعة البيطرية.",
+      "matureWeight": "اكتب الوزن المتوقع عند اكتمال النمو إذا كان الحصان صغيرًا.",
+      "ageMonths": "اكتب عمر الحصان بالأشهر لنتيجة أدق.",
+      "dailyGain": "اكتب الزيادة اليومية التقريبية في الوزن، ويمكن تركها صفر إذا لا توجد زيادة مستهدفة.",
+      "inTraining": "اختر نعم إذا كان الحصان الصغير يدخل تدريبًا منتظمًا."
+    },
     "intensities": {
       "light": "خفيف",
       "moderate": "متوسط",
@@ -816,6 +869,7 @@
     "day": "يوم",
     "calculate": "احسب",
     "reset": "إعادة ضبط",
+    "close": "إغلاق",
     "print": "طباعة التقرير",
     "reportTitle": "تقرير الاحتياجات الغذائية",
     "dailyRequirements": "الاحتياجات اليومية",
@@ -830,12 +884,30 @@
       "basis": "التركيز / الأساس"
     },
     "validation": {
-      "bodyWeight": "وزن الجسم خارج النطاق المتوقع، أعد إدخال البيانات.",
-      "gestationMonth": "شهر الحمل خارج النطاق المتوقع، أعد إدخال البيانات.",
-      "lactationMonth": "شهر الرضاعة خارج النطاق المتوقع، أعد إدخال البيانات.",
-      "matureWeight": "الوزن المتوقع عند البلوغ غير صالح، أعد إدخال البيانات.",
-      "age": "العمر خارج نطاق الخيول الصغيرة، أعد إدخال البيانات.",
-      "dailyGain": "متوسط الزيادة اليومية خارج النطاق المتوقع، أعد إدخال البيانات."
+      "bodyWeight": "اكتب وزنًا صحيحًا للحصان.",
+      "gestationMonth": "اكتب شهر حمل صحيحًا.",
+      "lactationMonth": "اكتب شهر رضاعة صحيحًا.",
+      "matureWeight": "اكتب وزن البلوغ المتوقع بشكل صحيح.",
+      "age": "اكتب العمر بالأشهر بشكل صحيح.",
+      "dailyGain": "اكتب متوسط الزيادة اليومية بشكل صحيح."
+    },
+    "feedBuilder": {
+      "title": "مكونات العليقة",
+      "subtitle": "أدخل مكونات أو أطعمة العليقة اليومية بالكيلوغرام، وسيحسب التطبيق تقدير البروتين والطاقة ويقارنها بالاحتياج بعد الحساب.",
+      "searchPlaceholder": "ابحث عن مكون مثل شعير، ذرة، نخالة، برسيم...",
+      "ingredient": "المكون",
+      "amount": "الكمية",
+      "amountPlaceholder": "كجم / يوم",
+      "add": "إضافة مكون",
+      "remove": "حذف المكون",
+      "totalKg": "إجمالي الكمية",
+      "dryMatter": "المادة الجافة",
+      "protein": "البروتين الخام",
+      "energy": "الطاقة القابلة للهضم",
+      "calculateHint": "احسب الاحتياج للمقارنة",
+      "ofNeed": "من الاحتياج",
+      "sourceNote": "الأرقام تقديرية من بيانات المكونات والخلطات المتاحة، وتستخدم للمقارنة والتخطيط فقط.",
+      "selectedPrefix": "المكونات المختارة:"
     },
     "nutrients": {
       "dryMatter": "استهلاك المادة الجافة",

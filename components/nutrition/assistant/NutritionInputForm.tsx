@@ -27,39 +27,39 @@ export function NutritionInputForm({ values, errors, t, onChange, onSubmit, onRe
       <UnitSelector value={values.unitSystem} onChange={(value) => onChange("unitSystem", value)} t={t} />
       <ActivitySelector value={values.activity} onChange={(value) => onChange("activity", value)} t={t} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label={t("fields.bodyWeight")} unit={unit} error={errorText("bodyWeight")}>
-          <input className={inputClass} type="number" min="0" step="0.1" value={values.bodyWeight} onChange={(e) => onChange("bodyWeight", e.target.value)} />
+        <FormField label={t("fields.bodyWeight")} unit={unit} error={errorText("bodyWeight")} hint={t("hints.bodyWeight")}>
+          <input className={inputClass} type="number" step="0.1" value={values.bodyWeight} onChange={(e) => onChange("bodyWeight", e.target.value)} />
         </FormField>
 
         {values.activity === "working" && (
-          <FormField label={t("fields.workIntensity")}>
+          <FormField label={t("fields.workIntensity")} hint={t("hints.workIntensity")}>
             <select className={inputClass} value={values.workIntensity} onChange={(e) => onChange("workIntensity", e.target.value as NutritionFormValues["workIntensity"])}>
               {WORK_INTENSITIES.map((level) => <option key={level} value={level}>{t(`intensities.${level}`)}</option>)}
             </select>
           </FormField>
         )}
         {values.activity === "lactating" && (
-          <FormField label={t("fields.lactationMonth")} error={errorText("lactationMonth")}>
-            <input className={inputClass} type="number" min="1" max="6" value={values.lactationMonth} onChange={(e) => onChange("lactationMonth", e.target.value)} />
+          <FormField label={t("fields.lactationMonth")} error={errorText("lactationMonth")} hint={t("hints.lactationMonth")}>
+            <input className={inputClass} type="number" value={values.lactationMonth} onChange={(e) => onChange("lactationMonth", e.target.value)} />
           </FormField>
         )}
         {values.activity === "pregnant" && (
-          <FormField label={t("fields.gestationMonth")} error={errorText("gestationMonth")}>
-            <input className={inputClass} type="number" min="1" max="11" value={values.gestationMonth} onChange={(e) => onChange("gestationMonth", e.target.value)} />
+          <FormField label={t("fields.gestationMonth")} error={errorText("gestationMonth")} hint={t("hints.gestationMonth")}>
+            <input className={inputClass} type="number" value={values.gestationMonth} onChange={(e) => onChange("gestationMonth", e.target.value)} />
           </FormField>
         )}
         {values.activity === "growing" && (
           <>
-            <FormField label={t("fields.matureWeight")} unit={unit} error={errorText("matureWeight")}>
-              <input className={inputClass} type="number" min="0" step="0.1" value={values.matureWeight} onChange={(e) => onChange("matureWeight", e.target.value)} />
+            <FormField label={t("fields.matureWeight")} unit={unit} error={errorText("matureWeight")} hint={t("hints.matureWeight")}>
+              <input className={inputClass} type="number" step="0.1" value={values.matureWeight} onChange={(e) => onChange("matureWeight", e.target.value)} />
             </FormField>
-            <FormField label={t("fields.ageMonths")} error={errorText("ageMonths")}>
-              <input className={inputClass} type="number" min="0" value={values.ageMonths} onChange={(e) => onChange("ageMonths", e.target.value)} />
+            <FormField label={t("fields.ageMonths")} error={errorText("ageMonths")} hint={t("hints.ageMonths")}>
+              <input className={inputClass} type="number" value={values.ageMonths} onChange={(e) => onChange("ageMonths", e.target.value)} />
             </FormField>
-            <FormField label={t("fields.dailyGain")} unit={`${unit}/${t("day")}`} error={errorText("averageDailyGain")}>
-              <input className={inputClass} type="number" min="0" step="0.01" value={values.averageDailyGain} onChange={(e) => onChange("averageDailyGain", e.target.value)} />
+            <FormField label={t("fields.dailyGain")} unit={`${unit}/${t("day")}`} error={errorText("averageDailyGain")} hint={t("hints.dailyGain")}>
+              <input className={inputClass} type="number" step="0.01" value={values.averageDailyGain} onChange={(e) => onChange("averageDailyGain", e.target.value)} />
             </FormField>
-            <FormField label={t("fields.inTraining")}>
+            <FormField label={t("fields.inTraining")} hint={t("hints.inTraining")}>
               <select className={inputClass} value={values.inTraining ? "yes" : "no"} onChange={(e) => onChange("inTraining", e.target.value === "yes")}>
                 <option value="no">{t("no")}</option>
                 <option value="yes">{t("yes")}</option>

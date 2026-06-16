@@ -2,15 +2,6 @@ import type { HorseActivity, WorkIntensity } from "./types";
 
 export const KG_PER_LB = 0.45359237;
 
-export const VALIDATION_RANGES = {
-  bodyWeightKg: { min: 100, max: 1200 },
-  gestationMonth: { min: 1, max: 11 },
-  lactationMonth: { min: 1, max: 6 },
-  ageMonths: { min: 4, max: 36 },
-  matureWeightKg: { min: 250, max: 1200 },
-  averageDailyGainKg: { min: 0.05, max: 2 },
-} as const;
-
 export const ACTIVITY_OPTIONS: HorseActivity[] = [
   "maintenance",
   "stallion",

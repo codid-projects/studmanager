@@ -1,54 +1,33 @@
-import { VALIDATION_RANGES } from "./constants";
 import { weightToKg } from "./unitConversions";
 import type { FormErrors, MetricHorseInput, NutritionFormValues } from "./types";
 
 const numberValue = (value: string) => Number(value);
-const inRange = (value: number, min: number, max: number) =>
-  Number.isFinite(value) && value >= min && value <= max;
+const isUsableNumber = (value: number) => Number.isFinite(value) && value > 0;
+const isUsableGain = (value: number) => Number.isFinite(value) && value >= 0;
 
 export function validateNutritionForm(values: NutritionFormValues): FormErrors {
   const errors: FormErrors = {};
   const bodyWeightKg = weightToKg(numberValue(values.bodyWeight), values.unitSystem);
 
-  if (!inRange(bodyWeightKg, VALIDATION_RANGES.bodyWeightKg.min, VALIDATION_RANGES.bodyWeightKg.max)) {
+  if (!isUsableNumber(bodyWeightKg)) {
     errors.bodyWeight = "validation.bodyWeight";
   }
-  if (values.activity === "pregnant" && !inRange(
-    numberValue(values.gestationMonth),
-    VALIDATION_RANGES.gestationMonth.min,
-    VALIDATION_RANGES.gestationMonth.max,
-  )) {
+  if (values.activity === "pregnant" && !isUsableNumber(numberValue(values.gestationMonth))) {
     errors.gestationMonth = "validation.gestationMonth";
   }
-  if (values.activity === "lactating" && !inRange(
-    numberValue(values.lactationMonth),
-    VALIDATION_RANGES.lactationMonth.min,
-    VALIDATION_RANGES.lactationMonth.max,
-  )) {
+  if (values.activity === "lactating" && !isUsableNumber(numberValue(values.lactationMonth))) {
     errors.lactationMonth = "validation.lactationMonth";
   }
   if (values.activity === "growing") {
     const matureWeightKg = weightToKg(numberValue(values.matureWeight), values.unitSystem);
-    if (!inRange(
-      matureWeightKg,
-      VALIDATION_RANGES.matureWeightKg.min,
-      VALIDATION_RANGES.matureWeightKg.max,
-    ) || matureWeightKg < bodyWeightKg) {
+    if (!isUsableNumber(matureWeightKg)) {
       errors.matureWeight = "validation.matureWeight";
     }
-    if (!inRange(
-      numberValue(values.ageMonths),
-      VALIDATION_RANGES.ageMonths.min,
-      VALIDATION_RANGES.ageMonths.max,
-    )) {
+    if (!isUsableNumber(numberValue(values.ageMonths))) {
       errors.ageMonths = "validation.age";
     }
     const gainKg = weightToKg(numberValue(values.averageDailyGain), values.unitSystem);
-    if (!inRange(
-      gainKg,
-      VALIDATION_RANGES.averageDailyGainKg.min,
-      VALIDATION_RANGES.averageDailyGainKg.max,
-    )) {
+    if (!isUsableGain(gainKg)) {
       errors.averageDailyGain = "validation.dailyGain";
     }
   }

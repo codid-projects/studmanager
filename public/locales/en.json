@@ -270,7 +270,50 @@
     "eventName": "Event Name",
     "viewDay": "Day",
     "viewWeek": "Week",
-    "viewMonth": "Month"
+    "viewMonth": "Month",
+    "events": "events",
+    "addEvent": "Add event",
+    "editEvent": "Edit event",
+    "titleEn": "English title",
+    "titleAr": "Arabic title",
+    "descriptionEn": "English description",
+    "descriptionAr": "Arabic description",
+    "allDay": "All day",
+    "color": "Color",
+    "types": {
+      "general": "General",
+      "nutrition": "Nutrition",
+      "ovulationExamination": "Ovulation examination",
+      "mareBreedingSoundness": "Mare breeding soundness"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "empty": "No notifications",
+    "newActivity": "New activity",
+    "defaultBody": "A new activity was recorded.",
+    "types": {
+      "horseAdded": "Horse added",
+      "horseUpdated": "Horse updated",
+      "horseDeleted": "Horse deleted",
+      "nutritionRecordAdded": "Nutrition record added",
+      "nutritionRecordUpdated": "Nutrition record updated",
+      "nutritionRecordDeleted": "Nutrition record deleted",
+      "nutritionNotification": "Nutrition notification",
+      "ovulationExaminationAdded": "Ovulation examination added",
+      "ovulationExaminationUpdated": "Ovulation examination updated",
+      "ovulationExaminationDeleted": "Ovulation examination deleted",
+      "mareBreedingSoundnessAdded": "Mare breeding soundness added",
+      "mareBreedingSoundnessUpdated": "Mare breeding soundness updated",
+      "mareBreedingSoundnessDeleted": "Mare breeding soundness deleted"
+    },
+    "entities": {
+      "horse": "Horse",
+      "nutritionRecord": "Nutrition record",
+      "ovulationExamination": "Ovulation examination",
+      "mareBreedingSoundness": "Mare breeding soundness"
+    }
   },
   "reports": {
     "title": "Reports",
@@ -782,10 +825,10 @@
   "nutritionAssistant": {
     "title": "Nutrition Assistant",
     "subtitle": "Calculate the horse's daily nutrient requirements",
-    "unitSystem": "Unit system",
+    "unitSystem": "Weight unit",
     "units": {
-      "metric": "Metric / kilograms",
-      "imperial": "Avoirdupois / pounds"
+      "metric": "Kilograms",
+      "imperial": "Pounds"
     },
     "activity": "Horse activity",
     "activities": {
@@ -806,6 +849,16 @@
       "dailyGain": "Average daily gain",
       "inTraining": "Horse in training"
     },
+    "hints": {
+      "bodyWeight": "Enter the horse's current approximate weight. You can adjust an estimate later.",
+      "workIntensity": "Choose the closest level for daily work or training.",
+      "lactationMonth": "Enter the current lactation month for the mare.",
+      "gestationMonth": "Enter the current gestation month based on veterinary follow-up.",
+      "matureWeight": "Enter the expected mature weight for a growing horse.",
+      "ageMonths": "Enter the horse's age in months for a more useful estimate.",
+      "dailyGain": "Enter approximate daily weight gain, or zero if there is no gain target.",
+      "inTraining": "Choose yes when the growing horse is in regular training."
+    },
     "intensities": {
       "light": "Light",
       "moderate": "Moderate",
@@ -816,6 +869,7 @@
     "day": "day",
     "calculate": "Calculate",
     "reset": "Reset",
+    "close": "Close",
     "print": "Print report",
     "reportTitle": "Nutrient Requirements Report",
     "dailyRequirements": "Daily requirements",
@@ -830,12 +884,30 @@
       "basis": "Concentration / basis"
     },
     "validation": {
-      "bodyWeight": "Body weight out of expected range, reenter data.",
-      "gestationMonth": "Month Gestation out of expected range, reenter data.",
-      "lactationMonth": "Month Lactation out of expected range, reenter data.",
-      "matureWeight": "Expected mature weight is invalid, reenter data.",
-      "age": "Age out of young horse range, reenter data.",
-      "dailyGain": "Avg Daily Gain out of expected range, reenter data."
+      "bodyWeight": "Enter a valid horse weight.",
+      "gestationMonth": "Enter a valid gestation month.",
+      "lactationMonth": "Enter a valid lactation month.",
+      "matureWeight": "Enter a valid expected mature weight.",
+      "age": "Enter a valid age in months.",
+      "dailyGain": "Enter a valid average daily gain."
+    },
+    "feedBuilder": {
+      "title": "Ration ingredients",
+      "subtitle": "Enter daily feed ingredients in kilograms. The app estimates protein and energy, then compares them with the requirement after calculation.",
+      "searchPlaceholder": "Search ingredients like barley, corn, bran, alfalfa...",
+      "ingredient": "Ingredient",
+      "amount": "Amount",
+      "amountPlaceholder": "kg / day",
+      "add": "Add ingredient",
+      "remove": "Remove ingredient",
+      "totalKg": "Total amount",
+      "dryMatter": "Dry matter",
+      "protein": "Crude protein",
+      "energy": "Digestible energy",
+      "calculateHint": "Calculate needs to compare",
+      "ofNeed": "of need",
+      "sourceNote": "Numbers are planning estimates from the available ingredient and mix data, for comparison only.",
+      "selectedPrefix": "Selected ingredients:"
     },
     "nutrients": {
       "dryMatter": "Dry Matter Intake",

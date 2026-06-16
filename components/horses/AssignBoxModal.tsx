@@ -2,8 +2,8 @@
 
 import {
   Check,
-  ChevronDown,
   CircleParking,
+  ListChecks,
   Home,
   Search,
   Users,
@@ -30,6 +30,9 @@ interface AssignBoxModalProps {
 }
 
 type AvailabilityFilter = 'all' | 'available' | 'occupied' | 'full';
+type ManualUnitType = 'box' | 'barn';
+
+const PICKER_PAGE_SIZE = 8;
 
 const normalizeHousingCode = (code: string | null | undefined) => {
   const value = String(code ?? '');
@@ -46,6 +49,25 @@ const getSelectedSlotNumber = (code: string | null | undefined) => {
   return Number.isFinite(slot) ? slot : null;
 };
 
+const getSlotCode = (unit: HousingUnitDto, slotNumber: number) =>
+  `${normalizeHousingCode(unit.code)}-P${String(slotNumber).padStart(2, '0')}`;
+
+const unitLabel = (unit: HousingUnitDto, locale: 'ar' | 'en') =>
+  (locale === 'ar' ? unit.nameAr : unit.nameEn) || unit.code;
+
+const unitGroupLabel = (unit: HousingUnitDto, locale: 'ar' | 'en') =>
+  (locale === 'ar' ? unit.groupAr : unit.groupEn) || unit.code;
+
+const horseLabel = (
+  horse: HousingUnitDto['horses'][number] | undefined,
+  locale: 'ar' | 'en',
+) =>
+  horse
+    ? (locale === 'ar' ? horse.arabicName : horse.englishName) ||
+      horse.englishName ||
+      horse.arabicName
+    : '';
+
 export const AssignBoxModal = ({
   open,
   horseId,
@@ -55,8 +77,11 @@ export const AssignBoxModal = ({
 }: AssignBoxModalProps) => {
   const { direction, locale } = useLocale();
   const [selectedCode, setSelectedCode] = useState('');
-  const [search, setSearch] = useState('');
   const [availability, setAvailability] = useState<AvailabilityFilter>('all');
+  const [manualType, setManualType] = useState<ManualUnitType>('box');
+  const [manualUnitCode, setManualUnitCode] = useState('');
+  const [manualSearch, setManualSearch] = useState('');
+  const [typePage, setTypePage] = useState(1);
   const [mapData, setMapData] = useState<HousingMapDto | null>(null);
   const [loadingMap, setLoadingMap] = useState(false);
   const [capacitySavingCode, setCapacitySavingCode] = useState<string | null>(null);
@@ -68,7 +93,10 @@ export const AssignBoxModal = ({
     if (!open) return;
 
     setSelectedCode(currentBox || '');
-    setSearch('');
+    setManualType(normalizeHousingCode(currentBox).toLowerCase().startsWith('barn') ? 'barn' : 'box');
+    setManualUnitCode(normalizeHousingCode(currentBox));
+    setManualSearch('');
+    setTypePage(1);
     setAvailability('all');
     setError('');
     setLoadingMap(true);
@@ -128,37 +156,88 @@ export const AssignBoxModal = ({
   const units = mapData?.units ?? [];
   const selectedUnit = units.find((unit) => unit.code === normalizeHousingCode(selectedCode));
   const selectionChanged = Boolean(selectedCode) && selectedCode !== (currentBox || '');
+  const matchesAvailability = (unit: HousingUnitDto) => {
+    const belongsToCurrentHorse = unit.horses.some(
+      (horse) => String(horse.id) === horseId,
+    );
+    const isFull = unit.horses.length >= unit.capacity && !belongsToCurrentHorse;
+    const isOccupied = unit.horses.length > 0 && !isFull;
 
-  const filteredUnits = useMemo(() => {
-    const term = search.trim().toLowerCase();
+    if (availability === 'available') return !isFull && unit.horses.length === 0;
+    if (availability === 'occupied') return isOccupied;
+    if (availability === 'full') return isFull;
+    return true;
+  };
+  const matchesTerm = (unit: HousingUnitDto, term: string) => {
+    if (!term) return true;
 
-    return units.filter((unit) => {
-      const belongsToCurrentHorse = unit.horses.some(
-        (horse) => String(horse.id) === horseId,
+    return [
+      unit.code,
+      unit.nameEn,
+      unit.nameAr,
+      unit.groupEn,
+      unit.groupAr,
+      ...unit.horses.flatMap((horse) => [horse.englishName, horse.arabicName]),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(term);
+  };
+  const manualUnits = useMemo(
+    () =>
+      units
+        .filter((unit) => unit.type === manualType)
+        .sort((first, second) =>
+          unitLabel(first, locale as 'ar' | 'en').localeCompare(
+            unitLabel(second, locale as 'ar' | 'en'),
+            locale,
+            { numeric: true, sensitivity: 'base' },
+          ),
+        ),
+    [locale, manualType, units],
+  );
+  const filteredManualUnits = useMemo(() => {
+    const term = manualSearch.trim().toLowerCase();
+    return manualUnits.filter((unit) => matchesAvailability(unit) && matchesTerm(unit, term));
+  }, [availability, horseId, manualSearch, manualUnits]);
+  const typePageCount = Math.max(1, Math.ceil(filteredManualUnits.length / PICKER_PAGE_SIZE));
+  const displayedManualUnits = useMemo(
+    () =>
+      filteredManualUnits.slice(
+        (typePage - 1) * PICKER_PAGE_SIZE,
+        typePage * PICKER_PAGE_SIZE,
+      ),
+    [filteredManualUnits, typePage],
+  );
+  const manualUnit = units.find((unit) => unit.code === manualUnitCode && unit.type === manualType);
+  const selectedSlotNumber = getSelectedSlotNumber(selectedCode);
+  const slotOptions = useMemo(() => {
+    if (!manualUnit || manualUnit.type !== 'barn') return [];
+
+    return Array.from({ length: manualUnit.capacity }).map((_, index) => {
+      const number = index + 1;
+      const occupant = manualUnit.horses.find(
+        (horse, horseIndex) => (horse.slotNumber ?? horseIndex + 1) === number,
       );
-      const isFull = unit.horses.length >= unit.capacity && !belongsToCurrentHorse;
-      const isOccupied = unit.horses.length > 0 && !isFull;
+      const belongsToCurrentHorse = occupant && String(occupant.id) === horseId;
 
-      if (availability === 'available' && (isFull || unit.horses.length > 0)) return false;
-      if (availability === 'occupied' && !isOccupied) return false;
-      if (availability === 'full' && !isFull) return false;
-
-      if (!term) return true;
-
-      return [
-        unit.code,
-        unit.nameEn,
-        unit.nameAr,
-        unit.groupEn,
-        unit.groupAr,
-        ...unit.horses.flatMap((horse) => [horse.englishName, horse.arabicName]),
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-        .includes(term);
+      return {
+        number,
+        occupant,
+        disabled: Boolean(occupant && !belongsToCurrentHorse),
+        current: Boolean(belongsToCurrentHorse),
+      };
     });
-  }, [availability, horseId, search, units]);
+  }, [horseId, manualUnit]);
+
+  useEffect(() => {
+    setTypePage(1);
+  }, [availability, manualSearch, manualType]);
+
+  useEffect(() => {
+    setTypePage((page) => Math.min(page, typePageCount));
+  }, [typePageCount]);
 
   const counts = useMemo(
     () =>
@@ -203,6 +282,46 @@ export const AssignBoxModal = ({
     if (full) return;
 
     setSelectedCode(unit.code);
+    setManualType(unit.type === 'barn' ? 'barn' : 'box');
+    setManualUnitCode(unit.code);
+    setError('');
+  };
+
+  const isFullForCurrentHorse = (unit: HousingUnitDto) =>
+    unit.horses.length >= unit.capacity &&
+    !unit.horses.some((horse) => String(horse.id) === horseId);
+
+  const selectManualUnit = (unit: HousingUnitDto) => {
+    setManualUnitCode(unit.code);
+    setError('');
+
+    if (unit.type === 'barn') {
+      setSelectedCode('');
+      setManualType('barn');
+      setManualSearch('');
+      return;
+    }
+
+    if (isFullForCurrentHorse(unit)) {
+      setSelectedCode('');
+      setError(locale === 'ar' ? 'هذا البوكس ممتلئ' : 'This box is full');
+      return;
+    }
+
+    selectUnit(unit);
+    setManualSearch('');
+  };
+
+  const selectBarnSlot = (unit: HousingUnitDto, slotNumber: number) => {
+    const slotHorse = unit.horses.find(
+      (horse, index) => (horse.slotNumber ?? index + 1) === slotNumber,
+    );
+
+    if (slotHorse && String(slotHorse.id) !== horseId) return;
+
+    setSelectedCode(getSlotCode(unit, slotNumber));
+    setManualType('barn');
+    setManualUnitCode(unit.code);
     setError('');
   };
 
@@ -249,6 +368,12 @@ export const AssignBoxModal = ({
             }
           : current,
       );
+
+      if (unit.type === 'barn') {
+        setSelectedCode(getSlotCode(unit, nextCapacity));
+        setManualType('barn');
+        setManualUnitCode(unit.code);
+      }
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -329,8 +454,8 @@ export const AssignBoxModal = ({
                 </h2>
                 <p className="mt-0.5 text-sm text-[#857368]">
                   {locale === 'ar'
-                    ? 'ابحث عن البوكس، راجع حالته، ثم احفظ اختيارك.'
-                    : 'Search for a box, review its status, then save your selection.'}
+                    ? 'اختر بوكساً أو عنبراً، ثم حدد المكان واحفظ التعيين.'
+                    : 'Choose a box or barn, then select the exact place and save.'}
                 </p>
               </div>
             </div>
@@ -349,47 +474,30 @@ export const AssignBoxModal = ({
           <div className="grid min-h-0 flex-1 lg:grid-cols-[370px_minmax(0,1fr)]">
             <aside className="flex min-h-[440px] flex-col border-b border-[#e9ddd4] bg-white lg:min-h-0 lg:border-b-0 lg:border-e">
               <div className="space-y-3 border-b border-[#eee5de] p-4 sm:p-5">
-                <div className="relative">
-                  <Search
-                    className={`absolute top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#8d7c70] ${
-                      isRTL ? 'right-4' : 'left-4'
-                    }`}
-                  />
-                  <input
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder={
-                      locale === 'ar'
-                        ? 'ابحث بالكود، الاسم أو اسم الخيل'
-                        : 'Search code, unit, or horse'
-                    }
-                    className={`h-12 w-full rounded-[14px] border border-[#e4d8cf] bg-[#fcfaf8] text-sm text-[#34251d] outline-none transition focus:border-[#6b4a34] focus:bg-white focus:ring-4 focus:ring-[#6b4a34]/10 ${
-                      isRTL ? 'pr-11 pl-4 text-right' : 'pl-11 pr-4 text-left'
-                    }`}
-                    autoFocus
-                  />
-                  <ChevronDown
-                    className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 text-[#9c8b80] ${
-                      isRTL ? 'left-4' : 'right-4'
-                    }`}
-                  />
+                <div className="flex items-center gap-2 text-sm font-bold text-[#34251d]">
+                  <ListChecks className="h-4 w-4" />
+                  {locale === 'ar' ? 'اختيار مكان الإيواء' : 'Housing picker'}
                 </div>
 
-                <div className="grid grid-cols-4 gap-1 rounded-[13px] bg-[#f2ece7] p-1">
+                <div className="grid grid-cols-2 gap-1 rounded-[13px] bg-[#f7f2ee] p-1">
                   {([
-                    ['all', locale === 'ar' ? 'الكل' : 'All'],
-                    ['available', locale === 'ar' ? 'متاح' : 'Open'],
-                    ['occupied', locale === 'ar' ? 'مشغول' : 'Used'],
-                    ['full', locale === 'ar' ? 'ممتلئ' : 'Full'],
+                    ['box', locale === 'ar' ? 'بوكس' : 'Box'],
+                    ['barn', locale === 'ar' ? 'عنبر' : 'Barn'],
                   ] as const).map(([value, label]) => (
                     <button
                       key={value}
                       type="button"
-                      onClick={() => setAvailability(value)}
+                      onClick={() => {
+                        setManualType(value);
+                        setManualUnitCode('');
+                        setSelectedCode('');
+                        setManualSearch('');
+                        setError('');
+                      }}
                       className={`rounded-[10px] px-2 py-2 text-xs font-bold transition ${
-                        availability === value
-                          ? 'bg-white text-[#4b2f1a] shadow-sm'
-                          : 'text-[#89776c] hover:text-[#4b2f1a]'
+                        manualType === value
+                          ? 'bg-[#4b2f1a] text-white shadow-sm'
+                          : 'bg-white text-[#7d6b60] hover:text-[#4b2f1a]'
                       }`}
                     >
                       {label}
@@ -397,16 +505,138 @@ export const AssignBoxModal = ({
                   ))}
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] font-semibold text-[#8c7b70]">
-                  <span>{filteredUnits.length} {locale === 'ar' ? 'مكان' : 'units'}</span>
-                  <span>
-                    <b className="text-[#4f8a5b]">{counts.available}</b> {locale === 'ar' ? 'متاح' : 'open'}
-                    {' · '}
-                    <b className="text-[#b15d3d]">{counts.occupied}</b> {locale === 'ar' ? 'مشغول' : 'used'}
-                    {' · '}
-                    <b className="text-[#b6433b]">{counts.full}</b> {locale === 'ar' ? 'ممتلئ' : 'full'}
-                  </span>
-                </div>
+                {!(manualType === 'barn' && manualUnit) && (
+                  <div className="relative">
+                  <Search
+                    className={`absolute top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#8d7c70] ${
+                      isRTL ? 'right-4' : 'left-4'
+                    }`}
+                  />
+                  <input
+                    value={manualSearch}
+                    onChange={(event) => setManualSearch(event.target.value)}
+                    placeholder={
+                      manualType === 'barn'
+                        ? locale === 'ar'
+                          ? 'ابحث عن عنبر أو اسم الخيل'
+                          : 'Search barn or horse'
+                        : locale === 'ar'
+                          ? 'ابحث عن بوكس أو اسم الخيل'
+                          : 'Search box or horse'
+                    }
+                    className={`h-12 w-full rounded-[14px] border border-[#e4d8cf] bg-[#fcfaf8] text-sm text-[#34251d] outline-none transition focus:border-[#6b4a34] focus:bg-white focus:ring-4 focus:ring-[#6b4a34]/10 ${
+                      isRTL ? 'pr-11 pl-4 text-right' : 'pl-11 pr-4 text-left'
+                    }`}
+                    autoFocus
+                  />
+                  </div>
+                )}
+
+                {!(manualType === 'barn' && manualUnit) && (
+                  <>
+                    <div className="grid grid-cols-4 gap-1 rounded-[13px] bg-[#f2ece7] p-1">
+                      {([
+                        ['all', locale === 'ar' ? 'الكل' : 'All'],
+                        ['available', locale === 'ar' ? 'متاح' : 'Open'],
+                        ['occupied', locale === 'ar' ? 'مشغول' : 'Used'],
+                        ['full', locale === 'ar' ? 'ممتلئ' : 'Full'],
+                      ] as const).map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setAvailability(value)}
+                          className={`rounded-[10px] px-2 py-2 text-xs font-bold transition ${
+                            availability === value
+                              ? 'bg-white text-[#4b2f1a] shadow-sm'
+                              : 'text-[#89776c] hover:text-[#4b2f1a]'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] font-semibold text-[#8c7b70]">
+                      <span>
+                        {filteredManualUnits.length} {locale === 'ar' ? 'مكان' : 'units'}
+                      </span>
+                      <span>
+                        <b className="text-[#4f8a5b]">{counts.available}</b> {locale === 'ar' ? 'متاح' : 'open'}
+                        {' · '}
+                        <b className="text-[#b15d3d]">{counts.occupied}</b> {locale === 'ar' ? 'مشغول' : 'used'}
+                        {' · '}
+                        <b className="text-[#b6433b]">{counts.full}</b> {locale === 'ar' ? 'ممتلئ' : 'full'}
+                      </span>
+                    </div>
+                  </>
+                )}
+
+                {manualType === 'barn' && manualUnit && (
+                  <div className="space-y-3 rounded-[14px] border border-[#eadfd6] bg-white p-3">
+                    <HousingOption
+                      unit={manualUnit}
+                      locale={locale as 'ar' | 'en'}
+                      selected
+                      current={normalizeHousingCode(currentBox) === manualUnit.code}
+                      currentHorseId={horseId}
+                      onSelect={() => undefined}
+                    />
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold text-[#7e6b60]">
+                        {locale === 'ar' ? 'اختر المكان داخل العنبر' : 'Choose barn spot'}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={capacitySavingCode === manualUnit.code}
+                        onClick={() => updateBarnCapacity(manualUnit, manualUnit.capacity + 1)}
+                        className="rounded-full border border-[#d8c8bb] px-3 py-1 text-[11px] font-bold text-[#4b2f1a] hover:bg-[#f8f1ea] disabled:opacity-50"
+                      >
+                        {capacitySavingCode === manualUnit.code
+                          ? locale === 'ar'
+                            ? 'جاري الإضافة...'
+                            : 'Adding...'
+                          : locale === 'ar'
+                            ? 'إضافة مكان'
+                            : 'Add spot'}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-2">
+                      {slotOptions.map((slot) => (
+                        <button
+                          key={slot.number}
+                          type="button"
+                          disabled={slot.disabled}
+                          onClick={() => selectBarnSlot(manualUnit, slot.number)}
+                          title={horseLabel(slot.occupant, locale as 'ar' | 'en') || undefined}
+                          className={`h-10 rounded-[10px] border text-xs font-bold transition ${
+                            selectedSlotNumber === slot.number
+                              ? 'border-[#4b2f1a] bg-[#4b2f1a] text-white'
+                              : slot.disabled
+                                ? 'cursor-not-allowed border-[#efd8d4] bg-[#fff6f4] text-[#a45b53]'
+                                : slot.current
+                                  ? 'border-[#9fb58f] bg-[#eef6ea] text-[#4f7047]'
+                                  : 'border-[#e3d8cf] bg-[#fcfaf8] text-[#4b382d] hover:border-[#8c6b53]'
+                          }`}
+                        >
+                          {slot.number}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setManualUnitCode('');
+                        setSelectedCode('');
+                        setManualSearch('');
+                        setError('');
+                      }}
+                      className="w-full rounded-[11px] border border-[#ded1c6] px-3 py-2 text-xs font-bold text-[#4b2f1a] hover:bg-[#faf6f2]"
+                    >
+                      {locale === 'ar' ? 'إلغاء اختيار العنبر' : 'Clear barn selection'}
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-3 sm:p-4">
@@ -414,27 +644,37 @@ export const AssignBoxModal = ({
                   <div className="flex h-full min-h-44 items-center justify-center text-sm text-[#806e62]">
                     {locale === 'ar' ? 'جاري تحميل أماكن الإيواء...' : 'Loading housing units...'}
                   </div>
-                ) : filteredUnits.length ? (
-                  filteredUnits.map((unit) => (
-                    <HousingOption
-                      key={unit.code}
-                      unit={unit}
-                      locale={locale as 'ar' | 'en'}
-                      selected={normalizeHousingCode(selectedCode) === unit.code}
-                      current={normalizeHousingCode(currentBox) === unit.code}
-                      currentHorseId={horseId}
-                      onSelect={() => selectUnit(unit)}
-                    />
-                  ))
+                ) : manualType === 'barn' && manualUnit ? (
+                  null
                 ) : (
-                  <div className="flex min-h-44 flex-col items-center justify-center rounded-2xl border border-dashed border-[#ddd0c6] bg-[#fcfaf8] px-5 text-center">
-                    <Search className="h-6 w-6 text-[#aa998d]" />
-                    <p className="mt-2 text-sm font-semibold text-[#6f5c50]">
-                      {locale === 'ar' ? 'لا توجد نتائج مطابقة' : 'No matching units'}
-                    </p>
-                  </div>
+                  displayedManualUnits.length ? (
+                    displayedManualUnits.map((unit) => (
+                      <HousingOption
+                        key={unit.code}
+                        unit={unit}
+                        locale={locale as 'ar' | 'en'}
+                        selected={normalizeHousingCode(selectedCode) === unit.code || manualUnitCode === unit.code}
+                        current={normalizeHousingCode(currentBox) === unit.code}
+                        currentHorseId={horseId}
+                        onSelect={() => selectManualUnit(unit)}
+                      />
+                    ))
+                  ) : (
+                    <EmptyHousingResults locale={locale as 'ar' | 'en'} />
+                  )
                 )}
               </div>
+
+              {!(manualType === 'barn' && manualUnit) && (
+                <PaginationControls
+                  locale={locale as 'ar' | 'en'}
+                  page={typePage}
+                  pageCount={typePageCount}
+                  total={filteredManualUnits.length}
+                  onPrevious={() => setTypePage((page) => Math.max(1, page - 1))}
+                  onNext={() => setTypePage((page) => Math.min(typePageCount, page + 1))}
+                />
+              )}
             </aside>
 
             <main className="min-h-0 overflow-auto overscroll-contain p-3 sm:p-5">
@@ -463,6 +703,8 @@ export const AssignBoxModal = ({
                       if (!slotNumber || (slotHorse && String(slotHorse.id) !== horseId)) return;
 
                       setSelectedCode(code);
+                      setManualType('barn');
+                      setManualUnitCode(unit.code);
                       setError('');
                       return;
                     }
@@ -557,6 +799,64 @@ export const AssignBoxModal = ({
   );
 };
 
+function EmptyHousingResults({ locale }: { locale: 'ar' | 'en' }) {
+  return (
+    <div className="flex min-h-44 flex-col items-center justify-center rounded-2xl border border-dashed border-[#ddd0c6] bg-[#fcfaf8] px-5 text-center">
+      <Search className="h-6 w-6 text-[#aa998d]" />
+      <p className="mt-2 text-sm font-semibold text-[#6f5c50]">
+        {locale === 'ar' ? 'لا توجد نتائج مطابقة' : 'No matching units'}
+      </p>
+    </div>
+  );
+}
+
+function PaginationControls({
+  locale,
+  page,
+  pageCount,
+  total,
+  onPrevious,
+  onNext,
+}: {
+  locale: 'ar' | 'en';
+  page: number;
+  pageCount: number;
+  total: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  const from = total === 0 ? 0 : (page - 1) * PICKER_PAGE_SIZE + 1;
+  const to = Math.min(page * PICKER_PAGE_SIZE, total);
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-[#eee5de] bg-white px-4 py-3 text-xs font-bold text-[#7b685c]">
+      <span>
+        {locale === 'ar'
+          ? `${from}-${to} من ${total}`
+          : `${from}-${to} of ${total}`}
+      </span>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={onPrevious}
+          className="rounded-[10px] border border-[#ded1c6] px-3 py-2 text-[#3d2a1b] hover:bg-[#faf6f2] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {locale === 'ar' ? 'السابق' : 'Prev'}
+        </button>
+        <button
+          type="button"
+          disabled={page >= pageCount}
+          onClick={onNext}
+          className="rounded-[10px] border border-[#ded1c6] px-3 py-2 text-[#3d2a1b] hover:bg-[#faf6f2] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {locale === 'ar' ? 'التالي' : 'Next'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function HousingOption({
   unit,
   locale,
@@ -617,7 +917,7 @@ function HousingOption({
             )}
           </div>
           <p className={`mt-1 text-[11px] ${selected ? 'text-white/70' : 'text-[#8c7a6f]'}`}>
-            {unit.groupEn} · {unit.code}
+            {unitGroupLabel(unit, locale)} · {unit.code}
           </p>
         </div>
 

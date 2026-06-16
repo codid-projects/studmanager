@@ -3,7 +3,7 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { clientApiFetch } from "@/lib/api/client";
 import type { ActivityDto, ApiResult, PagedResponse } from "@/lib/api/types";
-import { useLocale } from "@/lib/locale-context";
+import { useLocale, useTranslation } from "@/lib/locale-context";
 import { AlertCircle, Bell, CheckCircle, Info, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -11,6 +11,30 @@ const ICON_MAP = {
   success: { icon: CheckCircle, color: "text-green-500", bg: "bg-green-50" },
   warning: { icon: AlertCircle, color: "text-amber-500", bg: "bg-amber-50" },
   info: { icon: Info, color: "text-blue-500", bg: "bg-blue-50" },
+};
+
+const ACTIVITY_TYPE_KEYS: Record<string, string> = {
+  horseadded: "horseAdded",
+  horseupdated: "horseUpdated",
+  horsedeleted: "horseDeleted",
+  nutritionrecordadded: "nutritionRecordAdded",
+  nutritionrecordupdated: "nutritionRecordUpdated",
+  nutritionrecorddeleted: "nutritionRecordDeleted",
+  nutritionnotification: "nutritionNotification",
+  ovulationexaminationadded: "ovulationExaminationAdded",
+  ovulationexaminationupdated: "ovulationExaminationUpdated",
+  ovulationexaminationdeleted: "ovulationExaminationDeleted",
+  marebreedingsoundnessadded: "mareBreedingSoundnessAdded",
+  marebreedingsoundnessupdated: "mareBreedingSoundnessUpdated",
+  marebreedingsoundnessdeleted: "mareBreedingSoundnessDeleted",
+};
+
+const ENTITY_TYPE_KEYS: Record<string, string> = {
+  horse: "horse",
+  nutritionrecord: "nutritionRecord",
+  ovulationexamination: "ovulationExamination",
+  marebreedingexamination: "mareBreedingSoundness",
+  marebreedingsoundness: "mareBreedingSoundness",
 };
 
 function unwrapResult<T>(payload: T | ApiResult<T>): T {
@@ -47,8 +71,18 @@ function formatDate(value: string | null, locale: string) {
   return created.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
 }
 
+function normalizeKey(value: string | null | undefined) {
+  return (value ?? "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+}
+
+function humanize(value: string | null | undefined) {
+  if (!value) return "";
+  return value.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").trim();
+}
+
 export default function NotificationsPage() {
   const { locale, direction } = useLocale();
+  const { t } = useTranslation();
   const isRTL = direction === "rtl";
   const [activities, setActivities] = useState<ActivityDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,6 +123,24 @@ export default function NotificationsPage() {
   );
   const unreadCount = visibleActivities.filter((activity) => !readIds.has(activity.id)).length;
 
+  const label = (key: string, fallbackEn: string, fallbackAr: string) => {
+    const value = t(key);
+    if (value !== key) return value;
+    return isRTL ? fallbackAr : fallbackEn;
+  };
+
+  const activityTypeLabel = (type: string | null) => {
+    const mapped = ACTIVITY_TYPE_KEYS[normalizeKey(type)];
+    if (mapped) return label(`notifications.types.${mapped}`, humanize(type), humanize(type));
+    return humanize(type) || label("notifications.newActivity", "New activity", "نشاط جديد");
+  };
+
+  const entityTypeLabel = (entityType: string | null) => {
+    const mapped = ENTITY_TYPE_KEYS[normalizeKey(entityType)];
+    if (mapped) return label(`notifications.entities.${mapped}`, humanize(entityType), humanize(entityType));
+    return humanize(entityType);
+  };
+
   return (
     <MainLayout>
       <div className={`mx-auto p-3 sm:p-6 ${isRTL ? "font-cairo" : ""}`} dir={direction}>
@@ -103,25 +155,25 @@ export default function NotificationsPage() {
               )}
             </div>
             <h1 className="text-xl font-bold text-[#3b2b20] sm:text-2xl">
-              {isRTL ? "الإشعارات" : "Notifications"}
+              {label("notifications.title", "Notifications", "الإشعارات")}
             </h1>
           </div>
           <button
             onClick={() => setReadIds(new Set(visibleActivities.map((activity) => activity.id)))}
             className="text-sm font-semibold text-[#3b2b20] hover:underline"
           >
-            {isRTL ? "تحديد الكل كمقروء" : "Mark all as read"}
+            {label("notifications.markAllRead", "Mark all as read", "تحديد الكل كمقروء")}
           </button>
         </div>
 
         <div className="space-y-3">
           {loading ? (
             <div className="rounded-2xl bg-white p-8 text-center text-sm font-semibold text-gray-500 shadow-sm">
-              {isRTL ? "جاري التحميل..." : "Loading..."}
+              {t("common.loading")}
             </div>
           ) : visibleActivities.length === 0 ? (
             <div className="rounded-2xl bg-white p-8 text-center text-sm font-semibold text-gray-500 shadow-sm">
-              {isRTL ? "لا توجد إشعارات" : "No notifications"}
+              {label("notifications.empty", "No notifications", "لا توجد إشعارات")}
             </div>
           ) : (
             visibleActivities.map((activity) => {
@@ -131,6 +183,7 @@ export default function NotificationsPage() {
               const body = isRTL
                 ? activity.descriptionAr || activity.descriptionEn
                 : activity.descriptionEn || activity.descriptionAr;
+              const entityLabel = entityTypeLabel(activity.entityType);
 
               return (
                 <div
@@ -148,7 +201,7 @@ export default function NotificationsPage() {
                     <div className={`min-w-0 flex-1 ${isRTL ? "text-right" : "text-left"}`}>
                       <div className={`flex items-start justify-between gap-2 ${isRTL ? "flex-row-reverse" : ""}`}>
                         <h3 className={`text-sm font-bold text-[#3b2b20] sm:text-[15px] ${read ? "font-semibold" : ""}`}>
-                          {activity.entityType || (isRTL ? "نشاط جديد" : "New activity")}
+                          {activityTypeLabel(activity.type)}
                         </h3>
                         <div className={`flex flex-shrink-0 items-center gap-2 ${isRTL ? "flex-row-reverse" : ""}`}>
                           <span className="text-xs text-gray-400">{formatTime(activity.createdAt, locale)}</span>
@@ -156,9 +209,12 @@ export default function NotificationsPage() {
                         </div>
                       </div>
                       <p className="mt-1 text-xs leading-relaxed text-gray-500 sm:text-sm">
-                        {body || (isRTL ? "تم تسجيل نشاط جديد." : "A new activity was recorded.")}
+                        {body || label("notifications.defaultBody", "A new activity was recorded.", "تم تسجيل نشاط جديد.")}
                       </p>
-                      <span className="mt-2 inline-block text-[11px] text-gray-400">{formatDate(activity.createdAt, locale)}</span>
+                      <div className={`mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-400 ${isRTL ? "flex-row-reverse" : ""}`}>
+                        {entityLabel ? <span className="rounded-full bg-[#f8f4f0] px-2 py-1 text-[#7c6b5d]">{entityLabel}</span> : null}
+                        <span>{formatDate(activity.createdAt, locale)}</span>
+                      </div>
                     </div>
 
                     <button
@@ -167,7 +223,7 @@ export default function NotificationsPage() {
                         setHiddenIds((ids) => new Set(ids).add(activity.id));
                       }}
                       className="self-start rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-red-50 hover:text-red-400"
-                      aria-label={isRTL ? "حذف" : "Delete"}
+                      aria-label={t("common.delete")}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

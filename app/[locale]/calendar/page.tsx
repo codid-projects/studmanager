@@ -79,6 +79,14 @@ function getEventTypeValue(type: string | null | undefined): CalendarEventType {
   return 1;
 }
 
+function getEventTypeKey(type: string | null | undefined) {
+  const normalized = (type ?? "").toLowerCase();
+  if (normalized.includes("nutrition")) return "nutrition";
+  if (normalized.includes("ovulation")) return "ovulationExamination";
+  if (normalized.includes("marebreedingsoundness")) return "mareBreedingSoundness";
+  return "general";
+}
+
 function unwrapResult<T>(payload: T | ApiResult<T>): T {
   if (payload && typeof payload === "object" && "data" in payload && "statusCode" in payload) {
     return (payload as ApiResult<T>).data as T;
@@ -193,6 +201,22 @@ export default function CalendarPage() {
           .slice(selectedWeekStart)
           .slice(0, 7)
           .flatMap((date) => eventsByDay.get(toDateKey(date)) ?? []);
+
+  const eventTitle = (event: CalendarEventDto) =>
+    locale === "ar" ? event.titleAr || event.title : event.title || event.titleAr;
+
+  const eventDescription = (event: CalendarEventDto) =>
+    locale === "ar" ? event.descriptionAr || event.description : event.description || event.descriptionAr;
+
+  const eventTime = (event: CalendarEventDto) =>
+    event.allDay
+      ? label("calendar.allDay", "All day", "طوال اليوم")
+      : new Date(event.start).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+
+  const eventTypeLabel = (event: CalendarEventDto) => {
+    const type = EVENT_TYPES.find((item) => item.key === getEventTypeKey(event.type)) ?? EVENT_TYPES[0];
+    return label(`calendar.types.${type.key}`, type.fallbackEn, type.fallbackAr);
+  };
 
   const openCreateModal = (date = selectedDate) => {
     setEditingEvent(null);
@@ -332,13 +356,13 @@ export default function CalendarPage() {
               </div>
             </div>
 
-            <div className="mb-2 grid grid-cols-7">
+            <div className="mb-2 grid grid-cols-7 gap-px rounded-2xl bg-[#eee4dc] p-px">
               {days.map((day) => (
-                <div key={day} className="py-2 text-center text-sm font-semibold text-[#8c847c]">{day}</div>
+                <div key={day} className="rounded-xl bg-[#fbf8f4] py-2 text-center text-sm font-semibold text-[#8c847c]">{day}</div>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 overflow-hidden rounded-xl border border-[#e6dfd8]">
+            <div className="grid grid-cols-7 gap-px rounded-2xl bg-[#e8ded5] p-px shadow-inner">
               {monthCells.map((date) => {
                 const key = toDateKey(date);
                 const dayEvents = eventsByDay.get(key) ?? [];
@@ -351,19 +375,37 @@ export default function CalendarPage() {
                     type="button"
                     onClick={() => setSelectedDate(startOfDay(date))}
                     onDoubleClick={() => openCreateModal(date)}
-                    className={`min-h-[104px] border-b border-e border-[#eee8e1] p-2 text-start transition hover:bg-[#fbf8f4] sm:min-h-[132px] ${outside ? "bg-[#fafafa] text-[#c8c2bd]" : "bg-white text-[#3b2b20]"} ${selected ? "ring-2 ring-inset ring-[#4b2f1a]" : ""}`}
+                    className={`relative min-h-[104px] overflow-visible rounded-xl p-2 text-start align-top transition-all duration-200 ease-out hover:z-10 hover:-translate-y-0.5 hover:bg-[#fffaf5] hover:shadow-[0_12px_28px_rgba(75,47,26,0.12)] focus:outline-none sm:min-h-[132px] ${
+                      outside ? "bg-[#fbfaf8] text-[#c8c2bd]" : "bg-white text-[#3b2b20]"
+                    } ${
+                      selected
+                        ? "z-[1] bg-[#fffaf2] shadow-[inset_0_0_0_2px_#4b2f1a,0_10px_24px_rgba(75,47,26,0.12)]"
+                        : ""
+                    }`}
                   >
-                    <span className="text-sm font-bold">{date.getDate()}</span>
+                    <span className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-bold ${
+                      selected ? "bg-[#4b2f1a] text-white" : "text-current"
+                    }`}>
+                      {date.getDate()}
+                    </span>
                     <div className="mt-2 space-y-1">
                       {dayEvents.slice(0, 3).map((event) => {
                         const color = getEventColor(event);
                         return (
                           <div
                             key={event.id}
-                            className="truncate rounded-md px-2 py-1 text-[11px] font-semibold"
+                            className="group/event rounded-md px-2 py-1 text-start text-[11px] font-semibold leading-4 shadow-sm transition-all duration-200 ease-out hover:relative hover:z-20 hover:scale-[1.02] hover:shadow-lg"
                             style={{ backgroundColor: color, color: isDarkColor(color) ? "#fff" : "#3b2b20" }}
                           >
-                            {locale === "ar" ? event.titleAr || event.title : event.title || event.titleAr}
+                            <div className="whitespace-normal break-words">{eventTitle(event)}</div>
+                            <div className="max-h-0 overflow-hidden opacity-0 transition-all duration-200 ease-out group-hover/event:mt-1 group-hover/event:max-h-24 group-hover/event:opacity-100">
+                              <div className="text-[10px] font-semibold opacity-85">{eventTime(event)} · {eventTypeLabel(event)}</div>
+                              {eventDescription(event) ? (
+                                <div className="mt-1 line-clamp-3 text-[10px] font-medium leading-4 opacity-80">
+                                  {eventDescription(event)}
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
                         );
                       })}
@@ -395,10 +437,11 @@ export default function CalendarPage() {
                   return (
                     <button key={event.id} onClick={() => openEditModal(event)} className="w-full rounded-xl border border-[#efe7df] bg-white p-4 text-start shadow-sm transition hover:border-[#4b2f1a]">
                       <div className="mb-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                      <div className="font-bold text-[#3b2b20]">{locale === "ar" ? event.titleAr || event.title : event.title || event.titleAr}</div>
+                      <div className="font-bold text-[#3b2b20]">{eventTitle(event)}</div>
                       <div className="mt-1 text-sm text-[#8c847c]">
-                        {event.allDay ? label("calendar.allDay", "All day", "طوال اليوم") : new Date(event.start).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
+                        {eventTime(event)} · {eventTypeLabel(event)}
                       </div>
+                      {eventDescription(event) ? <div className="mt-2 text-sm leading-6 text-[#6f665e]">{eventDescription(event)}</div> : null}
                     </button>
                   );
                 })

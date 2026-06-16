@@ -90,11 +90,11 @@ const stableSlotSources: StableSlotSource[] = [
   { x: 352, y: 285, width: 35, height: 252 },
   { x: 377, y: 520, width: 90, height: 38 },
   { x: 480, y: 529, width: 180, height: 38 },
-  { x: 700, y: 365, width: 32, height: 125 },
+  { x: 665, y: 365, width: 50, height: 125 },
   { x: 718, y: 339, width: 37, height: 185 },
-  { x: 755, y: 360, width: 50, height: 117 },
+  { x: 758, y: 360, width: 47, height: 117 },
   { x: 707, y: 532, width: 222, height: 37 },
-  { x: 900, y: 458, width: 39, height: 84 },
+  { x: 910, y: 450, width: 39, height: 74 },
 ];
 
 const stableDrawingSlots: DrawingSlot[] = stableSlotSources.flatMap((source, sourceIndex) => {
@@ -537,21 +537,15 @@ function ArchitecturalPlan() {
       <path d="M846 92C883 102 904 118 904 151C904 182 878 197 878 226C878 247 894 259 917 259" stroke="#fff" strokeWidth="28" />
       <path d="M846 92C883 102 904 118 904 151C904 182 878 197 878 226C878 247 894 259 917 259" stroke="#17130f" strokeWidth="2" />
 
-      <StableShell x={24} y={55} width={70} height={172} />
-      <StableShell x={101} y={54} width={78} height={50} />
-      <StableShell x={249} y={55} width={212} height={42} />
-      <StableShell x={250} y={105} width={212} height={45} />
-      <StableShell x={492} y={52} width={117} height={45} />
-      <StableShell x={493} y={105} width={115} height={48} />
-      <StableShell x={26} y={245} width={305} height={42} />
-      <StableShell x={352} y={285} width={35} height={252} />
-      <StableShell x={377} y={520} width={90} height={38} />
-      <StableShell x={480} y={529} width={180} height={38} />
-      <StableShell x={665} y={365} width={64} height={125} />
-      <StableShell x={718} y={339} width={37} height={185} />
-      <StableShell x={755} y={360} width={50} height={117} />
-      <StableShell x={707} y={532} width={222} height={37} />
-      <StableShell x={900} y={458} width={39} height={84} />
+      {stableSlotSources.map((source, index) => (
+        <StableShell
+          key={`stable-shell-${index}`}
+          x={source.x}
+          y={source.y}
+          width={source.width}
+          height={source.height}
+        />
+      ))}
 
       <rect x="92" y="90" width="74" height="105" fill="#fff" strokeWidth="1.8" />
       <rect x="174" y="84" width="82" height="155" fill="#fff" strokeWidth="1.8" />

@@ -55,12 +55,6 @@ export function TopBar({
           aria-label="Notifications"
         >
           <BellIcon className="h-6 w-6" />
-          <span
-            className={`absolute -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#d63f46] text-[11px] font-semibold text-white ${direction === 'rtl' ? '-right-1' : '-left-1'
-              }`}
-          >
-            4
-          </span>
         </Link>
       </div>
 
@@ -110,12 +104,6 @@ export function TopBar({
           aria-label="Notifications"
         >
           <BellIcon className="h-6 w-6" />
-          <span
-            className={`absolute -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#d63f46] text-[11px] font-semibold text-white ${direction === 'rtl' ? '-right-1' : '-left-1'
-              }`}
-          >
-            4
-          </span>
         </Link>
 
         <LocaleMenu />
