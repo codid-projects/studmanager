@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -90,6 +91,10 @@ function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
   return next;
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
 function toDateKey(date: Date | string) {
@@ -213,6 +218,7 @@ export default function DashboardPage() {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
   });
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => startOfDay(new Date()));
   const [calendarEvents, setCalendarEvents] = useState<CalendarEventDto[]>([]);
   const isRTL = direction === 'rtl';
 
@@ -349,11 +355,49 @@ export default function DashboardPage() {
     [calendarEvents],
   );
 
+  const selectedCalendarEvents = calendarEventsByDay.get(toDateKey(selectedCalendarDate)) ?? [];
+  const selectedCalendarCellIndex = calendarCells.findIndex((date) => toDateKey(date) === toDateKey(selectedCalendarDate));
+  const selectedCalendarWeekStart = selectedCalendarCellIndex >= 0 ? Math.floor(selectedCalendarCellIndex / 7) * 7 : 0;
+  const visibleCalendarEvents = activeView === 'month'
+    ? calendarEvents
+    : activeView === 'day'
+      ? selectedCalendarEvents
+      : calendarCells
+          .slice(selectedCalendarWeekStart)
+          .slice(0, 7)
+          .flatMap((date) => calendarEventsByDay.get(toDateKey(date)) ?? []);
+
   const viewTabs = [
     { key: 'day' as const, label: t('calendar.viewDay') },
     { key: 'week' as const, label: t('calendar.viewWeek') },
     { key: 'month' as const, label: t('calendar.viewMonth') },
   ];
+
+  const calendarMonths = [
+    t('months.january'),
+    t('months.february'),
+    t('months.march'),
+    t('months.april'),
+    t('months.may'),
+    t('months.jun'),
+    t('months.july'),
+    t('months.august'),
+    t('months.september'),
+    t('months.october'),
+    t('months.november'),
+    t('months.december'),
+  ];
+
+  const calendarEventTitle = (event: CalendarEventDto) =>
+    locale === 'ar' ? event.titleAr || event.title : event.title || event.titleAr;
+
+  const calendarEventDescription = (event: CalendarEventDto) =>
+    locale === 'ar' ? event.descriptionAr || event.description : event.description || event.descriptionAr;
+
+  const calendarEventTime = (event: CalendarEventDto) =>
+    event.allDay
+      ? t('calendar.allDay')
+      : new Date(event.start).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 
   const studName = locale === 'ar' ? stud.studArabicName || stud.studName : stud.studName || stud.studArabicName;
   const activityItems = activities.slice(0, 4);
@@ -678,46 +722,49 @@ export default function DashboardPage() {
 </article>
         </section>
 
-        <section className="grid gap-5 xl:grid-cols-[1fr_17rem] [direction:ltr]">
-          <article className="rounded-2xl bg-white p-5 shadow-sm sm:p-7" dir={direction}>
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-2 text-[#4b2f1a]">
+        <section className="grid gap-6 xl:grid-cols-[1fr_20rem]">
+          <article className="rounded-2xl bg-white p-4 shadow-sm sm:p-6" dir={direction}>
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setCalendarDate((date) => new Date(date.getFullYear(), date.getMonth() + 1, 1))}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[#4b2f1a] text-xl"
+                  onClick={() => {
+                    setCalendarDate((date) => {
+                      const next = new Date(date.getFullYear(), date.getMonth() - 1, 1);
+                      setSelectedCalendarDate(next);
+                      return next;
+                    });
+                  }}
+                  className="rounded-full border border-[#d8d0c8] p-2 text-[#3b2b20] hover:bg-[#f8f4f0]"
+                  aria-label={t('common.back')}
                 >
-                  <ChevronRight className="h-5 w-5" />
+                  {isRTL ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
                 </button>
                 <button
-                  onClick={() => setCalendarDate((date) => new Date(date.getFullYear(), date.getMonth() - 1, 1))}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[#4b2f1a] text-xl"
+                  onClick={() => {
+                    setCalendarDate((date) => {
+                      const next = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+                      setSelectedCalendarDate(next);
+                      return next;
+                    });
+                  }}
+                  className="rounded-full border border-[#d8d0c8] p-2 text-[#3b2b20] hover:bg-[#f8f4f0]"
+                  aria-label={t('common.next')}
                 >
-                  <ChevronLeft className="h-5 w-5" />
+                  {isRTL ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                 </button>
               </div>
-              <div className="text-3xl font-semibold text-[#20203c]">
-                {calendarDate.getFullYear()} <span className="font-bold">{[
-                  t('months.january'),
-                  t('months.february'),
-                  t('months.march'),
-                  t('months.april'),
-                  t('months.may'),
-                  t('months.jun'),
-                  t('months.july'),
-                  t('months.august'),
-                  t('months.september'),
-                  t('months.october'),
-                  t('months.november'),
-                  t('months.december'),
-                ][calendarDate.getMonth()]}</span>
-              </div>
-              <div className="flex overflow-hidden rounded-md border border-[#4b2f1a] text-base font-semibold">
+
+              <h2 className="text-xl font-bold text-[#3b2b20]">
+                {calendarMonths[calendarDate.getMonth()]} {calendarDate.getFullYear()}
+              </h2>
+
+              <div className="flex overflow-hidden rounded-lg border border-[#3b2b20] text-sm font-semibold">
                 {viewTabs.map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveView(tab.key)}
-                    className={`min-w-[4.3rem] px-4 py-2 ${
-                      activeView === tab.key ? 'bg-[#4b2f1a] text-white' : 'bg-white text-[#4b2f1a]'
+                    className={`min-w-16 px-4 py-2 ${
+                      activeView === tab.key ? 'bg-[#3b2b20] text-white' : 'bg-white text-[#3b2b20] hover:bg-[#f8f4f0]'
                     }`}
                   >
                     {tab.label}
@@ -726,63 +773,99 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-7 border-t border-[#d6d0ca] text-[#20203c]">
+            <div className="mb-2 grid grid-cols-7 gap-px rounded-2xl bg-[#eee4dc] p-px">
               {displayDays.map((day) => (
-                <div key={day} className="border-b border-s border-[#d6d0ca] px-2 py-4 text-center text-lg font-semibold text-[#c5beb7]">
+                <div key={day} className="rounded-xl bg-[#fbf8f4] py-2 text-center text-sm font-semibold text-[#8c847c]">
                   {day}
                 </div>
               ))}
-              {calendarCells.map((day, dayIndex) => {
-                  const dayEvents = calendarEventsByDay.get(toDateKey(day)) ?? [];
-                  const outside = day.getMonth() !== calendarDate.getMonth();
-                  return (
-                    <div key={`${toDateKey(day)}-${dayIndex}`} className="relative min-h-[105px] border-b border-s border-[#d6d0ca] p-3 sm:min-h-[145px]">
-                      <div className={`text-lg font-bold ${outside ? 'text-[#c8c2bd]' : 'text-[#20203c]'}`}>{day.getDate()}</div>
-                      <div className="mt-3 space-y-1">
-                        {dayEvents.slice(0, activeView === 'month' ? 2 : 4).map((event) => {
-                          const color = getCalendarEventColor(event);
-                          return (
-                            <div
-                              key={event.id}
-                              className="truncate rounded-md px-2 py-1 text-xs font-semibold"
-                              style={{ backgroundColor: color, color: isDarkColor(color) ? '#fff' : '#3b2f20' }}
-                            >
-                              {locale === 'ar' ? event.titleAr || event.title : event.title || event.titleAr}
+            </div>
+
+            <div className="grid grid-cols-7 gap-px rounded-2xl bg-[#e8ded5] p-px shadow-inner">
+              {calendarCells.map((day) => {
+                const key = toDateKey(day);
+                const dayEvents = calendarEventsByDay.get(key) ?? [];
+                const outside = day.getMonth() !== calendarDate.getMonth();
+                const selected = key === toDateKey(selectedCalendarDate);
+
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSelectedCalendarDate(startOfDay(day))}
+                    className={`relative min-h-[104px] overflow-visible rounded-xl p-2 text-start align-top transition-all duration-200 ease-out hover:z-10 hover:-translate-y-0.5 hover:bg-[#fffaf5] hover:shadow-[0_12px_28px_rgba(75,47,26,0.12)] focus:outline-none sm:min-h-[132px] ${
+                      outside ? 'bg-[#fbfaf8] text-[#c8c2bd]' : 'bg-white text-[#3b2b20]'
+                    } ${
+                      selected
+                        ? 'z-[1] bg-[#fffaf2] shadow-[inset_0_0_0_2px_#4b2f1a,0_10px_24px_rgba(75,47,26,0.12)]'
+                        : ''
+                    }`}
+                  >
+                    <span
+                      className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-bold ${
+                        selected ? 'bg-[#4b2f1a] text-white' : 'text-current'
+                      }`}
+                    >
+                      {day.getDate()}
+                    </span>
+                    <div className="mt-2 space-y-1">
+                      {dayEvents.slice(0, 3).map((event) => {
+                        const color = getCalendarEventColor(event);
+                        return (
+                          <div
+                            key={event.id}
+                            className="group/event rounded-md px-2 py-1 text-start text-[11px] font-semibold leading-4 shadow-sm transition-all duration-200 ease-out hover:relative hover:z-20 hover:scale-[1.02] hover:shadow-lg"
+                            style={{ backgroundColor: color, color: isDarkColor(color) ? '#fff' : '#3b2b20' }}
+                          >
+                            <div className="whitespace-normal break-words">{calendarEventTitle(event)}</div>
+                            <div className="max-h-0 overflow-hidden opacity-0 transition-all duration-200 ease-out group-hover/event:mt-1 group-hover/event:max-h-24 group-hover/event:opacity-100">
+                              <div className="text-[10px] font-semibold opacity-85">{calendarEventTime(event)}</div>
+                              {calendarEventDescription(event) ? (
+                                <div className="mt-1 line-clamp-3 text-[10px] font-medium leading-4 opacity-80">
+                                  {calendarEventDescription(event)}
+                                </div>
+                              ) : null}
                             </div>
-                          );
-                        })}
-                        {dayEvents.length > (activeView === 'month' ? 2 : 4) && (
-                          <div className="text-xs font-semibold text-[#8c847c]">+{dayEvents.length - (activeView === 'month' ? 2 : 4)}</div>
-                        )}
-                      </div>
+                          </div>
+                        );
+                      })}
+                      {dayEvents.length > 3 && <div className="text-xs font-semibold text-[#8c847c]">+{dayEvents.length - 3}</div>}
                     </div>
-                  );
-                })}
+                  </button>
+                );
+              })}
             </div>
           </article>
 
-          <aside className="rounded-2xl bg-white p-7 shadow-sm" dir={direction}>
-            <div className="mb-6 text-end">
-              <h3 className="text-3xl font-bold text-[#4b2f1a]">{t('dashboard.event')}</h3>
-              <p className="text-base text-[#c8c2bd]">{t('dashboard.dragAndDrop')}</p>
+          <aside className="rounded-2xl bg-white p-5 shadow-sm" dir={direction}>
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-bold text-[#3b2b20]">
+                  {activeView === 'month'
+                    ? t('calendar.event')
+                    : selectedCalendarDate.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}
+                </h3>
+                <p className="mt-1 text-sm text-[#8c847c]">
+                  {visibleCalendarEvents.length} {t('calendar.events')}
+                </p>
+              </div>
+              <CalendarDays className="h-6 w-6 text-[#4b2f1a]" />
             </div>
-            <div className="min-h-[420px] space-y-3 rounded-xl border border-dashed border-[#ded6ce] p-3">
-              {calendarEvents.length === 0 ? (
-                <div className="flex min-h-[390px] items-center justify-center text-center text-lg font-semibold text-[#8c847c]">
-                  {t('common.noRecordsFound')}
-                </div>
+
+            <div className="space-y-3">
+              {visibleCalendarEvents.length === 0 ? (
+                <div className="rounded-xl bg-[#f8f4f0] p-6 text-center text-sm font-semibold text-[#8c847c]">{t('common.noRecordsFound')}</div>
               ) : (
-                calendarEvents.slice(0, 8).map((event) => {
+                visibleCalendarEvents.map((event) => {
                   const color = getCalendarEventColor(event);
                   return (
-                    <div key={event.id} className="rounded-xl bg-[#f8f4f0] p-3 text-start">
+                    <div key={event.id} className="w-full rounded-xl border border-[#efe7df] bg-white p-4 text-start shadow-sm">
                       <div className="mb-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                      <div className="text-sm font-bold text-[#4b2f1a]">
-                        {locale === 'ar' ? event.titleAr || event.title : event.title || event.titleAr}
+                      <div className="font-bold text-[#3b2b20]">{calendarEventTitle(event)}</div>
+                      <div className="mt-1 text-sm text-[#8c847c]">
+                        {calendarEventTime(event)} · {new Date(event.start).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
                       </div>
-                      <div className="mt-1 text-xs font-semibold text-[#8c847c]">
-                        {new Date(event.start).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
-                      </div>
+                      {calendarEventDescription(event) ? <div className="mt-2 text-sm leading-6 text-[#6f665e]">{calendarEventDescription(event)}</div> : null}
                     </div>
                   );
                 })
