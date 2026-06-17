@@ -280,6 +280,8 @@
     "descriptionAr": "الوصف بالعربية",
     "allDay": "طوال اليوم",
     "color": "اللون",
+    "deleteEventTitle": "حذف الحدث؟",
+    "deleteEventMessage": "سيتم حذف هذا الحدث نهائياً:",
     "types": {
       "general": "عام",
       "nutrition": "تغذية",

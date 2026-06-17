@@ -1,6 +1,7 @@
 "use client";
 
 import { MainLayout } from "@/components/layout/MainLayout";
+import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import { clientApiFetch } from "@/lib/api/client";
 import type { ApiResult, CalendarEventDto, CalendarEventPayload, CalendarEventType } from "@/lib/api/types";
 import { useLocale, useTranslation } from "@/lib/locale-context";
@@ -106,8 +107,10 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEventDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEventDto | null>(null);
+  const [eventToDelete, setEventToDelete] = useState<CalendarEventDto | null>(null);
   const [form, setForm] = useState(emptyForm);
 
   const label = useCallback((key: string, fallbackEn: string, fallbackAr: string) => {
@@ -243,6 +246,7 @@ export default function CalendarPage() {
   const closeModal = () => {
     setModalOpen(false);
     setEditingEvent(null);
+    setEventToDelete(null);
     setForm(emptyForm);
   };
 
@@ -281,20 +285,20 @@ export default function CalendarPage() {
   };
 
   const deleteEvent = async () => {
-    if (!editingEvent) return;
-    setSaving(true);
+    if (!eventToDelete || deleting) return;
+    setDeleting(true);
     try {
       await clientApiFetch({
         method: "DELETE",
-        backendPath: `/api/Calendar/${editingEvent.id}`,
-        nextPath: `/api/calendar/${editingEvent.id}`,
+        backendPath: `/api/Calendar/${eventToDelete.id}`,
+        nextPath: `/api/calendar/${eventToDelete.id}`,
         query: { locale },
         locale,
       });
       closeModal();
       await loadEvents();
     } finally {
-      setSaving(false);
+      setDeleting(false);
     }
   };
 
@@ -394,6 +398,20 @@ export default function CalendarPage() {
                         return (
                           <div
                             key={event.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={(clickEvent) => {
+                              clickEvent.stopPropagation();
+                              openEditModal(event);
+                            }}
+                            onDoubleClick={(clickEvent) => clickEvent.stopPropagation()}
+                            onKeyDown={(keyEvent) => {
+                              if (keyEvent.key === "Enter" || keyEvent.key === " ") {
+                                keyEvent.preventDefault();
+                                keyEvent.stopPropagation();
+                                openEditModal(event);
+                              }
+                            }}
                             className="group/event rounded-md px-2 py-1 text-start text-[11px] font-semibold leading-4 shadow-sm transition-all duration-200 ease-out hover:relative hover:z-20 hover:scale-[1.02] hover:shadow-lg"
                             style={{ backgroundColor: color, color: isDarkColor(color) ? "#fff" : "#3b2b20" }}
                           >
@@ -484,7 +502,7 @@ export default function CalendarPage() {
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#f1ece8] px-6 py-4">
                 {editingEvent ? (
-                  <button type="button" disabled={saving} onClick={deleteEvent} className="inline-flex h-11 items-center gap-2 rounded-lg bg-red-50 px-4 text-sm font-semibold text-red-600 disabled:opacity-50">
+                  <button type="button" disabled={saving || deleting} onClick={() => setEventToDelete(editingEvent)} className="inline-flex h-11 items-center gap-2 rounded-lg bg-red-50 px-4 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-50">
                     <Trash2 className="h-4 w-4" />
                     {label("common.delete", "Delete", "حذف")}
                   </button>
@@ -497,6 +515,22 @@ export default function CalendarPage() {
             </form>
           </div>
         )}
+
+        <DeleteConfirmModal
+          open={Boolean(eventToDelete)}
+          title={label("calendar.deleteEventTitle", "Delete event?", "حذف الحدث؟")}
+          description={
+            deleting
+              ? t("common.loading")
+              : eventToDelete
+                ? `${label("calendar.deleteEventMessage", "This event will be permanently removed:", "سيتم حذف هذا الحدث نهائياً:")} ${eventTitle(eventToDelete)}`
+                : undefined
+          }
+          onCancel={() => {
+            if (!deleting) setEventToDelete(null);
+          }}
+          onConfirm={deleteEvent}
+        />
       </div>
     </MainLayout>
   );

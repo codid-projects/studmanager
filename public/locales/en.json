@@ -280,6 +280,8 @@
     "descriptionAr": "Arabic description",
     "allDay": "All day",
     "color": "Color",
+    "deleteEventTitle": "Delete event?",
+    "deleteEventMessage": "This event will be permanently removed:",
     "types": {
       "general": "General",
       "nutrition": "Nutrition",
