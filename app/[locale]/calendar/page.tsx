@@ -222,8 +222,10 @@ export default function CalendarPage() {
   };
 
   const openCreateModal = (date = selectedDate) => {
+    const day = startOfDay(date);
+    setSelectedDate(day);
     setEditingEvent(null);
-    setForm({ ...emptyForm, eventDate: toDateInputValue(new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9)) });
+    setForm({ ...emptyForm, eventDate: toDateInputValue(new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9)) });
     setModalOpen(true);
   };
 
@@ -377,8 +379,7 @@ export default function CalendarPage() {
                   <button
                     key={key}
                     type="button"
-                    onClick={() => setSelectedDate(startOfDay(date))}
-                    onDoubleClick={() => openCreateModal(date)}
+                    onClick={() => openCreateModal(date)}
                     className={`relative min-h-[104px] overflow-visible rounded-xl p-2 text-start align-top transition-all duration-200 ease-out hover:z-10 hover:-translate-y-0.5 hover:bg-[#fffaf5] hover:shadow-[0_12px_28px_rgba(75,47,26,0.12)] focus:outline-none sm:min-h-[132px] ${
                       outside ? "bg-[#fbfaf8] text-[#c8c2bd]" : "bg-white text-[#3b2b20]"
                     } ${

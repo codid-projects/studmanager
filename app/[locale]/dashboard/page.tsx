@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Edit3,
   FileText,
   Info,
   Leaf,
   Mars,
+  Plus,
   Venus,
   X,
 } from 'lucide-react';
@@ -19,12 +21,34 @@ import type {
   ActivityDto,
   ApiResult,
   CalendarEventDto,
+  CalendarEventPayload,
+  CalendarEventType,
   DashboardDto,
   DefaultStudDto,
   PagedResponse,
 } from '@/lib/api/types';
 
 type ViewMode = 'day' | 'week' | 'month';
+
+const DEFAULT_COLORS = ['#ffe0b2', '#dff3dc', '#dbeafe', '#fce7f3', '#ede9fe', '#fee2e2'];
+const EVENT_TYPES: Array<{ value: CalendarEventType; key: string; fallbackEn: string; fallbackAr: string }> = [
+  { value: 1, key: 'general', fallbackEn: 'General', fallbackAr: 'عام' },
+  { value: 2, key: 'nutrition', fallbackEn: 'Nutrition', fallbackAr: 'تغذية' },
+  { value: 3, key: 'ovulationExamination', fallbackEn: 'Ovulation examination', fallbackAr: 'فحص تبويض' },
+  { value: 4, key: 'mareBreedingSoundness', fallbackEn: 'Mare breeding soundness', fallbackAr: 'فحص جاهزية الفرس' },
+];
+
+const emptyEventForm = {
+  title: '',
+  titleAr: '',
+  description: '',
+  descriptionAr: '',
+  eventDate: '',
+  endDate: '',
+  isAllDay: false,
+  eventType: 1 as CalendarEventType,
+  color: DEFAULT_COLORS[0],
+};
 
 const emptyDashboard: DashboardDto = {
   horsesInStud: { male: 0, female: 0, total: 0 },
@@ -100,6 +124,11 @@ function startOfDay(date: Date) {
 function toDateKey(date: Date | string) {
   const resolved = typeof date === 'string' ? new Date(date) : date;
   return `${resolved.getFullYear()}-${String(resolved.getMonth() + 1).padStart(2, '0')}-${String(resolved.getDate()).padStart(2, '0')}`;
+}
+
+function toDateInputValue(date: Date) {
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16);
 }
 
 function isDarkColor(hex: string) {
@@ -220,6 +249,10 @@ export default function DashboardPage() {
   });
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => startOfDay(new Date()));
   const [calendarEvents, setCalendarEvents] = useState<CalendarEventDto[]>([]);
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+  const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [eventSaving, setEventSaving] = useState(false);
+  const [eventForm, setEventForm] = useState(emptyEventForm);
   const isRTL = direction === 'rtl';
 
   async function loadActivities(pageNumber: number, pageSize = 6) {
@@ -309,7 +342,7 @@ export default function DashboardPage() {
     return () => {
       mounted = false;
     };
-  }, [calendarDate, locale]);
+  }, [calendarDate, calendarRefreshKey, locale]);
 
   const displayDays = useMemo(
     () =>
@@ -398,6 +431,61 @@ export default function DashboardPage() {
     event.allDay
       ? t('calendar.allDay')
       : new Date(event.start).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+
+  const label = (key: string, fallbackEn: string, fallbackAr: string) => {
+    const value = t(key);
+    if (value !== key) return value;
+    return locale === 'ar' ? fallbackAr : fallbackEn;
+  };
+
+  const openCreateEventModal = (date = selectedCalendarDate) => {
+    const day = startOfDay(date);
+    setSelectedCalendarDate(day);
+    setEventForm({
+      ...emptyEventForm,
+      eventDate: toDateInputValue(new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9)),
+    });
+    setEventModalOpen(true);
+  };
+
+  const closeEventModal = () => {
+    setEventModalOpen(false);
+    setEventForm(emptyEventForm);
+  };
+
+  const submitDashboardEvent = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setEventSaving(true);
+
+    const payload: CalendarEventPayload = {
+      title: eventForm.title.trim(),
+      titleAr: eventForm.titleAr.trim() || eventForm.title.trim(),
+      description: eventForm.description.trim() || null,
+      descriptionAr: eventForm.descriptionAr.trim() || null,
+      eventDate: new Date(eventForm.eventDate).toISOString(),
+      endDate: eventForm.endDate ? new Date(eventForm.endDate).toISOString() : null,
+      isAllDay: eventForm.isAllDay,
+      eventType: eventForm.eventType,
+      color: eventForm.color,
+      relatedEntityType: null,
+      relatedEntityId: null,
+    };
+
+    try {
+      await clientApiFetch({
+        method: 'POST',
+        backendPath: '/api/Calendar',
+        nextPath: '/api/calendar',
+        query: { locale },
+        body: payload,
+        locale,
+      });
+      closeEventModal();
+      setCalendarRefreshKey((value) => value + 1);
+    } finally {
+      setEventSaving(false);
+    }
+  };
 
   const studName = locale === 'ar' ? stud.studArabicName || stud.studName : stud.studName || stud.studArabicName;
   const activityItems = activities.slice(0, 4);
@@ -758,8 +846,17 @@ export default function DashboardPage() {
                 {calendarMonths[calendarDate.getMonth()]} {calendarDate.getFullYear()}
               </h2>
 
-              <div className="flex overflow-hidden rounded-lg border border-[#3b2b20] text-sm font-semibold">
-                {viewTabs.map((tab) => (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openCreateEventModal()}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#3b2b20] px-3 text-sm font-semibold text-white"
+                >
+                  <Plus className="h-4 w-4" />
+                  {label('calendar.addEvent', 'Add event', 'إضافة حدث')}
+                </button>
+                <div className="flex overflow-hidden rounded-lg border border-[#3b2b20] text-sm font-semibold">
+                  {viewTabs.map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveView(tab.key)}
@@ -769,7 +866,8 @@ export default function DashboardPage() {
                   >
                     {tab.label}
                   </button>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -792,7 +890,7 @@ export default function DashboardPage() {
                   <button
                     key={key}
                     type="button"
-                    onClick={() => setSelectedCalendarDate(startOfDay(day))}
+                    onClick={() => openCreateEventModal(day)}
                     className={`relative min-h-[104px] overflow-visible rounded-xl p-2 text-start align-top transition-all duration-200 ease-out hover:z-10 hover:-translate-y-0.5 hover:bg-[#fffaf5] hover:shadow-[0_12px_28px_rgba(75,47,26,0.12)] focus:outline-none sm:min-h-[132px] ${
                       outside ? 'bg-[#fbfaf8] text-[#c8c2bd]' : 'bg-white text-[#3b2b20]'
                     } ${
@@ -814,6 +912,15 @@ export default function DashboardPage() {
                         return (
                           <div
                             key={event.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={(clickEvent) => clickEvent.stopPropagation()}
+                            onKeyDown={(keyEvent) => {
+                              if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+                                keyEvent.preventDefault();
+                                keyEvent.stopPropagation();
+                              }
+                            }}
                             className="group/event rounded-md px-2 py-1 text-start text-[11px] font-semibold leading-4 shadow-sm transition-all duration-200 ease-out hover:relative hover:z-20 hover:scale-[1.02] hover:shadow-lg"
                             style={{ backgroundColor: color, color: isDarkColor(color) ? '#fff' : '#3b2b20' }}
                           >
@@ -873,6 +980,105 @@ export default function DashboardPage() {
             </div>
           </aside>
         </section>
+
+        {eventModalOpen && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" dir={direction}>
+            <form onSubmit={submitDashboardEvent} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
+              <div className="flex items-center justify-between border-b border-[#f1ece8] px-6 py-5">
+                <button
+                  type="button"
+                  onClick={closeEventModal}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f8f4f0] text-[#4b2f1a]"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                <h2 className="text-xl font-bold text-[#4b2f1a]">{label('calendar.addEvent', 'Add event', 'إضافة حدث')}</h2>
+              </div>
+
+              <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
+                <input
+                  required
+                  value={eventForm.title}
+                  onChange={(event) => setEventForm((value) => ({ ...value, title: event.target.value }))}
+                  placeholder={label('calendar.titleEn', 'English title', 'العنوان بالإنجليزية')}
+                  className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]"
+                />
+                <input
+                  required
+                  value={eventForm.titleAr}
+                  onChange={(event) => setEventForm((value) => ({ ...value, titleAr: event.target.value }))}
+                  placeholder={label('calendar.titleAr', 'Arabic title', 'العنوان بالعربية')}
+                  className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]"
+                />
+                <input
+                  required
+                  type="datetime-local"
+                  value={eventForm.eventDate}
+                  onChange={(event) => setEventForm((value) => ({ ...value, eventDate: event.target.value }))}
+                  className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]"
+                />
+                <input
+                  type="datetime-local"
+                  value={eventForm.endDate}
+                  onChange={(event) => setEventForm((value) => ({ ...value, endDate: event.target.value }))}
+                  className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]"
+                />
+                <select
+                  value={eventForm.eventType}
+                  onChange={(event) => setEventForm((value) => ({ ...value, eventType: Number(event.target.value) as CalendarEventType }))}
+                  className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]"
+                >
+                  {EVENT_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {label(`calendar.types.${type.key}`, type.fallbackEn, type.fallbackAr)}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-3 rounded-lg border border-[#ded6ce] px-4">
+                  <input
+                    type="color"
+                    value={eventForm.color}
+                    onChange={(event) => setEventForm((value) => ({ ...value, color: event.target.value }))}
+                    className="h-9 w-12 cursor-pointer border-0 bg-transparent p-0"
+                  />
+                  <span className="text-sm font-semibold text-[#6f665e]">{label('calendar.color', 'Color', 'اللون')}</span>
+                </div>
+                <textarea
+                  value={eventForm.description}
+                  onChange={(event) => setEventForm((value) => ({ ...value, description: event.target.value }))}
+                  placeholder={label('calendar.descriptionEn', 'English description', 'الوصف بالإنجليزية')}
+                  className="min-h-24 rounded-lg border border-[#ded6ce] px-4 py-3 outline-none focus:border-[#4b2f1a]"
+                />
+                <textarea
+                  value={eventForm.descriptionAr}
+                  onChange={(event) => setEventForm((value) => ({ ...value, descriptionAr: event.target.value }))}
+                  placeholder={label('calendar.descriptionAr', 'Arabic description', 'الوصف بالعربية')}
+                  className="min-h-24 rounded-lg border border-[#ded6ce] px-4 py-3 outline-none focus:border-[#4b2f1a]"
+                />
+                <label className="flex items-center gap-3 text-sm font-semibold text-[#4b2f1a]">
+                  <input
+                    type="checkbox"
+                    checked={eventForm.isAllDay}
+                    onChange={(event) => setEventForm((value) => ({ ...value, isAllDay: event.target.checked }))}
+                  />
+                  {label('calendar.allDay', 'All day', 'طوال اليوم')}
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end border-t border-[#f1ece8] px-6 py-4">
+                <button
+                  type="submit"
+                  disabled={eventSaving}
+                  className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#3b2b20] px-5 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  <Edit3 className="h-4 w-4" />
+                  {eventSaving ? t('common.loading') : label('common.save', 'Save', 'حفظ')}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {activityModalOpen && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" dir={direction}>

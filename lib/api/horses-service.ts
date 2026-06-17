@@ -190,10 +190,15 @@ export async function getHousingMap(query?: {
 export async function assignHorseToHousing(
   localId: string | number,
   box: string,
+  query?: {
+    mapKey?: string | null;
+    entityType?: string | null;
+    entityId?: string | number | null;
+  },
 ) {
   return apiFetch<ApiResult<never>>(`/api/Horses/${localId}/assign-box`, {
     method: 'POST',
-    query: { box },
+    query: { box, ...query },
     body: {},
   });
 }

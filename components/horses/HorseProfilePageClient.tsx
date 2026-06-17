@@ -376,7 +376,7 @@ export function HorseProfilePageClient({
     }
   };
 
-  const handleAssignBox = async (boxName: string) => {
+  const handleAssignBox = async (boxName: string, mapKey = 'mousa') => {
     if (!horseId || boxAssignLoading) return;
     setBoxAssignLoading(true);
 
@@ -385,8 +385,8 @@ export function HorseProfilePageClient({
         method: 'POST',
         backendPath: `/api/Horses/${horseId}/assign-box`,
         nextPath: `/api/horses/${horseId}/assign-box`,
-        backendQuery: { box: boxName },
-        nextQuery: { locale, box: boxName },
+        backendQuery: { box: boxName, mapKey },
+        nextQuery: { locale, box: boxName, mapKey },
         locale: locale as LocaleCode,
         body: {},
       });
@@ -394,8 +394,8 @@ export function HorseProfilePageClient({
       // Check for 409 Conflict first
       if (result.statusCode === 409) {
         const errorMessage = locale === 'ar' 
-          ? 'هذه الحظيرة مأخوذة بالفعل' 
-          : 'This box is already taken';
+          ? 'هذا المكان مأخوذ بالفعل'
+          : 'This slot is already taken';
         throw new Error(errorMessage);
       }
 
@@ -409,8 +409,8 @@ export function HorseProfilePageClient({
       // Check if error has status 409 (from clientApiFetch)
       if (requestError instanceof Error && (requestError as any).status === 409) {
         const errorMessage = locale === 'ar' 
-          ? 'هذه الحظيرة مأخوذة بالفعل' 
-          : 'This box is already taken';
+          ? 'هذا المكان مأخوذ بالفعل'
+          : 'This slot is already taken';
         throw new Error(errorMessage);
       }
       

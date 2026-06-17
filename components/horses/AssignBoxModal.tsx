@@ -1,8 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import {
   Check,
   CircleParking,
+  ExternalLink,
   ListChecks,
   Home,
   Search,
@@ -26,13 +28,26 @@ interface AssignBoxModalProps {
   horseId?: string;
   currentBox: string | null;
   onClose: () => void;
-  onSubmit: (boxName: string) => Promise<void>;
+  onSubmit: (boxName: string, mapKey: string) => Promise<void>;
 }
 
 type AvailabilityFilter = 'all' | 'available' | 'occupied' | 'full';
 type ManualUnitType = 'box' | 'barn';
+type HousingBranchKey = 'mousa' | 'mousa-abdaliah';
 
 const PICKER_PAGE_SIZE = 8;
+const HOUSING_BRANCHES: Array<{
+  key: HousingBranchKey;
+  labelAr: string;
+  labelEn: string;
+  slotOnly?: boolean;
+}> = [
+  { key: 'mousa', labelAr: 'الافتراضي', labelEn: 'Default' },
+  { key: 'mousa-abdaliah', labelAr: 'العبدالية', labelEn: 'Abdaliah', slotOnly: true },
+];
+
+const branchForCode = (code: string | null | undefined): HousingBranchKey =>
+  normalizeHousingCode(code).toUpperCase().startsWith('ABD-') ? 'mousa-abdaliah' : 'mousa';
 
 const normalizeHousingCode = (code: string | null | undefined) => {
   const value = String(code ?? '');
@@ -53,10 +68,15 @@ const getSlotCode = (unit: HousingUnitDto, slotNumber: number) =>
   `${normalizeHousingCode(unit.code)}-P${String(slotNumber).padStart(2, '0')}`;
 
 const unitLabel = (unit: HousingUnitDto, locale: 'ar' | 'en') =>
-  (locale === 'ar' ? unit.nameAr : unit.nameEn) || unit.code;
+  normalizeSlotCopy((locale === 'ar' ? unit.nameAr : unit.nameEn) || unit.code, locale);
 
 const unitGroupLabel = (unit: HousingUnitDto, locale: 'ar' | 'en') =>
   (locale === 'ar' ? unit.groupAr : unit.groupEn) || unit.code;
+
+const normalizeSlotCopy = (value: string, locale: 'ar' | 'en') =>
+  locale === 'ar'
+    ? value.replace(/البوكس/g, 'المكان').replace(/بوكس/g, 'مكان')
+    : value.replace(/Box/g, 'Slot').replace(/box/g, 'slot');
 
 const horseLabel = (
   horse: HousingUnitDto['horses'][number] | undefined,
@@ -76,6 +96,7 @@ export const AssignBoxModal = ({
   onSubmit,
 }: AssignBoxModalProps) => {
   const { direction, locale } = useLocale();
+  const [selectedBranch, setSelectedBranch] = useState<HousingBranchKey>('mousa');
   const [selectedCode, setSelectedCode] = useState('');
   const [availability, setAvailability] = useState<AvailabilityFilter>('all');
   const [manualType, setManualType] = useState<ManualUnitType>('box');
@@ -88,29 +109,48 @@ export const AssignBoxModal = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const isRTL = direction === 'rtl';
+  const activeBranch = HOUSING_BRANCHES.find((branch) => branch.key === selectedBranch) ?? HOUSING_BRANCHES[0];
+  const isSlotOnlyBranch = Boolean(activeBranch.slotOnly);
 
   useEffect(() => {
     if (!open) return;
 
+    const branch = branchForCode(currentBox);
+    setSelectedBranch(branch);
     setSelectedCode(currentBox || '');
-    setManualType(normalizeHousingCode(currentBox).toLowerCase().startsWith('barn') ? 'barn' : 'box');
+    setManualType(
+      branch === 'mousa-abdaliah' || normalizeHousingCode(currentBox).toLowerCase().startsWith('barn')
+        ? 'barn'
+        : 'box',
+    );
     setManualUnitCode(normalizeHousingCode(currentBox));
     setManualSearch('');
     setTypePage(1);
     setAvailability('all');
     setError('');
+  }, [open, currentBox]);
+
+  useEffect(() => {
+    if (!open) return;
+
     setLoadingMap(true);
+    setError('');
 
     clientApiFetch<ApiResult<HousingMapDto>>({
       backendPath: '/api/Housing/map',
       nextPath: '/api/housing/map',
-      backendQuery: { mapKey: 'mousa' },
-      nextQuery: { locale, mapKey: 'mousa' },
+      backendQuery: { mapKey: selectedBranch },
+      nextQuery: { locale, mapKey: selectedBranch },
       locale: locale as LocaleCode,
     })
       .then((result) => {
         if (!result.data) throw new Error(result.message || 'Housing map unavailable');
         setMapData(result.data);
+        const firstUnit = result.data.units[0];
+        if (selectedBranch === 'mousa-abdaliah' && firstUnit) {
+          setManualType('barn');
+          setManualUnitCode(firstUnit.code);
+        }
         if (currentBox && !result.data.units.some((unit) => unit.code === normalizeHousingCode(currentBox))) {
           setSelectedCode('');
         }
@@ -125,7 +165,7 @@ export const AssignBoxModal = ({
         );
       })
       .finally(() => setLoadingMap(false));
-  }, [open, currentBox, locale]);
+  }, [open, currentBox, locale, selectedBranch]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -304,7 +344,7 @@ export const AssignBoxModal = ({
 
     if (isFullForCurrentHorse(unit)) {
       setSelectedCode('');
-      setError(locale === 'ar' ? 'هذا البوكس ممتلئ' : 'This box is full');
+      setError(locale === 'ar' ? 'هذا المكان ممتلئ' : 'This slot is full');
       return;
     }
 
@@ -331,7 +371,7 @@ export const AssignBoxModal = ({
 
     const payload: UpdateHousingUnitCapacityPayload = {
       capacity: nextCapacity,
-      mapKey: mapData?.mapKey ?? 'mousa',
+      mapKey: mapData?.mapKey ?? selectedBranch,
       entityType: mapData?.entityType ?? null,
       entityId: mapData?.entityId ?? null,
     };
@@ -391,17 +431,17 @@ export const AssignBoxModal = ({
     event.preventDefault();
 
     if (!horseId || !selectedCode) {
-      setError(locale === 'ar' ? 'يرجى اختيار مكان الإيواء' : 'Please select a housing unit');
+      setError(locale === 'ar' ? 'يرجى اختيار مكان الإيواء' : 'Please select a housing slot');
       return;
     }
 
     if (!selectionChanged) {
-      setError(locale === 'ar' ? 'اختر مكاناً مختلفاً للحفظ' : 'Choose a different unit to save');
+      setError(locale === 'ar' ? 'اختر مكاناً مختلفاً للحفظ' : 'Choose a different slot to save');
       return;
     }
 
     if (selectionIsFull) {
-      setError(locale === 'ar' ? 'مكان الإيواء المحدد ممتلئ' : 'The selected housing unit is full');
+      setError(locale === 'ar' ? 'مكان الإيواء المحدد ممتلئ' : 'The selected housing slot is full');
       return;
     }
 
@@ -409,7 +449,7 @@ export const AssignBoxModal = ({
     setError('');
 
     try {
-      await onSubmit(selectedCode);
+      await onSubmit(selectedCode, selectedBranch);
       onClose();
     } catch (requestError) {
       setError(
@@ -454,8 +494,8 @@ export const AssignBoxModal = ({
                 </h2>
                 <p className="mt-0.5 text-sm text-[#857368]">
                   {locale === 'ar'
-                    ? 'اختر بوكساً أو عنبراً، ثم حدد المكان واحفظ التعيين.'
-                    : 'Choose a box or barn, then select the exact place and save.'}
+                    ? 'اختر الفرع، ثم حدد المكان واحفظ التعيين.'
+                    : 'Choose a branch, then select the exact slot and save.'}
                 </p>
               </div>
             </div>
@@ -470,8 +510,41 @@ export const AssignBoxModal = ({
           </button>
         </header>
 
+        <div className="border-b border-[#e9ddd4] bg-[#fffaf6] px-5 py-4 sm:px-7">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-base font-black text-[#4b2f1a]">
+              {locale === 'ar' ? 'فروع' : 'Branches'}
+            </span>
+            <div className="flex flex-wrap gap-3">
+              {HOUSING_BRANCHES.map((branch) => (
+                <button
+                  key={branch.key}
+                  type="button"
+                  onClick={() => {
+                    setSelectedBranch(branch.key);
+                    setSelectedCode('');
+                    setManualUnitCode('');
+                    setManualSearch('');
+                    setManualType(branch.slotOnly ? 'barn' : 'box');
+                    setAvailability('all');
+                    setError('');
+                  }}
+                  className={`min-w-32 rounded-full border px-6 py-3 text-base font-black transition ${
+                    selectedBranch === branch.key
+                      ? 'border-[#4b2f1a] bg-[#4b2f1a] text-white shadow-sm'
+                      : 'border-[#d7c6b9] bg-white text-[#5d493b] hover:border-[#8c6b53]'
+                  }`}
+                >
+                  {locale === 'ar' ? branch.labelAr : branch.labelEn}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="grid min-h-0 flex-1 lg:grid-cols-[370px_minmax(0,1fr)]">
+          <div className={`grid min-h-0 flex-1 ${isSlotOnlyBranch ? '' : 'lg:grid-cols-[370px_minmax(0,1fr)]'}`}>
+            {!isSlotOnlyBranch && (
             <aside className="flex min-h-[440px] flex-col border-b border-[#e9ddd4] bg-white lg:min-h-0 lg:border-b-0 lg:border-e">
               <div className="space-y-3 border-b border-[#eee5de] p-4 sm:p-5">
                 <div className="flex items-center gap-2 text-sm font-bold text-[#34251d]">
@@ -479,31 +552,33 @@ export const AssignBoxModal = ({
                   {locale === 'ar' ? 'اختيار مكان الإيواء' : 'Housing picker'}
                 </div>
 
-                <div className="grid grid-cols-2 gap-1 rounded-[13px] bg-[#f7f2ee] p-1">
-                  {([
-                    ['box', locale === 'ar' ? 'بوكس' : 'Box'],
-                    ['barn', locale === 'ar' ? 'عنبر' : 'Barn'],
-                  ] as const).map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => {
-                        setManualType(value);
-                        setManualUnitCode('');
-                        setSelectedCode('');
-                        setManualSearch('');
-                        setError('');
-                      }}
-                      className={`rounded-[10px] px-2 py-2 text-xs font-bold transition ${
-                        manualType === value
-                          ? 'bg-[#4b2f1a] text-white shadow-sm'
-                          : 'bg-white text-[#7d6b60] hover:text-[#4b2f1a]'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                {!isSlotOnlyBranch && (
+                  <div className="grid grid-cols-2 gap-1 rounded-[13px] bg-[#f7f2ee] p-1">
+                    {([
+                      ['box', locale === 'ar' ? 'أماكن مفردة' : 'Single slots'],
+                      ['barn', locale === 'ar' ? 'أماكن مشتركة' : 'Shared slots'],
+                    ] as const).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          setManualType(value);
+                          setManualUnitCode('');
+                          setSelectedCode('');
+                          setManualSearch('');
+                          setError('');
+                        }}
+                        className={`rounded-[10px] px-2 py-2 text-xs font-bold transition ${
+                          manualType === value
+                            ? 'bg-[#4b2f1a] text-white shadow-sm'
+                            : 'bg-white text-[#7d6b60] hover:text-[#4b2f1a]'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {!(manualType === 'barn' && manualUnit) && (
                   <div className="relative">
@@ -521,8 +596,8 @@ export const AssignBoxModal = ({
                           ? 'ابحث عن عنبر أو اسم الخيل'
                           : 'Search barn or horse'
                         : locale === 'ar'
-                          ? 'ابحث عن بوكس أو اسم الخيل'
-                          : 'Search box or horse'
+                          ? 'ابحث عن مكان أو اسم الخيل'
+                          : 'Search slot or horse'
                     }
                     className={`h-12 w-full rounded-[14px] border border-[#e4d8cf] bg-[#fcfaf8] text-sm text-[#34251d] outline-none transition focus:border-[#6b4a34] focus:bg-white focus:ring-4 focus:ring-[#6b4a34]/10 ${
                       isRTL ? 'pr-11 pl-4 text-right' : 'pl-11 pr-4 text-left'
@@ -676,12 +751,29 @@ export const AssignBoxModal = ({
                 />
               )}
             </aside>
+            )}
 
             <main className="min-h-0 overflow-auto overscroll-contain p-3 sm:p-5">
               {loadingMap ? (
                 <div className="flex min-h-[520px] items-center justify-center rounded-[22px] bg-white text-sm text-[#806e62]">
-                  {locale === 'ar' ? 'جاري تحميل المخطط...' : 'Loading architectural plan...'}
+                  {isSlotOnlyBranch
+                    ? locale === 'ar'
+                      ? 'جاري تحميل الأماكن...'
+                      : 'Loading slots...'
+                    : locale === 'ar'
+                      ? 'جاري تحميل المخطط...'
+                      : 'Loading architectural plan...'}
                 </div>
+              ) : mapData && isSlotOnlyBranch && manualUnit ? (
+                <SlotOnlyBranchPanel
+                  unit={manualUnit}
+                  locale={locale as 'ar' | 'en'}
+                  selectedSlotNumber={selectedSlotNumber}
+                  currentHorseId={horseId}
+                  capacitySaving={capacitySavingCode === manualUnit.code}
+                  onSelectSlot={(slotNumber) => selectBarnSlot(manualUnit, slotNumber)}
+                  onIncreaseCapacity={() => updateBarnCapacity(manualUnit, manualUnit.capacity + 1)}
+                />
               ) : mapData ? (
                 <HousingMapPicker
                   map={mapData}
@@ -736,7 +828,7 @@ export const AssignBoxModal = ({
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-[#34251d]">
-                        {locale === 'ar' ? selectedUnit.nameAr : selectedUnit.nameEn}
+                        {unitLabel(selectedUnit, locale as 'ar' | 'en')}
                         <span className="mx-2 font-normal text-[#b3a49a]">|</span>
                         <span className="text-xs text-[#7c6a5f]">{selectedUnit.code}</span>
                       </p>
@@ -747,13 +839,13 @@ export const AssignBoxModal = ({
                             : 'New selection ready to save'
                           : locale === 'ar'
                             ? 'هذا هو مكان الإيواء الحالي'
-                            : 'This is the current housing unit'}
+                            : 'This is the current housing slot'}
                       </p>
                     </div>
                   </div>
                 ) : (
                   <p className="text-sm text-[#89786d]">
-                    {locale === 'ar' ? 'اختر بوكساً من القائمة أو المخطط.' : 'Select a box from the list or plan.'}
+                    {locale === 'ar' ? 'اختر مكاناً من القائمة أو المخطط.' : 'Select a slot from the list or plan.'}
                   </p>
                 )}
               </div>
@@ -854,6 +946,122 @@ function PaginationControls({
         </button>
       </div>
     </div>
+  );
+}
+
+function SlotOnlyBranchPanel({
+  unit,
+  locale,
+  selectedSlotNumber,
+  currentHorseId,
+  capacitySaving,
+  onSelectSlot,
+  onIncreaseCapacity,
+}: {
+  unit: HousingUnitDto;
+  locale: 'ar' | 'en';
+  selectedSlotNumber: number | null;
+  currentHorseId?: string;
+  capacitySaving: boolean;
+  onSelectSlot: (slotNumber: number) => void;
+  onIncreaseCapacity: () => void;
+}) {
+  const horseBySlot = new Map(
+    unit.horses.map((horse, index) => [horse.slotNumber ?? index + 1, horse]),
+  );
+
+  return (
+    <section className="min-h-[520px] rounded-[22px] border border-[#dfd2c8] bg-white p-5 shadow-[0_12px_34px_rgba(75,47,26,0.06)]">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#ece2da] pb-4">
+        <div>
+          <h3 className="text-xl font-bold text-[#34251d]">
+            {unitLabel(unit, locale)}
+          </h3>
+          <p className="mt-1 text-sm font-semibold text-[#8b796e]">
+            {unit.horses.length}/{unit.capacity} {locale === 'ar' ? 'مشغول' : 'occupied'}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={capacitySaving}
+          onClick={onIncreaseCapacity}
+          className="inline-flex items-center gap-2 rounded-xl border border-[#d8c8bb] px-4 py-2 text-sm font-bold text-[#4b2f1a] hover:bg-[#f8f1ea] disabled:opacity-50"
+        >
+          <Users className="h-4 w-4" />
+          {capacitySaving
+            ? locale === 'ar'
+              ? 'جاري الإضافة...'
+              : 'Adding...'
+            : locale === 'ar'
+              ? 'إضافة مكان'
+              : 'Add slot'}
+        </button>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+        {Array.from({ length: unit.capacity }).map((_, index) => {
+          const slotNumber = index + 1;
+          const horse = horseBySlot.get(slotNumber);
+          const belongsToCurrentHorse = horse && String(horse.id) === currentHorseId;
+          const selected = selectedSlotNumber === slotNumber;
+          const horseName = horseLabel(horse, locale);
+
+          return (
+            <div
+              key={slotNumber}
+              className={`min-h-[112px] rounded-2xl border p-3 transition ${
+                selected
+                  ? 'border-[#4b2f1a] bg-[#4b2f1a] text-white shadow-[0_10px_24px_rgba(75,47,26,0.16)]'
+                  : horse
+                    ? belongsToCurrentHorse
+                      ? 'border-[#b9d4ad] bg-[#f1f8ef] text-[#365c35]'
+                      : 'border-[#e8c9ad] bg-[#fff7ef] text-[#5f3521]'
+                    : 'border-[#d8e8d8] bg-[#f5fbf3] text-[#365c35] hover:border-[#7ea16f]'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-black">
+                  {locale === 'ar' ? `مكان ${slotNumber}` : `Slot ${slotNumber}`}
+                </span>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${selected ? 'bg-white/15' : 'bg-white/70'}`}>
+                  {horse ? (locale === 'ar' ? 'مشغول' : 'Used') : (locale === 'ar' ? 'متاح' : 'Open')}
+                </span>
+              </div>
+
+              {horse ? (
+                <Link
+                  href={`/${locale}/horses/${horse.id}`}
+                  className={`mt-4 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs font-bold ${
+                    selected ? 'bg-white/15 text-white' : 'bg-white/80 text-[#3d2a1b] hover:bg-white'
+                  }`}
+                >
+                  <span className="truncate">{horseName}</span>
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onSelectSlot(slotNumber)}
+                  className={`mt-4 w-full rounded-xl px-3 py-2 text-xs font-bold ${
+                    selected
+                      ? 'bg-white text-[#4b2f1a]'
+                      : 'bg-[#4b2f1a] text-white hover:bg-[#3b2414]'
+                  }`}
+                >
+                  {selected
+                    ? locale === 'ar'
+                      ? 'محدد'
+                      : 'Selected'
+                    : locale === 'ar'
+                      ? 'اختيار'
+                      : 'Select'}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

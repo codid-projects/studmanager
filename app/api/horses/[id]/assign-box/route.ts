@@ -13,9 +13,12 @@ export async function POST(request: NextRequest, { params }: RouteProps) {
     request.nextUrl.searchParams.get('locale') === 'en' ? 'en' : 'ar'
   ) as LocaleCode;
   const box = request.nextUrl.searchParams.get('box') ?? '';
+  const mapKey = request.nextUrl.searchParams.get('mapKey') ?? undefined;
+  const entityType = request.nextUrl.searchParams.get('entityType') ?? undefined;
+  const entityId = request.nextUrl.searchParams.get('entityId') ?? undefined;
 
   try {
-    const result = await assignHorseToHousing(id, box);
+    const result = await assignHorseToHousing(id, box, { mapKey, entityType, entityId });
     return NextResponse.json(result, { status: result.statusCode ?? 200 });
   } catch (error) {
     const status = error instanceof ApiError ? error.status : 500;
