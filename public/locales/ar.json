@@ -286,7 +286,14 @@
       "general": "عام",
       "nutrition": "تغذية",
       "ovulationExamination": "فحص تبويض",
-      "mareBreedingSoundness": "فحص جاهزية الفرس"
+      "mareBreedingSoundness": "فحص جاهزية الفرس",
+      "injuryExamination": "فحص إصابة",
+      "foalBirth": "ولادة مهر",
+      "estrusCycle": "دورة الشبق",
+      "stallionBreedingEvent": "تلقيح الفحل",
+      "semenCollection": "جمع السائل المنوي",
+      "semenShipment": "شحن السائل المنوي",
+      "stallionBreedingSoundness": "فحص جاهزية الفحل"
     }
   },
   "notifications": {

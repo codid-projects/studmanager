@@ -27,7 +27,7 @@ interface HorseProfileHeaderProps {
   motherName?: string;
   isSold?: boolean;
   soldLoading?: boolean;
-  onSoldChange?: (isSold: boolean) => void;
+  onOpenSale?: () => void;
   onRate?: () => void;
   averageRating?: number | null;
   ratingsCount?: number;
@@ -42,7 +42,7 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
   motherName: pedigreeMotherName,
   isSold = false,
   soldLoading = false,
-  onSoldChange,
+  onOpenSale,
   onRate,
   averageRating,
   ratingsCount = 0,
@@ -247,8 +247,8 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
 
           <button
             type="button"
-            onClick={() => onSoldChange?.(!isSold)}
-            disabled={soldLoading || !onSoldChange}
+            onClick={onOpenSale}
+            disabled={soldLoading || !onOpenSale}
             className={`flex h-12 items-center gap-2 rounded-xl border px-4 font-semibold transition-colors ${
               isSold
                 ? "border-emerald-200 bg-emerald-50 text-emerald-700"
@@ -256,7 +256,7 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
             } disabled:cursor-not-allowed disabled:opacity-60`}
           >
             {isSold ? <BadgeCheck className="h-5 w-5" /> : <CircleDollarSign className="h-5 w-5" />}
-            <span>{soldLoading ? t("common.loading") : isSold ? t("horses.markAvailable") : t("horses.markAsSold")}</span>
+            <span>{soldLoading ? t("common.loading") : isSold ? (isRTL ? "عرض تفاصيل البيع" : "View sale details") : t("horses.markAsSold")}</span>
           </button>
 
           {onEdit ? (

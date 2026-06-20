@@ -1,6 +1,7 @@
 'use client';
 
 import React, { FormEvent, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CalendarDays,
   ChevronLeft,
@@ -17,6 +18,8 @@ import {
 import { MainLayout } from '@/components/layout/MainLayout';
 import { clientApiFetch } from '@/lib/api/client';
 import { useLocale, useTranslation } from '@/lib/locale-context';
+import { AnimatedCalendarView, type AnimatedCalendarMode } from '@/components/calendar/AnimatedCalendarView';
+import { deduplicateCalendarEvents } from '@/lib/calendar-events';
 import type {
   ActivityDto,
   ApiResult,
@@ -28,14 +31,21 @@ import type {
   PagedResponse,
 } from '@/lib/api/types';
 
-type ViewMode = 'day' | 'week' | 'month';
+type ViewMode = AnimatedCalendarMode;
 
-const DEFAULT_COLORS = ['#ffe0b2', '#dff3dc', '#dbeafe', '#fce7f3', '#ede9fe', '#fee2e2'];
+const DEFAULT_COLORS = ['#E8DED8', '#F7DFA8', '#F6C7DA', '#DED2F5', '#F5C2C2', '#BFE6D3', '#F3C4D9', '#DCC2B0', '#BFDDEC', '#F5D0A9', '#C9D1EF'];
 const EVENT_TYPES: Array<{ value: CalendarEventType; key: string; fallbackEn: string; fallbackAr: string }> = [
   { value: 1, key: 'general', fallbackEn: 'General', fallbackAr: 'عام' },
   { value: 2, key: 'nutrition', fallbackEn: 'Nutrition', fallbackAr: 'تغذية' },
   { value: 3, key: 'ovulationExamination', fallbackEn: 'Ovulation examination', fallbackAr: 'فحص تبويض' },
   { value: 4, key: 'mareBreedingSoundness', fallbackEn: 'Mare breeding soundness', fallbackAr: 'فحص جاهزية الفرس' },
+  { value: 5, key: 'injuryExamination', fallbackEn: 'Injury examination', fallbackAr: 'فحص إصابة' },
+  { value: 6, key: 'foalBirth', fallbackEn: 'Foal birth', fallbackAr: 'ولادة مهر' },
+  { value: 7, key: 'estrusCycle', fallbackEn: 'Estrus cycle', fallbackAr: 'دورة الشبق' },
+  { value: 8, key: 'stallionBreedingEvent', fallbackEn: 'Stallion breeding', fallbackAr: 'تلقيح الفحل' },
+  { value: 9, key: 'semenCollection', fallbackEn: 'Semen collection', fallbackAr: 'جمع السائل المنوي' },
+  { value: 10, key: 'semenShipment', fallbackEn: 'Semen shipment', fallbackAr: 'شحن السائل المنوي' },
+  { value: 11, key: 'stallionBreedingSoundness', fallbackEn: 'Stallion breeding soundness', fallbackAr: 'فحص جاهزية الفحل' },
 ];
 
 const emptyEventForm = {
@@ -253,6 +263,7 @@ export default function DashboardPage() {
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [eventSaving, setEventSaving] = useState(false);
   const [eventForm, setEventForm] = useState(emptyEventForm);
+  const [editingCalendarEvent, setEditingCalendarEvent] = useState<CalendarEventDto | null>(null);
   const isRTL = direction === 'rtl';
 
   async function loadActivities(pageNumber: number, pageSize = 6) {
@@ -331,7 +342,7 @@ export default function DashboardPage() {
           locale,
         });
 
-        if (mounted) setCalendarEvents(unwrapResult(payload) ?? []);
+        if (mounted) setCalendarEvents(deduplicateCalendarEvents(unwrapResult(payload) ?? []));
       } catch {
         if (mounted) setCalendarEvents([]);
       }
@@ -391,7 +402,7 @@ export default function DashboardPage() {
   const selectedCalendarEvents = calendarEventsByDay.get(toDateKey(selectedCalendarDate)) ?? [];
   const selectedCalendarCellIndex = calendarCells.findIndex((date) => toDateKey(date) === toDateKey(selectedCalendarDate));
   const selectedCalendarWeekStart = selectedCalendarCellIndex >= 0 ? Math.floor(selectedCalendarCellIndex / 7) * 7 : 0;
-  const visibleCalendarEvents = activeView === 'month'
+  const visibleCalendarEvents = activeView === 'month' || activeView === 'swipe'
     ? calendarEvents
     : activeView === 'day'
       ? selectedCalendarEvents
@@ -404,6 +415,7 @@ export default function DashboardPage() {
     { key: 'day' as const, label: t('calendar.viewDay') },
     { key: 'week' as const, label: t('calendar.viewWeek') },
     { key: 'month' as const, label: t('calendar.viewMonth') },
+    { key: 'swipe' as const, label: locale === 'ar' ? 'سحب' : 'Swipe' },
   ];
 
   const calendarMonths = [
@@ -445,11 +457,37 @@ export default function DashboardPage() {
       ...emptyEventForm,
       eventDate: toDateInputValue(new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9)),
     });
+    setEditingCalendarEvent(null);
+    setEventModalOpen(true);
+  };
+
+  const openEditEventModal = (event: CalendarEventDto) => {
+    const normalizedType = (event.type ?? '').toLowerCase();
+    const eventType: CalendarEventType = normalizedType.includes('nutrition')
+      ? 2
+      : normalizedType.includes('ovulation')
+        ? 3
+        : normalizedType.includes('marebreedingsoundness')
+          ? 4
+          : 1;
+    setEditingCalendarEvent(event);
+    setEventForm({
+      title: event.title ?? '',
+      titleAr: event.titleAr ?? '',
+      description: event.description ?? '',
+      descriptionAr: event.descriptionAr ?? '',
+      eventDate: toDateInputValue(new Date(event.start)),
+      endDate: event.end ? toDateInputValue(new Date(event.end)) : '',
+      isAllDay: event.allDay,
+      eventType,
+      color: event.color || DEFAULT_COLORS[0],
+    });
     setEventModalOpen(true);
   };
 
   const closeEventModal = () => {
     setEventModalOpen(false);
+    setEditingCalendarEvent(null);
     setEventForm(emptyEventForm);
   };
 
@@ -473,9 +511,9 @@ export default function DashboardPage() {
 
     try {
       await clientApiFetch({
-        method: 'POST',
-        backendPath: '/api/Calendar',
-        nextPath: '/api/calendar',
+        method: editingCalendarEvent ? 'PUT' : 'POST',
+        backendPath: editingCalendarEvent ? `/api/Calendar/${editingCalendarEvent.id}` : '/api/Calendar',
+        nextPath: editingCalendarEvent ? `/api/calendar/${editingCalendarEvent.id}` : '/api/calendar',
         query: { locale },
         body: payload,
         locale,
@@ -855,13 +893,13 @@ export default function DashboardPage() {
                   <Plus className="h-4 w-4" />
                   {label('calendar.addEvent', 'Add event', 'إضافة حدث')}
                 </button>
-                <div className="flex overflow-hidden rounded-lg border border-[#3b2b20] text-sm font-semibold">
+                <div className="flex overflow-hidden rounded-xl border border-[#3b2b20] bg-[#f5eee8] p-1 text-sm font-semibold shadow-inner">
                   {viewTabs.map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveView(tab.key)}
-                    className={`min-w-16 px-4 py-2 ${
-                      activeView === tab.key ? 'bg-[#3b2b20] text-white' : 'bg-white text-[#3b2b20] hover:bg-[#f8f4f0]'
+                    className={`min-w-16 rounded-lg px-4 py-2 transition-all duration-300 ${
+                      activeView === tab.key ? 'scale-[1.02] bg-[#3b2b20] text-white shadow-lg' : 'bg-transparent text-[#3b2b20] hover:bg-white/70'
                     }`}
                   >
                     {tab.label}
@@ -871,77 +909,17 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="mb-2 grid grid-cols-7 gap-px rounded-2xl bg-[#eee4dc] p-px">
-              {displayDays.map((day) => (
-                <div key={day} className="rounded-xl bg-[#fbf8f4] py-2 text-center text-sm font-semibold text-[#8c847c]">
-                  {day}
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-7 gap-px rounded-2xl bg-[#e8ded5] p-px shadow-inner">
-              {calendarCells.map((day) => {
-                const key = toDateKey(day);
-                const dayEvents = calendarEventsByDay.get(key) ?? [];
-                const outside = day.getMonth() !== calendarDate.getMonth();
-                const selected = key === toDateKey(selectedCalendarDate);
-
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => openCreateEventModal(day)}
-                    className={`relative min-h-[104px] overflow-visible rounded-xl p-2 text-start align-top transition-all duration-200 ease-out hover:z-10 hover:-translate-y-0.5 hover:bg-[#fffaf5] hover:shadow-[0_12px_28px_rgba(75,47,26,0.12)] focus:outline-none sm:min-h-[132px] ${
-                      outside ? 'bg-[#fbfaf8] text-[#c8c2bd]' : 'bg-white text-[#3b2b20]'
-                    } ${
-                      selected
-                        ? 'z-[1] bg-[#fffaf2] shadow-[inset_0_0_0_2px_#4b2f1a,0_10px_24px_rgba(75,47,26,0.12)]'
-                        : ''
-                    }`}
-                  >
-                    <span
-                      className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-bold ${
-                        selected ? 'bg-[#4b2f1a] text-white' : 'text-current'
-                      }`}
-                    >
-                      {day.getDate()}
-                    </span>
-                    <div className="mt-2 space-y-1">
-                      {dayEvents.slice(0, 3).map((event) => {
-                        const color = getCalendarEventColor(event);
-                        return (
-                          <div
-                            key={event.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={(clickEvent) => clickEvent.stopPropagation()}
-                            onKeyDown={(keyEvent) => {
-                              if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
-                                keyEvent.preventDefault();
-                                keyEvent.stopPropagation();
-                              }
-                            }}
-                            className="group/event rounded-md px-2 py-1 text-start text-[11px] font-semibold leading-4 shadow-sm transition-all duration-200 ease-out hover:relative hover:z-20 hover:scale-[1.02] hover:shadow-lg"
-                            style={{ backgroundColor: color, color: isDarkColor(color) ? '#fff' : '#3b2b20' }}
-                          >
-                            <div className="whitespace-normal break-words">{calendarEventTitle(event)}</div>
-                            <div className="max-h-0 overflow-hidden opacity-0 transition-all duration-200 ease-out group-hover/event:mt-1 group-hover/event:max-h-24 group-hover/event:opacity-100">
-                              <div className="text-[10px] font-semibold opacity-85">{calendarEventTime(event)}</div>
-                              {calendarEventDescription(event) ? (
-                                <div className="mt-1 line-clamp-3 text-[10px] font-medium leading-4 opacity-80">
-                                  {calendarEventDescription(event)}
-                                </div>
-                              ) : null}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {dayEvents.length > 3 && <div className="text-xs font-semibold text-[#8c847c]">+{dayEvents.length - 3}</div>}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <AnimatedCalendarView
+              mode={activeView} monthDate={calendarDate} selectedDate={selectedCalendarDate} days={displayDays}
+              locale={locale} isRTL={isRTL} events={calendarEvents} getEventColor={getCalendarEventColor}
+              getEventTitle={calendarEventTitle} getEventDescription={calendarEventDescription} getEventTime={calendarEventTime}
+              onDateClick={openCreateEventModal}
+              onOpenDay={(date) => {
+                setSelectedCalendarDate(startOfDay(date));
+                setActiveView('day');
+              }}
+              onEventClick={openEditEventModal}
+            />
           </article>
 
           <aside className="rounded-2xl bg-white p-5 shadow-sm" dir={direction}>
@@ -981,7 +959,7 @@ export default function DashboardPage() {
           </aside>
         </section>
 
-        {eventModalOpen && (
+        {eventModalOpen && typeof document !== 'undefined' && createPortal(
           <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" dir={direction}>
             <form onSubmit={submitDashboardEvent} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
               <div className="flex items-center justify-between border-b border-[#f1ece8] px-6 py-5">
@@ -993,7 +971,11 @@ export default function DashboardPage() {
                 >
                   <X className="h-5 w-5" />
                 </button>
-                <h2 className="text-xl font-bold text-[#4b2f1a]">{label('calendar.addEvent', 'Add event', 'إضافة حدث')}</h2>
+                <h2 className="text-xl font-bold text-[#4b2f1a]">
+                  {editingCalendarEvent
+                    ? label('calendar.editEvent', 'Edit event', 'تعديل الحدث')
+                    : label('calendar.addEvent', 'Add event', 'إضافة حدث')}
+                </h2>
               </div>
 
               <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
@@ -1026,7 +1008,10 @@ export default function DashboardPage() {
                 />
                 <select
                   value={eventForm.eventType}
-                  onChange={(event) => setEventForm((value) => ({ ...value, eventType: Number(event.target.value) as CalendarEventType }))}
+                  onChange={(event) => {
+                    const eventType = Number(event.target.value) as CalendarEventType;
+                    setEventForm((value) => ({ ...value, eventType, color: DEFAULT_COLORS[eventType - 1] }));
+                  }}
                   className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]"
                 >
                   {EVENT_TYPES.map((type) => (
@@ -1077,7 +1062,8 @@ export default function DashboardPage() {
                 </button>
               </div>
             </form>
-          </div>
+          </div>,
+          document.body,
         )}
 
         {activityModalOpen && (

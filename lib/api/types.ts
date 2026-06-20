@@ -37,7 +37,7 @@ export type ActivityDto = {
 
 export type ActivityTypeEnum = 1 | 2 | 3;
 
-export type CalendarEventType = 1 | 2 | 3 | 4;
+export type CalendarEventType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
 
 export type CalendarEventDto = {
   id: number;
@@ -263,6 +263,8 @@ export interface HorseListItemDto {
   isActive: boolean;
   isSold?: boolean;
   soldAt?: string | null;
+  soldTo?: string | null;
+  soldPrice?: string | null;
 }
 
 export interface HorseRatingPayload {

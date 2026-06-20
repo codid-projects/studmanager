@@ -9,6 +9,7 @@ interface Props {
   description?: string;
   onCancel: () => void;
   onConfirm: () => void;
+  loading?: boolean;
 }
 
 export default function DeleteConfirmModal({
@@ -17,6 +18,7 @@ export default function DeleteConfirmModal({
   description,
   onCancel,
   onConfirm,
+  loading = false,
 }: Props) {
   const { direction } = useLocale();
 
@@ -81,12 +83,14 @@ export default function DeleteConfirmModal({
           <div className="mt-2 flex gap-3">
             <button
               onClick={onConfirm}
+              disabled={loading}
               className="px-6 py-2 rounded-[14px] bg-[#c2463a] text-white font-semibold"
             >
-              {direction === "rtl" ? "حذف" : "Delete"}
+              {loading ? (direction === "rtl" ? "جارٍ الحذف..." : "Deleting...") : (direction === "rtl" ? "حذف" : "Delete")}
             </button>
             <button
               onClick={onCancel}
+              disabled={loading}
               className="px-6 py-2 rounded-[14px] border border-[#bdbdbd] font-semibold"
             >
               {direction === "rtl" ? "إلغاء" : "Cancel"}

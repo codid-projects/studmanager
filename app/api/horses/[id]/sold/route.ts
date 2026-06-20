@@ -11,7 +11,11 @@ export async function PATCH(request: NextRequest, { params }: RouteProps) {
 
   try {
     const body = await request.json();
-    return NextResponse.json(await setHorseSoldStatus(id, Boolean(body.isSold)));
+    return NextResponse.json(await setHorseSoldStatus(id, {
+      isSold: Boolean(body.isSold),
+      soldTo: typeof body.soldTo === 'string' ? body.soldTo : null,
+      soldPrice: typeof body.soldPrice === 'string' ? body.soldPrice : null,
+    }));
   } catch (error) {
     const status = error instanceof ApiError ? error.status : 500;
     const message = error instanceof Error ? error.message : null;

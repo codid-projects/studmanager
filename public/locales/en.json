@@ -286,7 +286,14 @@
       "general": "General",
       "nutrition": "Nutrition",
       "ovulationExamination": "Ovulation examination",
-      "mareBreedingSoundness": "Mare breeding soundness"
+      "mareBreedingSoundness": "Mare breeding soundness",
+      "injuryExamination": "Injury examination",
+      "foalBirth": "Foal birth",
+      "estrusCycle": "Estrus cycle",
+      "stallionBreedingEvent": "Stallion breeding",
+      "semenCollection": "Semen collection",
+      "semenShipment": "Semen shipment",
+      "stallionBreedingSoundness": "Stallion breeding soundness"
     }
   },
   "notifications": {

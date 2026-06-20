@@ -154,10 +154,10 @@ export async function deleteHorse(localId: string | number) {
   });
 }
 
-export async function setHorseSoldStatus(localId: string | number, isSold: boolean) {
+export async function setHorseSoldStatus(localId: string | number, payload: { isSold: boolean; soldTo?: string | null; soldPrice?: string | null }) {
   return apiFetch<ApiResult<boolean>>(`/api/Horses/${localId}/sold`, {
     method: 'PATCH',
-    body: { isSold },
+    body: payload,
   });
 }
 

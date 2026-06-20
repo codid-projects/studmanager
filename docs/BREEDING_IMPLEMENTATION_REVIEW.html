@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StudManager Breeding Implementation Review</title>
+  <style>
+    :root { --brown:#351d10; --cream:#fbf7f4; --line:#e4d9d1; --muted:#76675f; --green:#287447; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--cream); color:#30251f; font:15px/1.6 Arial, sans-serif; }
+    main { width:min(980px, calc(100% - 32px)); margin:32px auto; }
+    header, section { margin-bottom:18px; padding:24px; border:1px solid var(--line); border-radius:14px; background:white; }
+    header { background:var(--brown); color:white; }
+    h1, h2, h3 { margin-top:0; }
+    h1 { margin-bottom:6px; }
+    h2 { color:var(--brown); }
+    code { padding:2px 6px; border-radius:5px; background:#f3eee9; font-size:13px; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { background:#f7f2ed; }
+    .status { display:inline-block; padding:4px 9px; border-radius:999px; background:#e7f5eb; color:var(--green); font-weight:bold; }
+    .note { padding:12px 14px; border-left:4px solid #ba9b55; background:#fff9df; }
+    ul { padding-left:20px; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Breeding Feature Implementation Review</h1>
+    <p>StudManager frontend and backend handoff · 20 June 2026</p>
+    <span class="status">Build verified</span>
+  </header>
+
+  <section>
+    <h2>Summary</h2>
+    <p>The old breeding screens and dummy records were replaced with API-backed mare and stallion workflows based on the supplied Figma section and screenshots. Arabic, English, RTL, LTR, internal horse selection, forms, record tables and responsive behavior are included.</p>
+  </section>
+
+  <section>
+    <h2>Frontend work</h2>
+    <ul>
+      <li>Created five mare screens: breeding summary, foal registration, ovulation examination, estrus-cycle tracking and mare soundness examination.</li>
+      <li>Created four stallion screens: natural breeding, semen collection, semen shipment and stallion soundness examination.</li>
+      <li>Added separate API clients for mare and stallion breeding.</li>
+      <li>Split the UI into small forms, shared form primitives, a shared records table and shared horse-selection components.</li>
+      <li>Removed the active dummy-data implementation and obsolete breeding modals/tables.</li>
+      <li>Added Arabic and English text with RTL/LTR layout handling.</li>
+      <li>Made the full area of date, datetime, month and time inputs open the native picker.</li>
+      <li>Kept a visible calendar icon on date, datetime and month inputs while preserving full-field click behavior.</li>
+      <li>Added localized calendar labels and color handling for every breeding event type in calendar and dashboard views.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Horse picker behavior</h2>
+    <ul>
+      <li>A large centered <strong>Select mare / Select stallion</strong> control opens a modal.</li>
+      <li>The modal initially shows 10 internal horses filtered by the correct gender.</li>
+      <li>Search supports Arabic and English horse names and is debounced.</li>
+      <li>Previous/next pagination uses the backend total page count.</li>
+      <li>The modal keeps a stable responsive height and scrolls only its result area.</li>
+      <li>Selecting a horse automatically closes the modal and loads or creates its breeding profile.</li>
+      <li>After selection, the horse control has a tinted background, stronger border and selected horse name so it is clearly a clickable change button.</li>
+      <li>All nested breeding horse inputs now use the custom modal too: sire, donor mare and optional surrogate mare.</li>
+      <li>Optional horse inputs can be cleared, and a donor/current mare cannot also be chosen as its own surrogate.</li>
+      <li>Native selects remain only for small fixed-value lists such as gender, status, method and clinical result.</li>
+      <li>Escape, close button and backdrop click also close the modal.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Backend work — simple explanation</h2>
+    <p>The database already contained the stallion breeding tables and entities, but they were not available through an API. A stallion breeding controller and service were added so the frontend can create, list, update and delete the existing records.</p>
+    <ul>
+      <li>Added stallion dashboard totals.</li>
+      <li>Added CRUD APIs for natural breeding events.</li>
+      <li>Added CRUD APIs for semen collection records.</li>
+      <li>Added CRUD APIs for semen shipment records.</li>
+      <li>Added CRUD APIs for stallion soundness examinations.</li>
+      <li>Added DTOs for request validation and clean API responses.</li>
+      <li>Fixed Entity Framework mapping for calculated stallion profile properties.</li>
+      <li>Initialized the existing S3 attachment service at application startup.</li>
+      <li>Connected mare examinations, estrus cycles and all stallion breeding records to the calendar on create, update and delete.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>API routes added</h2>
+    <table>
+      <thead><tr><th>Area</th><th>Routes</th></tr></thead>
+      <tbody>
+        <tr><td>Dashboard</td><td><code>GET /api/stallion-breeding/profiles/{profileId}/dashboard</code></td></tr>
+        <tr><td>Natural breeding</td><td><code>/api/stallion-breeding/breeding-events</code></td></tr>
+        <tr><td>Semen collection</td><td><code>/api/stallion-breeding/semen-collections</code></td></tr>
+        <tr><td>Semen shipment</td><td><code>/api/stallion-breeding/semen-shipments</code></td></tr>
+        <tr><td>Soundness</td><td><code>/api/stallion-breeding/soundness-examinations</code></td></tr>
+      </tbody>
+    </table>
+    <p>Each record route supports list, create, update and delete operations.</p>
+  </section>
+
+  <section>
+    <h2>Breeding calendar events</h2>
+    <table>
+      <thead><tr><th>Source</th><th>Dates sent to calendar</th><th>Color</th></tr></thead>
+      <tbody>
+        <tr><td>Ovulation examination</td><td>Record date + optional follow-up</td><td><code>#F6C7DA</code></td></tr>
+        <tr><td>Mare soundness</td><td>Record date + optional follow-up</td><td><code>#DED2F5</code></td></tr>
+        <tr><td>Estrus cycle</td><td>Start date + optional end date</td><td><code>#F3C4D9</code></td></tr>
+        <tr><td>Foal birth</td><td>Birth date</td><td><code>#BFE6D3</code></td></tr>
+        <tr><td>Natural stallion breeding</td><td>Record date + optional follow-up</td><td><code>#DCC2B0</code></td></tr>
+        <tr><td>Semen collection</td><td>Record date + optional follow-up</td><td><code>#BFDDEC</code></td></tr>
+        <tr><td>Semen shipment</td><td>Record date + optional follow-up</td><td><code>#F5D0A9</code></td></tr>
+        <tr><td>Stallion soundness</td><td>Record date + optional follow-up</td><td><code>#C9D1EF</code></td></tr>
+      </tbody>
+    </table>
+    <p>Calendar entries are bilingual, linked to their source breeding record, rescheduled after date edits and removed after source deletion.</p>
+  </section>
+
+  <section>
+    <h2>Main files</h2>
+    <h3>Frontend</h3>
+    <ul>
+      <li><code>components/reproduction/ReproductionPageContent.tsx</code></li>
+      <li><code>components/reproduction/mares/</code></li>
+      <li><code>components/reproduction/stallions/</code></li>
+      <li><code>components/reproduction/shared/BreedingHorsePickerModal.tsx</code></li>
+      <li><code>components/reproduction/shared/BreedingHorseCard.tsx</code></li>
+      <li><code>components/reproduction/shared/HorsePickerField.tsx</code></li>
+      <li><code>lib/api/mare-breeding-client.ts</code></li>
+      <li><code>lib/api/stallion-breeding-client.ts</code></li>
+      <li><code>app/globals.css</code></li>
+      <li><code>app/[locale]/calendar/page.tsx</code></li>
+      <li><code>app/[locale]/dashboard/page.tsx</code></li>
+      <li><code>lib/api/types.ts</code></li>
+      <li><code>public/locales/en.json</code> and <code>public/locales/ar.json</code></li>
+    </ul>
+    <h3>Backend</h3>
+    <ul>
+      <li><code>API/Controllers/StallionBreedingController.cs</code></li>
+      <li><code>Application/Services/StallionBreedingService.cs</code></li>
+      <li><code>Application/Interfaces/IStallionBreedingService.cs</code></li>
+      <li><code>Application/DTOs/Breeding/Stallions/StallionBreedingDtos.cs</code></li>
+      <li><code>Data/StudManagerDbContext.cs</code></li>
+      <li><code>Program.cs</code></li>
+      <li><code>Application/Common/Enums/CalendarEventType.cs</code></li>
+      <li><code>Application/Services/CalendarService.cs</code></li>
+      <li><code>Application/Services/MareBreedingProfileService.cs</code></li>
+      <li><code>Application/Services/MareExaminationService.cs</code></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Migration status</h2>
+    <p class="note"><strong>No database migration was created or applied.</strong> The required mare and stallion tables already existed. The backend work exposes and correctly maps those existing tables.</p>
+  </section>
+
+  <section>
+    <h2>Verification performed</h2>
+    <ul>
+      <li>Frontend TypeScript check passed.</li>
+      <li>Frontend production build passed.</li>
+      <li>Backend build passed with no errors.</li>
+      <li>Mare profile, dashboard and record-list endpoints were checked.</li>
+      <li>Stallion dashboard and all four list endpoints were checked.</li>
+      <li>The new stallion record-detail endpoint returned an existing natural-breeding record successfully.</li>
+      <li>Authenticated breeding expense and revenue ledger queries were smoke-tested locally.</li>
+      <li>A stallion breeding record create/delete round trip was tested successfully.</li>
+      <li>Horse API pagination was checked with a page size of 10.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Reviewer note</h2>
+    <p>This update intentionally changes only the calendar event-type lists, localization and color handling inside the existing calendar/dashboard screens. The larger calendar layout and animation work already present in those files is outside this breeding change.</p>
+  </section>
+  <section><h2>Final fixes and horse sale extension</h2><ul><li>Fixed the asynchronous form reset crash in all breeding forms by capturing the form before awaiting API calls.</li><li>Added a bilingual horse-sale modal requiring buyer and displayed sale price.</li><li>Sold horses expose preview, edit and remove-sale actions.</li><li>Buyer and price persist through the backend and return in horse profile responses.</li><li>Migration <code>20260620140500_AddHorseSaleDetails</code> adds only <code>SoldTo</code> and <code>SoldPrice</code> and was applied locally.</li></ul></section>
+  <section><h2>Final stallion interaction and record-management update</h2><ul><li>All four stallion creation cards start collapsed and expand through a designed action header.</li><li>Added loading feedback for create, record-detail loading, edit, list refresh and delete.</li><li>Added record-detail endpoints and an edit modal for natural breeding, semen collection, semen shipment and stallion soundness.</li><li>Natural-breeding edit uses searchable internal-mare pickers; Arabic enum labels cover storage, collection and other clinical choices.</li><li>Delete remains API-backed but now requires confirmation.</li><li>Male and female tabs keep independent horse selections and restore the correct prior selection when revisited.</li><li>Removed the unused checkbox/multi-select column from all breeding tables.</li></ul></section>
+  <section><h2>Breeding finance and mare-card update</h2><ul><li>Audited the existing double-entry ledger: nutrition, injury, ovulation and mare soundness integrations were retained and extended using the same service and account model.</li><li>All four stallion record types now create, reverse and replace EGP expense entries when their billed service changes or the record is deleted.</li><li>Horse sales create EGP revenue entries; editing or removing a sale reverses its previous entry.</li><li><code>GET /api/ledger</code> provides tenant-filtered expense/revenue paging, breeding subtype labels, horse details and account lines.</li><li>The breeding expense category and revenue page consume these live entries and provide a detail popup.</li><li>All mare creation forms above record tables now start collapsed and expand manually.</li><li>No finance migration was required: the existing account, transaction and entry tables are reused; enum values are stored in the existing integer column.</li></ul></section>
+</main>
+</body>
+</html>

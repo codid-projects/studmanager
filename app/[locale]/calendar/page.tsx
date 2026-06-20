@@ -7,15 +7,25 @@ import type { ApiResult, CalendarEventDto, CalendarEventPayload, CalendarEventTy
 import { useLocale, useTranslation } from "@/lib/locale-context";
 import { CalendarDays, ChevronLeft, ChevronRight, Edit3, Plus, Trash2, X } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { AnimatedCalendarView, type AnimatedCalendarMode } from "@/components/calendar/AnimatedCalendarView";
+import { deduplicateCalendarEvents } from "@/lib/calendar-events";
 
-type ViewMode = "month" | "week" | "day";
+type ViewMode = AnimatedCalendarMode;
 
-const DEFAULT_COLORS = ["#ffe0b2", "#dff3dc", "#dbeafe", "#fce7f3", "#ede9fe", "#fee2e2"];
+const DEFAULT_COLORS = ["#E8DED8", "#F7DFA8", "#F6C7DA", "#DED2F5", "#F5C2C2", "#BFE6D3", "#F3C4D9", "#DCC2B0", "#BFDDEC", "#F5D0A9", "#C9D1EF"];
 const EVENT_TYPES: Array<{ value: CalendarEventType; key: string; fallbackEn: string; fallbackAr: string }> = [
   { value: 1, key: "general", fallbackEn: "General", fallbackAr: "عام" },
   { value: 2, key: "nutrition", fallbackEn: "Nutrition", fallbackAr: "تغذية" },
   { value: 3, key: "ovulationExamination", fallbackEn: "Ovulation examination", fallbackAr: "فحص تبويض" },
   { value: 4, key: "mareBreedingSoundness", fallbackEn: "Mare breeding soundness", fallbackAr: "فحص جاهزية الفرس" },
+  { value: 5, key: "injuryExamination", fallbackEn: "Injury examination", fallbackAr: "فحص إصابة" },
+  { value: 6, key: "foalBirth", fallbackEn: "Foal birth", fallbackAr: "ولادة مهر" },
+  { value: 7, key: "estrusCycle", fallbackEn: "Estrus cycle", fallbackAr: "دورة الشبق" },
+  { value: 8, key: "stallionBreedingEvent", fallbackEn: "Stallion breeding", fallbackAr: "تلقيح الفحل" },
+  { value: 9, key: "semenCollection", fallbackEn: "Semen collection", fallbackAr: "جمع السائل المنوي" },
+  { value: 10, key: "semenShipment", fallbackEn: "Semen shipment", fallbackAr: "شحن السائل المنوي" },
+  { value: 11, key: "stallionBreedingSoundness", fallbackEn: "Stallion breeding soundness", fallbackAr: "فحص جاهزية الفحل" },
 ];
 
 const emptyForm = {
@@ -77,6 +87,13 @@ function getEventTypeValue(type: string | null | undefined): CalendarEventType {
   if (normalized.includes("nutrition")) return 2;
   if (normalized.includes("ovulation")) return 3;
   if (normalized.includes("marebreedingsoundness")) return 4;
+  if (normalized.includes("injury")) return 5;
+  if (normalized.includes("foalbirth")) return 6;
+  if (normalized.includes("estruscycle")) return 7;
+  if (normalized.includes("stallionbreedingevent")) return 8;
+  if (normalized.includes("semencollection")) return 9;
+  if (normalized.includes("semenshipment")) return 10;
+  if (normalized.includes("stallionbreedingsoundness")) return 11;
   return 1;
 }
 
@@ -85,6 +102,13 @@ function getEventTypeKey(type: string | null | undefined) {
   if (normalized.includes("nutrition")) return "nutrition";
   if (normalized.includes("ovulation")) return "ovulationExamination";
   if (normalized.includes("marebreedingsoundness")) return "mareBreedingSoundness";
+  if (normalized.includes("injury")) return "injuryExamination";
+  if (normalized.includes("foalbirth")) return "foalBirth";
+  if (normalized.includes("estruscycle")) return "estrusCycle";
+  if (normalized.includes("stallionbreedingevent")) return "stallionBreedingEvent";
+  if (normalized.includes("semencollection")) return "semenCollection";
+  if (normalized.includes("semenshipment")) return "semenShipment";
+  if (normalized.includes("stallionbreedingsoundness")) return "stallionBreedingSoundness";
   return "general";
 }
 
@@ -160,7 +184,7 @@ export default function CalendarPage() {
         query: { from: range.start.toISOString(), to: range.end.toISOString(), locale },
         locale,
       });
-      setEvents(unwrapResult(payload) ?? []);
+      setEvents(deduplicateCalendarEvents(unwrapResult(payload) ?? []));
     } catch {
       setEvents([]);
     } finally {
@@ -196,7 +220,7 @@ export default function CalendarPage() {
   const selectedEvents = eventsByDay.get(toDateKey(selectedDate)) ?? [];
   const selectedCellIndex = monthCells.findIndex((date) => toDateKey(date) === toDateKey(selectedDate));
   const selectedWeekStart = selectedCellIndex >= 0 ? Math.floor(selectedCellIndex / 7) * 7 : 0;
-  const visibleList = viewMode === "month"
+  const visibleList = viewMode === "month" || viewMode === "swipe"
     ? events
     : viewMode === "day"
       ? selectedEvents
@@ -349,91 +373,29 @@ export default function CalendarPage() {
                 {months[currentDate.getMonth()]} {currentDate.getFullYear()}
               </h2>
 
-              <div className="flex overflow-hidden rounded-lg border border-[#3b2b20] text-sm font-semibold">
-                {(["day", "week", "month"] as const).map((mode) => (
+              <div className="flex overflow-hidden rounded-xl border border-[#3b2b20] bg-[#f5eee8] p-1 text-sm font-semibold shadow-inner">
+                {(["day", "week", "month", "swipe"] as const).map((mode) => (
                   <button
                     key={mode}
                     onClick={() => setViewMode(mode)}
-                    className={`min-w-16 px-4 py-2 ${viewMode === mode ? "bg-[#3b2b20] text-white" : "bg-white text-[#3b2b20] hover:bg-[#f8f4f0]"}`}
+                    className={`min-w-16 rounded-lg px-4 py-2 transition-all duration-300 ${viewMode === mode ? "scale-[1.02] bg-[#3b2b20] text-white shadow-lg" : "bg-transparent text-[#3b2b20] hover:bg-white/70"}`}
                   >
-                    {mode === "month" ? t("calendar.viewMonth") : mode === "week" ? t("calendar.viewWeek") : t("calendar.viewDay")}
+                    {mode === "month" ? t("calendar.viewMonth") : mode === "week" ? t("calendar.viewWeek") : mode === "day" ? t("calendar.viewDay") : label("calendar.viewSwipe", "Swipe", "سحب")}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="mb-2 grid grid-cols-7 gap-px rounded-2xl bg-[#eee4dc] p-px">
-              {days.map((day) => (
-                <div key={day} className="rounded-xl bg-[#fbf8f4] py-2 text-center text-sm font-semibold text-[#8c847c]">{day}</div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-7 gap-px rounded-2xl bg-[#e8ded5] p-px shadow-inner">
-              {monthCells.map((date) => {
-                const key = toDateKey(date);
-                const dayEvents = eventsByDay.get(key) ?? [];
-                const outside = date.getMonth() !== currentDate.getMonth();
-                const selected = key === toDateKey(selectedDate);
-
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => openCreateModal(date)}
-                    className={`relative min-h-[104px] overflow-visible rounded-xl p-2 text-start align-top transition-all duration-200 ease-out hover:z-10 hover:-translate-y-0.5 hover:bg-[#fffaf5] hover:shadow-[0_12px_28px_rgba(75,47,26,0.12)] focus:outline-none sm:min-h-[132px] ${
-                      outside ? "bg-[#fbfaf8] text-[#c8c2bd]" : "bg-white text-[#3b2b20]"
-                    } ${
-                      selected
-                        ? "z-[1] bg-[#fffaf2] shadow-[inset_0_0_0_2px_#4b2f1a,0_10px_24px_rgba(75,47,26,0.12)]"
-                        : ""
-                    }`}
-                  >
-                    <span className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-bold ${
-                      selected ? "bg-[#4b2f1a] text-white" : "text-current"
-                    }`}>
-                      {date.getDate()}
-                    </span>
-                    <div className="mt-2 space-y-1">
-                      {dayEvents.slice(0, 3).map((event) => {
-                        const color = getEventColor(event);
-                        return (
-                          <div
-                            key={event.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={(clickEvent) => {
-                              clickEvent.stopPropagation();
-                              openEditModal(event);
-                            }}
-                            onDoubleClick={(clickEvent) => clickEvent.stopPropagation()}
-                            onKeyDown={(keyEvent) => {
-                              if (keyEvent.key === "Enter" || keyEvent.key === " ") {
-                                keyEvent.preventDefault();
-                                keyEvent.stopPropagation();
-                                openEditModal(event);
-                              }
-                            }}
-                            className="group/event rounded-md px-2 py-1 text-start text-[11px] font-semibold leading-4 shadow-sm transition-all duration-200 ease-out hover:relative hover:z-20 hover:scale-[1.02] hover:shadow-lg"
-                            style={{ backgroundColor: color, color: isDarkColor(color) ? "#fff" : "#3b2b20" }}
-                          >
-                            <div className="whitespace-normal break-words">{eventTitle(event)}</div>
-                            <div className="max-h-0 overflow-hidden opacity-0 transition-all duration-200 ease-out group-hover/event:mt-1 group-hover/event:max-h-24 group-hover/event:opacity-100">
-                              <div className="text-[10px] font-semibold opacity-85">{eventTime(event)} · {eventTypeLabel(event)}</div>
-                              {eventDescription(event) ? (
-                                <div className="mt-1 line-clamp-3 text-[10px] font-medium leading-4 opacity-80">
-                                  {eventDescription(event)}
-                                </div>
-                              ) : null}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {dayEvents.length > 3 && <div className="text-xs font-semibold text-[#8c847c]">+{dayEvents.length - 3}</div>}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <AnimatedCalendarView
+              mode={viewMode} monthDate={currentDate} selectedDate={selectedDate} days={days}
+              locale={locale} isRTL={isRTL} events={events} getEventColor={getEventColor}
+              getEventTitle={eventTitle} getEventDescription={eventDescription} getEventTime={eventTime}
+              onDateClick={openCreateModal} onEventClick={openEditModal}
+              onOpenDay={(date) => {
+                setSelectedDate(startOfDay(date));
+                setViewMode("day");
+              }}
+            />
           </section>
 
           <aside className="rounded-2xl bg-white p-5 shadow-sm">
@@ -469,7 +431,7 @@ export default function CalendarPage() {
           </aside>
         </div>
 
-        {modalOpen && (
+        {modalOpen && typeof document !== "undefined" && createPortal(
           <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" dir={direction}>
             <form onSubmit={submitEvent} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
               <div className="flex items-center justify-between border-b border-[#f1ece8] px-6 py-5">
@@ -484,7 +446,10 @@ export default function CalendarPage() {
                 <input required value={form.titleAr} onChange={(event) => setForm((value) => ({ ...value, titleAr: event.target.value }))} placeholder={label("calendar.titleAr", "Arabic title", "العنوان بالعربية")} className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]" />
                 <input required type="datetime-local" value={form.eventDate} onChange={(event) => setForm((value) => ({ ...value, eventDate: event.target.value }))} className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]" />
                 <input type="datetime-local" value={form.endDate} onChange={(event) => setForm((value) => ({ ...value, endDate: event.target.value }))} className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]" />
-                <select value={form.eventType} onChange={(event) => setForm((value) => ({ ...value, eventType: Number(event.target.value) as CalendarEventType }))} className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]">
+                <select value={form.eventType} onChange={(event) => {
+                  const eventType = Number(event.target.value) as CalendarEventType;
+                  setForm((value) => ({ ...value, eventType, color: DEFAULT_COLORS[eventType - 1] }));
+                }} className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]">
                   {EVENT_TYPES.map((type) => (
                     <option key={type.value} value={type.value}>{label(`calendar.types.${type.key}`, type.fallbackEn, type.fallbackAr)}</option>
                   ))}
@@ -514,7 +479,8 @@ export default function CalendarPage() {
                 </button>
               </div>
             </form>
-          </div>
+          </div>,
+          document.body,
         )}
 
         <DeleteConfirmModal

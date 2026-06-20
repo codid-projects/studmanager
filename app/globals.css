@@ -139,3 +139,56 @@ html[dir='ltr'] {
     box-shadow: none !important;
   }
 }
+@keyframes calendar-view-enter {
+  from { opacity: 0; transform: translateY(12px) scale(.985); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes calendar-cell-rise {
+  from { opacity: 0; transform: translateY(10px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.calendar-view-enter { animation: calendar-view-enter .42s cubic-bezier(.2,.8,.2,1) both; }
+.calendar-cell-rise { animation: calendar-cell-rise .38s cubic-bezier(.2,.8,.2,1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .calendar-view-enter, .calendar-cell-rise { animation: none; }
+}
+
+/* Make the complete native date field clickable, not only its calendar icon. */
+input[type='date'],
+input[type='datetime-local'],
+input[type='month'],
+input[type='time'] {
+  position: relative;
+  cursor: pointer;
+}
+
+input[type='date'],
+input[type='datetime-local'],
+input[type='month'] {
+  padding-inline-end: 2.6rem !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23645248' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='18' x='3' y='4' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.8rem center;
+  background-size: 17px 17px;
+}
+
+html[dir='rtl'] input[type='date'],
+html[dir='rtl'] input[type='datetime-local'],
+html[dir='rtl'] input[type='month'] {
+  background-position: left 0.8rem center;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator,
+input[type='datetime-local']::-webkit-calendar-picker-indicator,
+input[type='month']::-webkit-calendar-picker-indicator,
+input[type='time']::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  cursor: pointer;
+  opacity: 0;
+}

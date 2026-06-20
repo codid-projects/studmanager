@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Edit, Search, Trash2, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Edit,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import { HorsePicker } from "@/components/horses/HorsePicker";
 import { isClientApiNotFound } from "@/lib/api/client";
@@ -10,7 +17,6 @@ import {
   fetchNutrition,
   fetchNutritionTypes,
   removeNutrition,
-  removeNutritionBatch,
   saveNutrition,
 } from "@/lib/api/nutrition-client";
 import type {
@@ -62,7 +68,9 @@ function emptyForm(type: NutritionTypeId): CreateNutritionPayload {
   };
 }
 
-export const NutritionCategoryTable = ({ categoryId }: NutritionCategoryTableProps) => {
+export const NutritionCategoryTable = ({
+  categoryId,
+}: NutritionCategoryTableProps) => {
   const { locale, direction } = useLocale();
   const { t } = useTranslation();
   const localeCode = locale as LocaleCode;
@@ -70,7 +78,9 @@ export const NutritionCategoryTable = ({ categoryId }: NutritionCategoryTablePro
   const fallbackType = CATEGORY_TYPE[categoryId];
   const [types, setTypes] = useState<NutritionTypeDto[]>([]);
   const [records, setRecords] = useState<NutritionRecordDto[]>([]);
-  const [selectedHorse, setSelectedHorse] = useState<HorseListItemDto | null>(null);
+  const [selectedHorse, setSelectedHorse] = useState<HorseListItemDto | null>(
+    null,
+  );
   const [supplements, setSupplements] = useState<SupplementDto[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -79,14 +89,14 @@ export const NutritionCategoryTable = ({ categoryId }: NutritionCategoryTablePro
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<NutritionRecordDto | null>(null);
   const [form, setForm] = useState<CreateNutritionPayload>(
     emptyForm(fallbackType ?? 1),
   );
-  const [deleteTarget, setDeleteTarget] = useState<NutritionRecordDto | null>(null);
-  const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<NutritionRecordDto | null>(
+    null,
+  );
 
   const nutritionType = useMemo(() => {
     const expectedName = TYPE_NAMES[categoryId];
@@ -128,7 +138,9 @@ export const NutritionCategoryTable = ({ categoryId }: NutritionCategoryTablePro
 
       if (!active) return;
       setTypes(results[0].status === "fulfilled" ? results[0].value : []);
-      setSupplements(results[1].status === "fulfilled" ? results[1].value.data ?? [] : []);
+      setSupplements(
+        results[1].status === "fulfilled" ? (results[1].value.data ?? []) : [],
+      );
     }
 
     loadLookups();
@@ -156,13 +168,16 @@ export const NutritionCategoryTable = ({ categoryId }: NutritionCategoryTablePro
       });
       setRecords(result?.data ?? []);
       setTotalPages(result?.totalPages ?? 0);
-      setSelectedIds([]);
     } catch (requestError) {
       if (isClientApiNotFound(requestError)) {
         setRecords([]);
         setTotalPages(0);
       } else {
-        setError(requestError instanceof Error ? requestError.message : t("common.error"));
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : t("common.error"),
+        );
       }
     } finally {
       setLoading(false);
@@ -243,7 +258,11 @@ export const NutritionCategoryTable = ({ categoryId }: NutritionCategoryTablePro
       setFormOpen(false);
       await loadRecords();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t("common.error"));
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : t("common.error"),
+      );
     } finally {
       setSaving(false);
     }
@@ -258,22 +277,11 @@ export const NutritionCategoryTable = ({ categoryId }: NutritionCategoryTablePro
       setDeleteTarget(null);
       await loadRecords();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t("common.error"));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function confirmBatchDelete() {
-    if (!selectedIds.length) return;
-    setSaving(true);
-    setError("");
-    try {
-      await removeNutritionBatch(localeCode, selectedIds);
-      setBatchDeleteOpen(false);
-      await loadRecords();
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t("common.error"));
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : t("common.error"),
+      );
     } finally {
       setSaving(false);
     }
@@ -281,120 +289,355 @@ export const NutritionCategoryTable = ({ categoryId }: NutritionCategoryTablePro
 
   const pageNumbers = useMemo(() => {
     const start = Math.max(1, Math.min(page - 1, totalPages - 2));
-    return Array.from({ length: Math.min(3, totalPages) }, (_, index) => start + index);
+    return Array.from(
+      { length: Math.min(3, totalPages) },
+      (_, index) => start + index,
+    );
   }, [page, totalPages]);
 
   return (
     <>
-      <div className="rounded-[2rem] border border-[#f3ece7] bg-white p-4 shadow-sm sm:p-8" dir={direction}>
+      <div
+        className="rounded-[2rem] border border-[#f3ece7] bg-white p-4 shadow-sm sm:p-8"
+        dir={direction}
+      >
         <div className="mb-8 flex flex-col items-start justify-between gap-6 xl:flex-row xl:items-center">
           <h2 className="text-2xl font-bold text-[#3b2b20]">{title}</h2>
           <div className="flex w-full flex-col gap-4 sm:flex-row xl:w-auto">
             <div className="relative flex-1 sm:w-80">
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("common.search")} className={`w-full rounded-2xl border border-[#ece2da] bg-[#fdfbf9] px-5 py-3 outline-none ${isRTL ? "pr-12" : "pl-12"}`} />
-              <Search className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 text-[#8a7a6d] ${isRTL ? "right-4" : "left-4"}`} />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={t("common.search")}
+                className={`w-full rounded-2xl border border-[#ece2da] bg-[#fdfbf9] px-5 py-3 outline-none ${isRTL ? "pr-12" : "pl-12"}`}
+              />
+              <Search
+                className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 text-[#8a7a6d] ${isRTL ? "right-4" : "left-4"}`}
+              />
             </div>
-            <button onClick={openCreate} disabled={!nutritionType} className="rounded-2xl bg-[#3b2b20] px-6 py-3 font-bold text-white disabled:opacity-50">
+            <button
+              onClick={openCreate}
+              disabled={!nutritionType}
+              className="rounded-2xl bg-[#3b2b20] px-6 py-3 font-bold text-white disabled:opacity-50"
+            >
               {t("common.addNewRecord")}
-            </button>
-            <button onClick={() => setBatchDeleteOpen(true)} disabled={!selectedIds.length} className="rounded-2xl border border-red-100 p-3 text-red-600 disabled:opacity-35" aria-label={t("common.deleteSelected")}>
-              <Trash2 className="h-5 w-5" />
             </button>
           </div>
         </div>
 
-        {error && <div className="mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+        {error && (
+          <div className="mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1050px]">
             <thead className="bg-[#4b2f1a] text-white">
               <tr>
-                <th className="px-4 py-4">
-                  <input type="checkbox" checked={Boolean(records.length) && selectedIds.length === records.length} onChange={(event) => setSelectedIds(event.target.checked ? records.map((item) => item.id) : [])} />
-                </th>
-                {[isRTL ? "اسم الخيل" : "Horse", isRTL ? "المكمل / العلف" : "Supplement / Feed", isRTL ? "المورد" : "Supplier", isRTL ? "الهاتف" : "Phone", isRTL ? "الكمية" : "Quantity", isRTL ? "التكلفة" : "Cost", isRTL ? "تاريخ التغيير" : "Change date", isRTL ? "تاريخ التنبيه" : "Notify date"].map((label) => (
-                  <th key={label} className="px-4 py-4 text-start">{label}</th>
+                {[
+                  isRTL ? "اسم الخيل" : "Horse",
+                  isRTL ? "المكمل / العلف" : "Supplement / Feed",
+                  isRTL ? "المورد" : "Supplier",
+                  isRTL ? "الهاتف" : "Phone",
+                  isRTL ? "الكمية" : "Quantity",
+                  isRTL ? "التكلفة" : "Cost",
+                  isRTL ? "تاريخ التغيير" : "Change date",
+                  isRTL ? "تاريخ التنبيه" : "Notify date",
+                ].map((label) => (
+                  <th key={label} className="px-4 py-4 text-start">
+                    {label}
+                  </th>
                 ))}
                 <th className="px-4 py-4 text-center">{t("common.actions")}</th>
               </tr>
             </thead>
             <tbody>
               {records.map((record, index) => (
-                <tr key={record.id} className={`border-b ${index % 2 ? "bg-[#fdfbf7]" : "bg-white"}`}>
-                  <td className="px-4 py-4"><input type="checkbox" checked={selectedIds.includes(record.id)} onChange={() => setSelectedIds((current) => current.includes(record.id) ? current.filter((id) => id !== record.id) : [...current, record.id])} /></td>
-                  <td className="px-4 py-4 font-semibold text-[#3b2b20]">{isRTL ? record.horseArabicName || record.horseEnglishName : record.horseEnglishName || record.horseArabicName}</td>
-                  <td className="px-4 py-4">{isRTL ? record.supplementArabicName || record.supplementName : record.supplementName || record.supplementArabicName}</td>
+                <tr
+                  key={record.id}
+                  className={`border-b ${index % 2 ? "bg-[#fdfbf7]" : "bg-white"}`}
+                >
+                  <td className="px-4 py-4 font-semibold text-[#3b2b20]">
+                    {isRTL
+                      ? record.horseArabicName || record.horseEnglishName
+                      : record.horseEnglishName || record.horseArabicName}
+                  </td>
+                  <td className="px-4 py-4">
+                    {isRTL
+                      ? record.supplementArabicName || record.supplementName
+                      : record.supplementName || record.supplementArabicName}
+                  </td>
                   <td className="px-4 py-4">{record.supplierName || "-"}</td>
                   <td className="px-4 py-4">{record.phoneNumber || "-"}</td>
                   <td className="px-4 py-4">{record.quantity}</td>
                   <td className="px-4 py-4">{record.cost}</td>
-                  <td className="px-4 py-4">{dateInputValue(record.changeDate) || "-"}</td>
-                  <td className="px-4 py-4">{dateInputValue(record.notifyOnDate) || "-"}</td>
+                  <td className="px-4 py-4">
+                    {dateInputValue(record.changeDate) || "-"}
+                  </td>
+                  <td className="px-4 py-4">
+                    {dateInputValue(record.notifyOnDate) || "-"}
+                  </td>
                   <td className="px-4 py-4">
                     <div className="flex justify-center gap-2">
-                      <button onClick={() => openEdit(record)} className="rounded-lg border p-2 text-[#4b2f1a]" aria-label={t("common.edit")}><Edit className="h-4 w-4" /></button>
-                      <button onClick={() => setDeleteTarget(record)} className="rounded-lg border border-red-100 p-2 text-red-600" aria-label={t("common.delete")}><Trash2 className="h-4 w-4" /></button>
+                      <button
+                        onClick={() => openEdit(record)}
+                        className="rounded-lg border p-2 text-[#4b2f1a]"
+                        aria-label={t("common.edit")}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(record)}
+                        className="rounded-lg border border-red-100 p-2 text-red-600"
+                        aria-label={t("common.delete")}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
               ))}
-              {!loading && !records.length && <tr><td colSpan={10} className="px-6 py-12 text-center text-gray-400">{t("common.noRecordsFound")}</td></tr>}
-              {loading && Array.from({ length: 5 }).map((_, index) => (
-                <tr key={index} className="animate-pulse border-b">
-                  <td colSpan={10} className="px-4 py-3"><div className="h-8 rounded-lg bg-gray-100" /></td>
+              {!loading && !records.length && (
+                <tr>
+                  <td
+                    colSpan={9}
+                    className="px-6 py-12 text-center text-gray-400"
+                  >
+                    {t("common.noRecordsFound")}
+                  </td>
                 </tr>
-              ))}
+              )}
+              {loading &&
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index} className="animate-pulse border-b">
+                    <td colSpan={9} className="px-4 py-3">
+                      <div className="h-8 rounded-lg bg-gray-100" />
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
 
         {totalPages > 1 && (
           <div className="mt-8 flex items-center justify-center gap-2">
-            <button disabled={page <= 1} onClick={() => setPage((value) => value - 1)} className="flex h-9 w-9 items-center justify-center rounded-full border disabled:opacity-40">{isRTL ? <ChevronRight /> : <ChevronLeft />}</button>
-            {pageNumbers.map((pageNumber) => <button key={pageNumber} onClick={() => setPage(pageNumber)} className={`h-9 w-9 rounded-full ${page === pageNumber ? "bg-[#3b2b20] text-white" : "border"}`}>{pageNumber}</button>)}
-            <button disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)} className="flex h-9 w-9 items-center justify-center rounded-full border disabled:opacity-40">{isRTL ? <ChevronLeft /> : <ChevronRight />}</button>
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage((value) => value - 1)}
+              className="flex h-9 w-9 items-center justify-center rounded-full border disabled:opacity-40"
+            >
+              {isRTL ? <ChevronRight /> : <ChevronLeft />}
+            </button>
+            {pageNumbers.map((pageNumber) => (
+              <button
+                key={pageNumber}
+                onClick={() => setPage(pageNumber)}
+                className={`h-9 w-9 rounded-full ${page === pageNumber ? "bg-[#3b2b20] text-white" : "border"}`}
+              >
+                {pageNumber}
+              </button>
+            ))}
+            <button
+              disabled={page >= totalPages}
+              onClick={() => setPage((value) => value + 1)}
+              className="flex h-9 w-9 items-center justify-center rounded-full border disabled:opacity-40"
+            >
+              {isRTL ? <ChevronLeft /> : <ChevronRight />}
+            </button>
           </div>
         )}
       </div>
 
       {formOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4" dir={direction}>
-          <form onSubmit={submitForm} className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-xl">
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4"
+          dir={direction}
+        >
+          <form
+            onSubmit={submitForm}
+            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-xl"
+          >
             <div className="mb-6 flex items-center justify-between">
-              <h3 className="text-2xl font-bold text-[#3b2b20]">{editing ? (isRTL ? "تعديل سجل التغذية" : "Edit nutrition record") : (isRTL ? "إضافة سجل تغذية" : "Add nutrition record")}</h3>
-              <button type="button" onClick={() => setFormOpen(false)}><X /></button>
+              <h3 className="text-2xl font-bold text-[#3b2b20]">
+                {editing
+                  ? isRTL
+                    ? "تعديل سجل التغذية"
+                    : "Edit nutrition record"
+                  : isRTL
+                    ? "إضافة سجل تغذية"
+                    : "Add nutrition record"}
+              </h3>
+              <button type="button" onClick={() => setFormOpen(false)}>
+                <X />
+              </button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <HorsePicker
-                value={form.horseId || null}
-                selectedLabel={selectedHorse ? (isRTL ? selectedHorse.arabicName || selectedHorse.englishName || "" : selectedHorse.englishName || selectedHorse.arabicName || "") : undefined}
-                disabled={Boolean(editing)}
-                onChange={(horse) => {
-                  setSelectedHorse(horse);
-                  setForm({ ...form, horseId: horse.localId ?? horse.id });
-                }}
-              />
-              <select required value={form.supplementId || ""} onChange={(event) => setForm({ ...form, supplementId: Number(event.target.value) })} className="rounded-xl border px-4 py-3">
-                <option value="" disabled>{isRTL ? "اختر المكمل أو العلف" : "Select supplement or feed"}</option>
-                {supplements.map((supplement) => <option key={supplement.id} value={supplement.id}>{isRTL ? supplement.arabicName || supplement.englishName : supplement.englishName || supplement.arabicName}</option>)}
-              </select>
-              <input value={form.supplierName} onChange={(event) => setForm({ ...form, supplierName: event.target.value })} placeholder={isRTL ? "اسم المورد" : "Supplier name"} className="rounded-xl border px-4 py-3" />
-              <input value={form.phoneNumber} onChange={(event) => setForm({ ...form, phoneNumber: event.target.value })} placeholder={isRTL ? "رقم المورد" : "Supplier phone"} className="rounded-xl border px-4 py-3" />
-              <input required min={0} step="any" type="number" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: Number(event.target.value) })} placeholder={isRTL ? "الكمية" : "Quantity"} className="rounded-xl border px-4 py-3" />
-              <input required min={0} step="any" type="number" value={form.cost} onChange={(event) => setForm({ ...form, cost: Number(event.target.value) })} placeholder={isRTL ? "التكلفة" : "Cost"} className="rounded-xl border px-4 py-3" />
-              <label className="flex flex-col gap-2 text-sm text-gray-600"><span>{isRTL ? "تاريخ التغيير" : "Change date"}</span><input required type="date" value={form.changeDate} onChange={(event) => setForm({ ...form, changeDate: event.target.value })} className="rounded-xl border px-4 py-3" /></label>
-              <label className="flex flex-col gap-2 text-sm text-gray-600"><span>{isRTL ? "تاريخ التنبيه" : "Notify date"}</span><input required type="date" value={form.notifyOnDate} onChange={(event) => setForm({ ...form, notifyOnDate: event.target.value })} className="rounded-xl border px-4 py-3" /></label>
+              <label className="flex flex-col gap-2 text-sm font-medium text-[#58483e]">
+                <span>{isRTL ? "الخيل" : "Horse"}</span>
+                <HorsePicker
+                  value={form.horseId || null}
+                  selectedLabel={
+                    selectedHorse
+                      ? isRTL
+                        ? selectedHorse.arabicName ||
+                          selectedHorse.englishName ||
+                          ""
+                        : selectedHorse.englishName ||
+                          selectedHorse.arabicName ||
+                          ""
+                      : undefined
+                  }
+                  disabled={Boolean(editing)}
+                  onChange={(horse) => {
+                    setSelectedHorse(horse);
+                    setForm({ ...form, horseId: horse.localId ?? horse.id });
+                  }}
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm font-medium text-[#58483e]">
+                <span>{isRTL ? "المكمل أو العلف" : "Supplement or feed"}</span>
+                <select
+                  required
+                  value={form.supplementId || ""}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      supplementId: Number(event.target.value),
+                    })
+                  }
+                  className="rounded-xl border px-4 py-3"
+                >
+                  <option value="" disabled>
+                    {isRTL
+                      ? "اختر المكمل أو العلف"
+                      : "Select supplement or feed"}
+                  </option>
+                  {supplements.map((supplement) => (
+                    <option key={supplement.id} value={supplement.id}>
+                      {isRTL
+                        ? supplement.arabicName || supplement.englishName
+                        : supplement.englishName || supplement.arabicName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-2 text-sm font-medium text-[#58483e]">
+                <span>{isRTL ? "اسم المورد" : "Supplier name"}</span>
+                <input
+                  value={form.supplierName}
+                  onChange={(event) =>
+                    setForm({ ...form, supplierName: event.target.value })
+                  }
+                  placeholder={
+                    isRTL ? "أدخل اسم المورد" : "Enter supplier name"
+                  }
+                  className="rounded-xl border px-4 py-3"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm font-medium text-[#58483e]">
+                <span>{isRTL ? "رقم المورد" : "Supplier phone"}</span>
+                <input
+                  value={form.phoneNumber}
+                  onChange={(event) =>
+                    setForm({ ...form, phoneNumber: event.target.value })
+                  }
+                  placeholder={
+                    isRTL ? "أدخل رقم المورد" : "Enter supplier phone"
+                  }
+                  className="rounded-xl border px-4 py-3"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm font-medium text-[#58483e]">
+                <span>{isRTL ? "الكمية" : "Quantity"}</span>
+                <input
+                  required
+                  min={0}
+                  step="any"
+                  type="number"
+                  value={form.quantity}
+                  onChange={(event) =>
+                    setForm({ ...form, quantity: Number(event.target.value) })
+                  }
+                  className="rounded-xl border px-4 py-3"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm font-medium text-[#58483e]">
+                <span>{isRTL ? "التكلفة بالجنيه المصري" : "Cost (EGP)"}</span>
+                <div className="relative">
+                  <input
+                    required
+                    min={0}
+                    step="any"
+                    type="number"
+                    value={form.cost}
+                    onChange={(event) =>
+                      setForm({ ...form, cost: Number(event.target.value) })
+                    }
+                    className="w-full rounded-xl border px-4 py-3 pe-16"
+                  />
+                  <span className="absolute end-4 top-1/2 -translate-y-1/2 text-xs font-bold text-[#806e63]">
+                    EGP
+                  </span>
+                </div>
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-gray-600">
+                <span>{isRTL ? "تاريخ التغيير" : "Change date"}</span>
+                <input
+                  required
+                  type="date"
+                  value={form.changeDate}
+                  onChange={(event) =>
+                    setForm({ ...form, changeDate: event.target.value })
+                  }
+                  className="rounded-xl border px-4 py-3"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-gray-600">
+                <span>{isRTL ? "تاريخ التنبيه" : "Notify date"}</span>
+                <input
+                  required
+                  type="date"
+                  value={form.notifyOnDate}
+                  onChange={(event) =>
+                    setForm({ ...form, notifyOnDate: event.target.value })
+                  }
+                  className="rounded-xl border px-4 py-3"
+                />
+              </label>
             </div>
             <div className="mt-7 flex gap-3">
-              <button disabled={saving} className="rounded-xl bg-[#3b2b20] px-8 py-3 font-bold text-white disabled:opacity-50">{t("common.save")}</button>
-              <button type="button" onClick={() => setFormOpen(false)} className="rounded-xl border px-8 py-3">{t("common.cancel")}</button>
+              <button
+                disabled={saving}
+                className="rounded-xl bg-[#3b2b20] px-8 py-3 font-bold text-white disabled:opacity-50"
+              >
+                {t("common.save")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormOpen(false)}
+                className="rounded-xl border px-8 py-3"
+              >
+                {t("common.cancel")}
+              </button>
             </div>
           </form>
         </div>
       )}
 
-      <DeleteConfirmModal open={Boolean(deleteTarget)} title={t("common.deleteRecord")} description={deleteTarget ? (isRTL ? deleteTarget.horseArabicName || deleteTarget.horseEnglishName : deleteTarget.horseEnglishName || deleteTarget.horseArabicName) : undefined} onCancel={() => !saving && setDeleteTarget(null)} onConfirm={confirmDelete} />
-      <DeleteConfirmModal open={batchDeleteOpen} title={t("common.deleteSelected")} description={t("common.deleteSelectedMsg")} onCancel={() => !saving && setBatchDeleteOpen(false)} onConfirm={confirmBatchDelete} />
+      <DeleteConfirmModal
+        open={Boolean(deleteTarget)}
+        title={t("common.deleteRecord")}
+        description={
+          deleteTarget
+            ? isRTL
+              ? deleteTarget.horseArabicName || deleteTarget.horseEnglishName
+              : deleteTarget.horseEnglishName || deleteTarget.horseArabicName
+            : undefined
+        }
+        onCancel={() => !saving && setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+      />
     </>
   );
 };

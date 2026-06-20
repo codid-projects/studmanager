@@ -18,6 +18,7 @@ import {
   HorseFormModal,
   HorseRatingModal,
   AssignBoxModal,
+  HorseSaleModal,
 } from '@/components/horses';
 import type { HorseFormData } from '@/components/horses/HorseFormModal';
 import { RelatedHorsesTable } from '@/components/horses/profile/RelatedHorsesTable';
@@ -206,6 +207,8 @@ export function HorseProfilePageClient({
   const [ratingSaving, setRatingSaving] = useState(false);
   const [ratingError, setRatingError] = useState('');
   const [soldLoading, setSoldLoading] = useState(false);
+  const [saleOpen, setSaleOpen] = useState(false);
+  const [saleError, setSaleError] = useState('');
   const [isAssignBoxOpen, setIsAssignBoxOpen] = useState(false);
   const [boxAssignLoading, setBoxAssignLoading] = useState(false);
   const [pedigreeParents, setPedigreeParents] = useState({ fatherName: '', motherName: '' });
@@ -321,10 +324,10 @@ export function HorseProfilePageClient({
     };
   }, [horseId, horse?.id, locale]);
 
-  const handleSoldChange = async (isSold: boolean) => {
+  const handleSoldChange = async (payload: { isSold: boolean; soldTo?: string | null; soldPrice?: string | null }) => {
     if (!horseId || soldLoading) return;
     setSoldLoading(true);
-    setLocalError('');
+    setSaleError('');
 
     try {
       const result = await clientApiFetch<ApiResult<boolean>>({
@@ -333,16 +336,17 @@ export function HorseProfilePageClient({
         nextPath: `/api/horses/${horseId}/sold`,
         nextQuery: { locale },
         locale: locale as LocaleCode,
-        body: { isSold },
+        body: payload,
       });
 
       if (result.succeeded === false) throw new Error(result.message || t('common.error'));
 
       setHorse((current) => current
-        ? { ...current, isSold, soldAt: isSold ? new Date().toISOString() : null }
+        ? { ...current, isSold: payload.isSold, soldAt: payload.isSold ? current.soldAt || new Date().toISOString() : null, soldTo: payload.isSold ? payload.soldTo ?? null : null, soldPrice: payload.isSold ? payload.soldPrice ?? null : null }
         : current);
+      if (!payload.isSold) setSaleOpen(false);
     } catch (requestError) {
-      setLocalError(requestError instanceof Error ? requestError.message : t('common.error'));
+      setSaleError(requestError instanceof Error ? requestError.message : t('common.error'));
     } finally {
       setSoldLoading(false);
     }
@@ -688,7 +692,7 @@ export function HorseProfilePageClient({
               onEdit={() => setIsEditOpen(true)}
               isSold={horse?.isSold}
               soldLoading={soldLoading}
-              onSoldChange={handleSoldChange}
+              onOpenSale={() => { setSaleError(''); setSaleOpen(true); }}
               onRate={() => setIsRatingOpen(true)}
               averageRating={rating?.averageScore}
               ratingsCount={rating?.ratingsCount}
@@ -761,6 +765,19 @@ export function HorseProfilePageClient({
               currentBox={horse?.box ?? null}
               onClose={() => setIsAssignBoxOpen(false)}
               onSubmit={handleAssignBox}
+            />
+            <HorseSaleModal
+              open={saleOpen}
+              locale={locale as LocaleCode}
+              horseName={locale === 'ar' ? profileHorse.nameAr : profileHorse.nameEn}
+              isSold={horse?.isSold ?? false}
+              soldTo={horse?.soldTo}
+              soldPrice={horse?.soldPrice}
+              soldAt={horse?.soldAt}
+              saving={soldLoading}
+              error={saleError}
+              onClose={() => !soldLoading && setSaleOpen(false)}
+              onSave={handleSoldChange}
             />
           </>
         )}
