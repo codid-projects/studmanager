@@ -1,11 +1,20 @@
-'use client';
+"use client";
 
-import { AUTH_COOKIE, AUTH_TOKEN_COOKIE, AUTH_USER_COOKIE, AUTH_VALUE } from '@/lib/auth';
-import { getFriendlyApiErrorMessage } from './errors';
-import { API_BASE_URL, API_TRANSPORT_MODE } from './transport';
-import type { ApiResult, AuthResponseDto, LocaleCode } from './types';
+import {
+  AUTH_COOKIE,
+  AUTH_TOKEN_COOKIE,
+  AUTH_USER_COOKIE,
+  AUTH_VALUE,
+} from "@/lib/auth";
+import {
+  getFriendlyApiErrorMessage,
+  getPayloadMessage,
+  localizeApiMessage,
+} from "./errors";
+import { API_BASE_URL, API_TRANSPORT_MODE } from "./transport";
+import type { ApiResult, AuthResponseDto, LocaleCode } from "./types";
 
-const TOKEN_STORAGE_KEY = 'studmanager-token';
+const TOKEN_STORAGE_KEY = "studmanager-token";
 const NOT_FOUND_RETRY_DELAYS_MS = [250, 500];
 
 type QueryValue = string | number | boolean | null | undefined;
@@ -31,7 +40,7 @@ function setCookie(name: string, value: string, rememberMe = true) {
 
 function getCookie(name: string) {
   return document.cookie
-    .split('; ')
+    .split("; ")
     .find((cookie) => cookie.startsWith(`${name}=`))
     ?.slice(name.length + 1);
 }
@@ -44,7 +53,10 @@ export function clearClientSession() {
   }
 }
 
-export function persistClientSession(auth: AuthResponseDto, rememberMe: boolean) {
+export function persistClientSession(
+  auth: AuthResponseDto,
+  rememberMe: boolean,
+) {
   if (auth.accessToken) {
     window.localStorage.setItem(TOKEN_STORAGE_KEY, auth.accessToken);
     setCookie(AUTH_TOKEN_COOKIE, auth.accessToken, rememberMe);
@@ -63,11 +75,15 @@ export function persistClientSession(auth: AuthResponseDto, rememberMe: boolean)
   );
 }
 
-function buildUrl(base: string, path: string, query?: Record<string, QueryValue>) {
+function buildUrl(
+  base: string,
+  path: string,
+  query?: Record<string, QueryValue>,
+) {
   const url = new URL(path, base);
 
   Object.entries(query ?? {}).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
+    if (value !== undefined && value !== null && value !== "") {
       url.searchParams.set(key, String(value));
     }
   });
@@ -91,7 +107,8 @@ function wait(milliseconds: number) {
 }
 
 export function getClientApiErrorStatus(error: unknown) {
-  if (!error || typeof error !== 'object' || !('status' in error)) return undefined;
+  if (!error || typeof error !== "object" || !("status" in error))
+    return undefined;
 
   const status = Number((error as { status?: unknown }).status);
   return Number.isFinite(status) ? status : undefined;
@@ -102,7 +119,7 @@ export function isClientApiNotFound(error: unknown) {
 }
 
 export async function clientApiFetch<T>({
-  method = 'GET',
+  method = "GET",
   backendPath,
   nextPath,
   query,
@@ -111,23 +128,28 @@ export async function clientApiFetch<T>({
   body,
   backendBody,
   nextBody,
-  locale = 'ar',
+  locale = "ar",
   authRequest = false,
 }: ClientApiOptions): Promise<T> {
   const normalizedMethod = method.toUpperCase();
-  const direct = API_TRANSPORT_MODE === 'direct';
-  const requestBody = direct ? backendBody ?? body : nextBody ?? body;
+  const direct = API_TRANSPORT_MODE === "direct";
+  const requestBody = direct ? (backendBody ?? body) : (nextBody ?? body);
   const url = direct
     ? buildUrl(API_BASE_URL, backendPath, backendQuery ?? query)
     : buildUrl(window.location.origin, nextPath, nextQuery ?? query);
-  const headers = new Headers({ Accept: 'application/json' });
+  const headers = new Headers({ Accept: "application/json" });
+  headers.set("Accept-Language", locale);
   const token =
     window.localStorage.getItem(TOKEN_STORAGE_KEY) ??
-    (getCookie(AUTH_TOKEN_COOKIE) ? decodeURIComponent(getCookie(AUTH_TOKEN_COOKIE) as string) : null);
-  const isFormData = typeof FormData !== 'undefined' && requestBody instanceof FormData;
+    (getCookie(AUTH_TOKEN_COOKIE)
+      ? decodeURIComponent(getCookie(AUTH_TOKEN_COOKIE) as string)
+      : null);
+  const isFormData =
+    typeof FormData !== "undefined" && requestBody instanceof FormData;
 
-  if (requestBody !== undefined && !isFormData) headers.set('Content-Type', 'application/json');
-  if (direct && token) headers.set('Authorization', `Bearer ${token}`);
+  if (requestBody !== undefined && !isFormData)
+    headers.set("Content-Type", "application/json");
+  if (direct && token) headers.set("Authorization", `Bearer ${token}`);
 
   for (let attempt = 0; ; attempt += 1) {
     let response: Response;
@@ -136,7 +158,12 @@ export async function clientApiFetch<T>({
       response = await fetch(url, {
         method: normalizedMethod,
         headers,
-        body: requestBody === undefined ? undefined : isFormData ? requestBody : JSON.stringify(requestBody),
+        body:
+          requestBody === undefined
+            ? undefined
+            : isFormData
+              ? requestBody
+              : JSON.stringify(requestBody),
       });
     } catch (error) {
       throw Object.assign(new Error(getFriendlyApiErrorMessage(locale)), {
@@ -160,13 +187,11 @@ export async function clientApiFetch<T>({
       window.location.assign(`/${locale}/login?session=expired`);
     }
 
-    const message = response.status >= 400
-      ? getFriendlyApiErrorMessage(locale)
-      : payload && typeof payload === 'object'
-        ? (payload as Record<string, unknown>).message ??
-          (payload as Record<string, unknown>).detail ??
-          response.statusText
-        : response.statusText;
+    const payloadMessage = getPayloadMessage(payload);
+    const message =
+      response.status >= 400
+        ? localizeApiMessage(payloadMessage ?? response.statusText, locale)
+        : (payloadMessage ?? response.statusText);
 
     throw Object.assign(new Error(String(message)), {
       status: response.status,
@@ -181,28 +206,32 @@ export async function loginClient(payload: {
   rememberMe: boolean;
   locale: LocaleCode;
 }) {
-  if (API_TRANSPORT_MODE === 'server') {
+  if (API_TRANSPORT_MODE === "server") {
     let response: Response;
 
     try {
-      response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
     } catch (error) {
-      throw Object.assign(new Error(getFriendlyApiErrorMessage(payload.locale)), {
-        status: 0,
-        cause: error,
-      });
+      throw Object.assign(
+        new Error(getFriendlyApiErrorMessage(payload.locale)),
+        {
+          status: 0,
+          cause: error,
+        },
+      );
     }
 
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-      const message = response.status === 401
-        ? data?.message || response.statusText
-        : getFriendlyApiErrorMessage(payload.locale);
+      const message =
+        response.status === 401
+          ? data?.message || response.statusText
+          : getFriendlyApiErrorMessage(payload.locale);
 
       throw Object.assign(new Error(message), {
         status: response.status,
@@ -214,9 +243,9 @@ export async function loginClient(payload: {
   }
 
   const result = await clientApiFetch<ApiResult<AuthResponseDto>>({
-    method: 'POST',
-    backendPath: '/api/users/login',
-    nextPath: '/api/auth/login',
+    method: "POST",
+    backendPath: "/api/users/login",
+    nextPath: "/api/auth/login",
     authRequest: true,
     locale: payload.locale,
     body: {
@@ -226,7 +255,7 @@ export async function loginClient(payload: {
   });
 
   if (!result.succeeded || !result.data?.accessToken) {
-    throw new Error(result.message || 'Invalid credentials.');
+    throw new Error(result.message || "Invalid credentials.");
   }
 
   persistClientSession(result.data, payload.rememberMe);

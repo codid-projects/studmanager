@@ -41,6 +41,18 @@ export function FoalRegistrationForm({
     const form = event.currentTarget;
     const data = new FormData(form);
     try {
+      const foalName = String(data.get("FoalName") || "").trim();
+      const foalNameAr = String(data.get("FoalNameAr") || "").trim();
+      if (!foalName || !foalNameAr) {
+        setError(
+          ar
+            ? "اسم المهر بالإنجليزية والعربية مطلوب."
+            : "English and Arabic foal names are required.",
+        );
+        return;
+      }
+      data.set("FoalName", foalName);
+      data.set("FoalNameAr", foalNameAr);
       const selectedHorse = Number(stallion.localId ?? stallion.id);
       const surrogateHorse = surrogate
         ? Number(surrogate.localId ?? surrogate.id)
@@ -176,10 +188,23 @@ export function FoalRegistrationForm({
           >
             <div className="space-y-3">
               <FormField label={ar ? "اسم المهر" : "Foal name"} required>
-                <input required name="FoalName" className={fieldClass} />
+                <input
+                  required
+                  maxLength={200}
+                  name="FoalName"
+                  className={fieldClass}
+                />
               </FormField>
-              <FormField label={ar ? "اسم المهر بالعربية" : "Arabic name"}>
-                <input name="FoalNameAr" className={fieldClass} />
+              <FormField
+                label={ar ? "اسم المهر بالعربية" : "Arabic name"}
+                required
+              >
+                <input
+                  required
+                  maxLength={200}
+                  name="FoalNameAr"
+                  className={fieldClass}
+                />
               </FormField>
               <div className="grid grid-cols-2 gap-2">
                 <FormField label={ar ? "تاريخ الولادة" : "Birth date"} required>
