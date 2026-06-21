@@ -149,6 +149,14 @@ export const searchExternalStuds = async ({
     nextQuery: { search: searchTerm, pageNumber, pageSize },
   });
 
+export const syncExternalStuds = async (): Promise<void> => {
+  await clientApiFetch({
+    method: 'GET',
+    backendPath: '/api/ExternalHorses/sync_studs',
+    nextPath: '/api/external-horses/sync-studs',
+  });
+};
+
 export const getDefaultStud = async (): Promise<ApiResult<DefaultStudDto>> =>
   clientApiFetch<ApiResult<DefaultStudDto>>({
     backendPath: '/default',

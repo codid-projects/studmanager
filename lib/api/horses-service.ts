@@ -3,6 +3,7 @@ import type {
   ApiResult,
   CreateHorsePayload,
   HorseInfoDto,
+  HorseDeceasedPayload,
   HousingMapDto,
   HorseListItemDto,
   HorseRatingPayload,
@@ -157,6 +158,13 @@ export async function deleteHorse(localId: string | number) {
 export async function setHorseSoldStatus(localId: string | number, payload: { isSold: boolean; soldTo?: string | null; soldPrice?: string | null }) {
   return apiFetch<ApiResult<boolean>>(`/api/Horses/${localId}/sold`, {
     method: 'PATCH',
+    body: payload,
+  });
+}
+
+export async function setHorseDeceasedStatus(localId: string | number, payload: HorseDeceasedPayload) {
+  return apiFetch<ApiResult<boolean>>(`/api/Horses/${localId}/deceased`, {
+    method: 'POST',
     body: payload,
   });
 }

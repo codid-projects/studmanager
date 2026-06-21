@@ -12,6 +12,7 @@ export { HorseChildrenTab } from './HorseChildrenTab';
 export { HorseSiblingsTab } from './HorseSiblingsTab';
 export { HorseCompetitionTab } from './HorseCompetitionTab';
 export { HorseProfileSkeleton } from './HorseProfileSkeleton';
+export { HorseStatusModal } from './HorseStatusModal';
 export { HorseAnalyticsTab } from './HorseAnalyticsTab';
 export { HorseRatingModal } from './HorseRatingModal';
 export { AssignBoxModal } from './AssignBoxModal';

@@ -1,10 +1,12 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { FlaskConical, MapPin, Truck } from "lucide-react";
-import type { LocaleCode } from "@/lib/api/types";
+import { Building2, FlaskConical, MapPin, PencilLine, Truck } from "lucide-react";
+import type { ExternalStudSearchItem, LocaleCode } from "@/lib/api/types";
 import type { BreedingProfile } from "@/lib/api/mare-breeding-client";
 import { createStallionRecord } from "@/lib/api/stallion-breeding-client";
+import { ExternalStudPicker } from "@/components/horses/ExternalStudPicker";
+import { useTranslation } from "@/lib/locale-context";
 import {
   fieldClass,
   FormActions,
@@ -26,8 +28,16 @@ export function SemenShipmentForm({
   onSaved: () => void;
 }) {
   const ar = locale === "ar";
+  const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [destinationMode, setDestinationMode] = useState<"stud" | "manual">("stud");
+  const [selectedStud, setSelectedStud] = useState<ExternalStudSearchItem | null>(null);
+  const selectedStudName = selectedStud
+    ? ar
+      ? selectedStud.studArabicName || selectedStud.studName || ""
+      : selectedStud.studName || selectedStud.studArabicName || ""
+    : "";
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -35,7 +45,22 @@ export function SemenShipmentForm({
     setError("");
     const data = new FormData(form);
     try {
+      if (destinationMode === "stud" && !selectedStud) {
+        throw new Error(t("shipment.studRequired"));
+      }
+
       data.set("ProfileId", String(profile.profileId));
+      if (destinationMode === "stud" && selectedStud) {
+        data.set("DestinedStudId", String(selectedStud.id));
+        data.set("Destination", selectedStudName);
+        data.set("City", selectedStud.city || selectedStud.country || "");
+        data.set("Longitude", selectedStud.xCor == null ? "" : String(selectedStud.xCor));
+        data.set("Latitude", selectedStud.yCor == null ? "" : String(selectedStud.yCor));
+      } else {
+        data.delete("DestinedStudId");
+        data.delete("Longitude");
+        data.delete("Latitude");
+      }
       appendBilledService(data, "Semen shipment");
       data.set(
         "RecordDate",
@@ -43,6 +68,8 @@ export function SemenShipmentForm({
       );
       await createStallionRecord(locale, "semen-shipments", data);
       form.reset();
+      setSelectedStud(null);
+      setDestinationMode("stud");
       onSaved();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Failed");
@@ -62,12 +89,61 @@ export function SemenShipmentForm({
             icon={<Truck className="h-4 w-4" />}
           >
             <div className="space-y-3">
-              <FormField label={ar ? "المحطة / المدينة" : "Destination"}>
-                <input name="Destination" className={fieldClass} />
-              </FormField>
-              <FormField label={ar ? "المدينة" : "City"}>
-                <input name="City" className={fieldClass} />
-              </FormField>
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-[#f5f1ed] p-1">
+                <button
+                  type="button"
+                  onClick={() => setDestinationMode("stud")}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-2 py-2 text-xs font-bold transition ${destinationMode === "stud" ? "bg-white text-[#4b2f1a] shadow-sm" : "text-[#81746a]"}`}
+                >
+                  <Building2 className="h-4 w-4" />
+                  {t("shipment.chooseStud")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDestinationMode("manual")}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-2 py-2 text-xs font-bold transition ${destinationMode === "manual" ? "bg-white text-[#4b2f1a] shadow-sm" : "text-[#81746a]"}`}
+                >
+                  <PencilLine className="h-4 w-4" />
+                  {t("shipment.manualAddress")}
+                </button>
+              </div>
+
+              {destinationMode === "stud" ? (
+                <>
+                  <FormField label={t("shipment.destinationStud")} required>
+                    <ExternalStudPicker
+                      value={selectedStud?.id ?? null}
+                      selectedLabel={selectedStudName}
+                      onChange={setSelectedStud}
+                      triggerClassName="min-h-[42px] rounded-[7px] border-[#ddd6cf] py-2 text-xs"
+                    />
+                  </FormField>
+                  {selectedStud ? (
+                    <div className="rounded-xl border border-[#dce4cc] bg-[#f5f8ed] p-3 text-xs text-[#59603f]">
+                      <p className="font-bold">{selectedStudName}</p>
+                      <p className="mt-1">{[selectedStud.city, selectedStud.country].filter(Boolean).join(" · ") || t("shipment.locationFromStud")}</p>
+                      {selectedStud.xCor != null && selectedStud.yCor != null ? (
+                        <p className="mt-1 font-mono" dir="ltr">{selectedStud.yCor}, {selectedStud.xCor}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <FormField label={t("shipment.deliveryAddress")} required>
+                    <textarea
+                      required
+                      name="Destination"
+                      rows={3}
+                      placeholder={t("shipment.deliveryAddressPlaceholder")}
+                      className={`${fieldClass} h-auto py-3`}
+                    />
+                  </FormField>
+                  <FormField label={t("shipment.cityOptional")}>
+                    <input name="City" className={fieldClass} />
+                  </FormField>
+                </>
+              )}
               <FormField label={ar ? "اسم المستلم" : "Recipient"}>
                 <input name="RecipientName" className={fieldClass} />
               </FormField>
@@ -77,22 +153,13 @@ export function SemenShipmentForm({
             </div>
           </FormSection>
           <FormSection
-            title={ar ? "موقع المحطة" : "Destination map"}
+            title={t("shipment.locationHandling")}
             icon={<MapPin className="h-4 w-4" />}
             tone="sage"
           >
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                name="Latitude"
-                placeholder="Latitude"
-                className={fieldClass}
-              />
-              <input
-                name="Longitude"
-                placeholder="Longitude"
-                className={fieldClass}
-              />
-            </div>
+            <p className="text-xs leading-5 text-[#667050]">
+              {destinationMode === "stud" ? t("shipment.studCoordinatesHelp") : t("shipment.manualAddressHelp")}
+            </p>
           </FormSection>
         </aside>
         <div className="space-y-3">

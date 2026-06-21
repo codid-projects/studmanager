@@ -265,6 +265,14 @@ export interface HorseListItemDto {
   soldAt?: string | null;
   soldTo?: string | null;
   soldPrice?: string | null;
+  deceasedAt?: string | null;
+  deceasedReason?: string | null;
+}
+
+export interface HorseDeceasedPayload {
+  isDeceased: boolean;
+  deceasedAt?: string | null;
+  deceasedReason?: string | null;
 }
 
 export interface HorseRatingPayload {
@@ -636,6 +644,9 @@ export type ExternalStudSearchItem = {
   studName: string | null;
   studArabicName: string | null;
   country: string | null;
+  city?: string | null;
+  xCor?: number | null;
+  yCor?: number | null;
   studProfileImage: string | null;
 };
 

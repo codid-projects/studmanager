@@ -54,7 +54,20 @@ export function AnimatedCalendarView(props: Props) {
   const cells = useMemo(() => buildMonth(monthDate, isRTL), [monthDate, isRTL]);
   const byDay = useMemo(() => {
     const map = new Map<string, CalendarEventDto[]>();
-    events.forEach((event) => map.set(calendarEventDateKey(event), [...(map.get(calendarEventDateKey(event)) ?? []), event]));
+    events.forEach((event) => {
+      const start = calendarEventDate(event);
+      const rawEnd = event.end ? new Date(event.end) : start;
+      const end = rawEnd.getTime() >= start.getTime() ? rawEnd : start;
+      const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      const finalDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      let safety = 0;
+      while (cursor.getTime() <= finalDay.getTime() && safety < 370) {
+        const key = dateKey(cursor);
+        map.set(key, [...(map.get(key) ?? []), event]);
+        cursor.setDate(cursor.getDate() + 1);
+        safety += 1;
+      }
+    });
     return map;
   }, [events]);
   const selectedIndex = Math.max(0, cells.findIndex((date) => dateKey(date) === dateKey(selectedDate)));
@@ -84,8 +97,8 @@ function MonthView(props: Props & { cells: Date[]; byDay: Map<string, CalendarEv
           <span className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-bold transition-colors ${selected ? "bg-[#4b2f1a] text-white" : "group-hover:bg-[#f1e7df]"}`}>{date.getDate()}</span>
           <div className="mt-2 space-y-1">
             {dayEvents.slice(0, 3).map((event) => {
-              return <div key={event.id} role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); props.onOpenDay?.(calendarEventDate(event)); }}
-                onKeyDown={(key) => { if (key.key === "Enter" || key.key === " ") { key.preventDefault(); key.stopPropagation(); props.onOpenDay?.(calendarEventDate(event)); } }}
+              return <div key={event.id} role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); props.onOpenDay?.(date); }}
+                onKeyDown={(key) => { if (key.key === "Enter" || key.key === " ") { key.preventDefault(); key.stopPropagation(); props.onOpenDay?.(date); } }}
                 className="truncate rounded-md px-2 py-1 text-[10px] font-bold shadow-sm transition-all duration-300 hover:scale-[1.03] sm:text-[11px]"
                 style={{ backgroundColor: props.getEventColor(event), color: "#3b2b20" }}>
                 <div className="truncate">{props.getEventTitle(event)}</div>
@@ -112,7 +125,7 @@ function WeekView(props: Props & { week: Date[]; byDay: Map<string, CalendarEven
         </div>
         <div className="space-y-2">
           {dayEvents.map((event) => {
-            return <div key={event.id} role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); props.onOpenDay?.(calendarEventDate(event)); }} className="rounded-xl p-2.5 shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-lg" style={{ backgroundColor: props.getEventColor(event) }}>
+            return <div key={event.id} role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); props.onOpenDay?.(date); }} className="rounded-xl p-2.5 shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-lg" style={{ backgroundColor: props.getEventColor(event) }}>
               <div className="text-[11px] font-black text-[#3b2b20]">{props.getEventTitle(event)}</div>
               <div className="mt-1 flex items-center gap-1 text-[9px] font-bold text-[#6f665e]"><Clock3 className="h-3 w-3" />{props.getEventTime(event)}</div>
             </div>;

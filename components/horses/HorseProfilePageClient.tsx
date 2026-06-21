@@ -19,6 +19,7 @@ import {
   HorseRatingModal,
   AssignBoxModal,
   HorseSaleModal,
+  HorseStatusModal,
 } from '@/components/horses';
 import type { HorseFormData } from '@/components/horses/HorseFormModal';
 import { RelatedHorsesTable } from '@/components/horses/profile/RelatedHorsesTable';
@@ -40,6 +41,7 @@ import type {
   ApiResult,
   HorseFamilyTreeItem,
   HorseInfoDto,
+  HorseDeceasedPayload,
   HorsePedigreeNode,
   HorseListItemDto,
   HorseRatingPayload,
@@ -209,6 +211,9 @@ export function HorseProfilePageClient({
   const [soldLoading, setSoldLoading] = useState(false);
   const [saleOpen, setSaleOpen] = useState(false);
   const [saleError, setSaleError] = useState('');
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusError, setStatusError] = useState('');
   const [isAssignBoxOpen, setIsAssignBoxOpen] = useState(false);
   const [boxAssignLoading, setBoxAssignLoading] = useState(false);
   const [pedigreeParents, setPedigreeParents] = useState({ fatherName: '', motherName: '' });
@@ -349,6 +354,37 @@ export function HorseProfilePageClient({
       setSaleError(requestError instanceof Error ? requestError.message : t('common.error'));
     } finally {
       setSoldLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (payload: HorseDeceasedPayload) => {
+    if (!horseId || statusSaving) return;
+    setStatusSaving(true);
+    setStatusError('');
+
+    try {
+      const result = await clientApiFetch<ApiResult<boolean>>({
+        method: 'POST',
+        backendPath: `/api/Horses/${horseId}/deceased`,
+        nextPath: `/api/horses/${horseId}/deceased`,
+        nextQuery: { locale },
+        locale: locale as LocaleCode,
+        body: payload,
+      });
+
+      if (result.succeeded === false) throw new Error(result.message || t('common.error'));
+
+      setHorse((current) => current ? {
+        ...current,
+        isActive: !payload.isDeceased,
+        deceasedAt: payload.isDeceased ? payload.deceasedAt ?? new Date().toISOString() : null,
+        deceasedReason: payload.isDeceased ? payload.deceasedReason ?? null : null,
+      } : current);
+      setStatusOpen(false);
+    } catch (requestError) {
+      setStatusError(requestError instanceof Error ? requestError.message : t('common.error'));
+    } finally {
+      setStatusSaving(false);
     }
   };
 
@@ -698,6 +734,9 @@ export function HorseProfilePageClient({
               ratingsCount={rating?.ratingsCount}
               box={horse?.box ?? null}
               onOpenAssignBox={() => setIsAssignBoxOpen(true)}
+              isActive={horse?.isActive ?? true}
+              statusLoading={statusSaving}
+              onOpenStatus={() => { setStatusError(''); setStatusOpen(true); }}
             />
             <HorsePedigreeStats
               loading={!dashboard}
@@ -778,6 +817,17 @@ export function HorseProfilePageClient({
               error={saleError}
               onClose={() => !soldLoading && setSaleOpen(false)}
               onSave={handleSoldChange}
+            />
+            <HorseStatusModal
+              open={statusOpen}
+              horseName={locale === 'ar' ? profileHorse.nameAr : profileHorse.nameEn}
+              isActive={horse?.isActive ?? true}
+              deceasedAt={horse?.deceasedAt}
+              deceasedReason={horse?.deceasedReason}
+              saving={statusSaving}
+              error={statusError}
+              onClose={() => !statusSaving && setStatusOpen(false)}
+              onSave={handleStatusChange}
             />
           </>
         )}

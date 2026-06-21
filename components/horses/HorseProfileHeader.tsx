@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useLocale } from "@/lib/locale-context";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import horsePlaceholder from "@/app/assets/imgs/horse-placehodler.png";
-import { BadgeCheck, CircleDollarSign, HeartPulse, Home, Pencil, QrCode, X } from "lucide-react";
+import { BadgeCheck, CircleCheck, CircleDollarSign, HeartPulse, Home, Pencil, QrCode, Skull, X } from "lucide-react";
 
 interface Horse {
   id: string;
@@ -33,6 +33,9 @@ interface HorseProfileHeaderProps {
   ratingsCount?: number;
   box?: string | null;
   onOpenAssignBox?: () => void;
+  isActive?: boolean;
+  statusLoading?: boolean;
+  onOpenStatus?: () => void;
 }
 
 export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
@@ -48,6 +51,9 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
   ratingsCount = 0,
   box = null,
   onOpenAssignBox,
+  isActive = true,
+  statusLoading = false,
+  onOpenStatus,
 }) => {
   const { locale, direction, t } = useLocale();
   const isRTL = direction === "rtl";
@@ -209,6 +215,20 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
 
         {/* Action Area */}
         <div className={`flex flex-wrap items-center gap-3 ${isRTL ? "flex-row-reverse" : ""}`}>
+          <button
+            type="button"
+            onClick={onOpenStatus}
+            disabled={statusLoading || !onOpenStatus}
+            className={`flex h-12 items-center gap-2 rounded-xl border px-4 font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+              isActive
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100"
+                : "border-[#e7c4c0] bg-[#fff3f1] text-[#8f3e36] hover:bg-[#fce8e5]"
+            }`}
+          >
+            {isActive ? <CircleCheck className="h-5 w-5" /> : <Skull className="h-5 w-5" />}
+            <span>{statusLoading ? t("common.loading") : isActive ? t("horses.activeStatus") : t("horses.deceasedStatus")}</span>
+          </button>
+
           {!box && onOpenAssignBox && (
             <button
               type="button"

@@ -7,6 +7,8 @@ import {
   createExamination,
   type BreedingProfile,
 } from "@/lib/api/mare-breeding-client";
+import { clientApiFetch } from "@/lib/api/client";
+import type { CalendarEventPayload } from "@/lib/api/types";
 import {
   fieldClass,
   FormActions,
@@ -30,6 +32,9 @@ export function OvulationExaminationForm({
   const ar = locale === "ar";
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [clinicalResult, setClinicalResult] = useState("");
+  const [expectedStartDate, setExpectedStartDate] = useState("");
+  const [expectedEndDate, setExpectedEndDate] = useState("");
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -37,14 +42,56 @@ export function OvulationExaminationForm({
     setError("");
     const data = new FormData(form);
     try {
+      const pregnant = clinicalResult === "3";
+      if (pregnant && (!expectedStartDate || !expectedEndDate)) {
+        throw new Error(ar ? "يرجى تحديد نطاق موعد الولادة المتوقع" : "Please select the expected foaling range");
+      }
+      if (pregnant && expectedEndDate < expectedStartDate) {
+        throw new Error(ar ? "يجب أن تكون نهاية النطاق بعد بدايته" : "The range end must be after its start");
+      }
+
       data.set("ProfileId", String(profile.profileId));
+      if (pregnant) {
+        data.set("ExpectedFoalingStartDate", expectedStartDate);
+        data.set("ExpectedFoalingEndDate", expectedEndDate);
+      }
       appendBilledService(data, "Ovulation examination");
       data.set(
         "RecordDate",
         new Date(String(data.get("RecordDate"))).toISOString(),
       );
       await createExamination(locale, "ovulation", data);
+
+      if (pregnant) {
+        const mareNameEn = profile.englishName || profile.arabicName || "Mare";
+        const mareNameAr = profile.arabicName || profile.englishName || "الفرس";
+        const calendarPayload: CalendarEventPayload = {
+          title: `Expected foaling window — ${mareNameEn}`,
+          titleAr: `موعد الولادة المتوقع — ${mareNameAr}`,
+          description: `Expected foaling range for mare "${mareNameEn}"`,
+          descriptionAr: `نطاق موعد الولادة المتوقع للفرس "${mareNameAr}"`,
+          eventDate: `${expectedStartDate}T00:00:00`,
+          endDate: `${expectedEndDate}T23:59:59`,
+          isAllDay: true,
+          eventType: 6,
+          color: "#E8D8B8",
+          relatedEntityType: "FoalingExpectedRange",
+          relatedEntityId: profile.profileId,
+        };
+        await clientApiFetch({
+          method: "POST",
+          backendPath: "/api/Calendar",
+          nextPath: "/api/calendar",
+          query: { locale },
+          body: calendarPayload,
+          locale,
+        });
+      }
+
       form.reset();
+      setClinicalResult("");
+      setExpectedStartDate("");
+      setExpectedEndDate("");
       onSaved();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Failed");
@@ -132,6 +179,14 @@ export function OvulationExaminationForm({
                     required
                     name="ClinicalResult"
                     value={value}
+                    checked={clinicalResult === String(value)}
+                    onChange={(event) => {
+                      setClinicalResult(event.target.value);
+                      if (event.target.value !== "3") {
+                        setExpectedStartDate("");
+                        setExpectedEndDate("");
+                      }
+                    }}
                     className="peer sr-only"
                   />
                   <span className="grid min-h-14 place-items-center rounded-[7px] bg-[#f5f2ec] p-2 text-center text-[10px] peer-checked:bg-[#351d10] peer-checked:text-white">
@@ -140,6 +195,43 @@ export function OvulationExaminationForm({
                 </label>
               ))}
             </div>
+            {clinicalResult === "3" ? (
+              <div className="mt-4 rounded-xl border border-[#d7dfc3] bg-[#f7f9f1] p-3">
+                <div className="mb-3 flex items-center gap-2 text-xs font-bold text-[#53603d]">
+                  <CalendarDays className="h-4 w-4" />
+                  {ar ? "نطاق موعد الولادة المتوقع" : "Expected foaling range"}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FormField label={ar ? "من" : "From"} required>
+                    <input
+                      required
+                      type="date"
+                      value={expectedStartDate}
+                      onChange={(event) => {
+                        setExpectedStartDate(event.target.value);
+                        if (expectedEndDate && expectedEndDate < event.target.value) setExpectedEndDate(event.target.value);
+                      }}
+                      className={fieldClass}
+                    />
+                  </FormField>
+                  <FormField label={ar ? "إلى" : "To"} required>
+                    <input
+                      required
+                      type="date"
+                      min={expectedStartDate || undefined}
+                      value={expectedEndDate}
+                      onChange={(event) => setExpectedEndDate(event.target.value)}
+                      className={fieldClass}
+                    />
+                  </FormField>
+                </div>
+                <p className="mt-2 text-[10px] leading-5 text-[#74805f]">
+                  {ar
+                    ? "سيظهر هذا النطاق كموعد ولادة متوقع في التقويم بعد حفظ الفحص."
+                    : "This range will appear as an expected foaling window in the calendar after saving."}
+                </p>
+              </div>
+            ) : null}
           </FormSection>
         </div>
         <div className="space-y-3">
