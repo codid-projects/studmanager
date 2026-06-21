@@ -8,6 +8,7 @@ import {
   deleteCycle,
   deleteExamination,
   deleteFoal,
+  getExamination,
   getMareDashboard,
   listCycles,
   listExaminations,
@@ -16,6 +17,7 @@ import {
   type ExaminationSummary,
   type FoalRegistration,
   type MareDashboard,
+  type MareExaminationDetail,
 } from "@/lib/api/mare-breeding-client";
 import { useBreedingHorse } from "../shared/useBreedingHorse";
 import { BreedingHorseCard } from "../shared/BreedingHorseCard";
@@ -26,6 +28,7 @@ import { OvulationExaminationForm } from "./OvulationExaminationForm";
 import { EstrusCycleForm } from "./EstrusCycleForm";
 import { MareSoundnessForm } from "./MareSoundnessForm";
 import { ExpandableFormCard } from "../shared/ExpandableFormCard";
+import { OvulationExaminationEditModal } from "./OvulationExaminationEditModal";
 
 type Tab = "overview" | "foals" | "ovulation" | "cycles" | "soundness";
 
@@ -65,6 +68,8 @@ export default function MareBreedingWorkspace({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingOvulation, setEditingOvulation] = useState<MareExaminationDetail | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
   const load = useCallback(async () => {
     if (!horse.profile) return;
     setLoading(true);
@@ -171,6 +176,17 @@ export default function MareBreedingWorkspace({
         id,
       );
     await load();
+  }
+  async function editOvulation(row: ExaminationSummary) {
+    setBusyId(row.id);
+    setError("");
+    try {
+      setEditingOvulation(await getExamination(locale, row.id));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to load examination");
+    } finally {
+      setBusyId(null);
+    }
   }
   const formMeta = {
     foals: {
@@ -282,7 +298,15 @@ export default function MareBreedingWorkspace({
                 rows={ovulation}
                 columns={examColumns}
                 emptyLabel={ar ? "لا توجد فحوصات" : "No examinations"}
+                onEdit={(row) => void editOvulation(row)}
                 onDelete={(row) => void remove("ovulation", row.id)}
+                busyId={busyId}
+              />
+              <OvulationExaminationEditModal
+                locale={locale}
+                record={editingOvulation}
+                onClose={() => setEditingOvulation(null)}
+                onSaved={load}
               />
             </>
           )}

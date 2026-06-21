@@ -1,7 +1,7 @@
 "use client";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { LoaderCircle, X } from "lucide-react";
-import type { HorseListItemDto, LocaleCode } from "@/lib/api/types";
+import { Building2, LoaderCircle, PencilLine, X } from "lucide-react";
+import type { ExternalStudSearchItem, HorseListItemDto, LocaleCode } from "@/lib/api/types";
 import { fieldClass } from "../shared/FormPrimitives";
 import { HorsePickerField } from "../shared/HorsePickerField";
 import {
@@ -10,6 +10,7 @@ import {
   type StallionSection,
 } from "@/lib/api/stallion-breeding-client";
 import { appendBilledService } from "../shared/BilledServiceFields";
+import { ExternalStudPicker } from "@/components/horses/ExternalStudPicker";
 
 const value = (record: StallionRecordDetail, key: string) =>
   record[key] == null ? "" : String(record[key]);
@@ -37,6 +38,8 @@ export function StallionEditModal({
   const [error, setError] = useState("");
   const [mare, setMare] = useState<HorseListItemDto | null>(null);
   const [surrogate, setSurrogate] = useState<HorseListItemDto | null>(null);
+  const [destinationMode, setDestinationMode] = useState<"stud" | "manual">("manual");
+  const [selectedStud, setSelectedStud] = useState<ExternalStudSearchItem | null>(null);
   useEffect(() => {
     setError("");
     const horse = (
@@ -70,6 +73,18 @@ export function StallionEditModal({
           : String(record.surrogateMareNameAr),
       ),
     );
+    const studbookId = Number(record?.destinedStudbookId ?? 0);
+    setDestinationMode(studbookId ? "stud" : "manual");
+    setSelectedStud(studbookId ? {
+      id: studbookId,
+      studName: record?.destination == null ? null : String(record.destination),
+      studArabicName: record?.destination == null ? null : String(record.destination),
+      country: record?.city == null ? null : String(record.city),
+      city: record?.city == null ? null : String(record.city),
+      xCor: record?.longitude == null ? null : Number(record.longitude),
+      yCor: record?.latitude == null ? null : Number(record.latitude),
+      studProfileImage: null,
+    } : null);
   }, [record]);
   if (!record) return null;
   const field = (
@@ -126,6 +141,23 @@ export function StallionEditModal({
     setError("");
     try {
       const data = new FormData(form);
+      if (section === "semen-shipments") {
+        if (destinationMode === "stud" && !selectedStud) {
+          throw new Error(ar ? "يرجى اختيار المربط المستلم" : "Please choose the destination stud");
+        }
+        data.set("UseManualDestination", destinationMode === "manual" ? "true" : "false");
+        if (destinationMode === "stud" && selectedStud) {
+          data.set("DestinedStudbookId", String(selectedStud.id));
+          data.delete("Destination");
+          data.delete("City");
+          data.delete("Latitude");
+          data.delete("Longitude");
+        } else {
+          data.delete("DestinedStudbookId");
+          data.delete("Latitude");
+          data.delete("Longitude");
+        }
+      }
       data.set(
         "RecordDate",
         new Date(String(data.get("RecordDate"))).toISOString(),
@@ -304,12 +336,30 @@ export function StallionEditModal({
           )}
           {section === "semen-shipments" && (
             <>
-              {field("Destination", "المحطة", "Destination")}
-              {field("City", "المدينة", "City")}
+              <div className="sm:col-span-2">
+                <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl bg-[#f5f1ed] p-1">
+                  <button type="button" onClick={() => setDestinationMode("stud")} className={`flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold ${destinationMode === "stud" ? "bg-white shadow-sm" : "text-[#81746a]"}`}>
+                    <Building2 className="h-4 w-4" />{ar ? "اختيار مربط" : "Choose stud"}
+                  </button>
+                  <button type="button" onClick={() => setDestinationMode("manual")} className={`flex items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold ${destinationMode === "manual" ? "bg-white shadow-sm" : "text-[#81746a]"}`}>
+                    <PencilLine className="h-4 w-4" />{ar ? "عنوان يدوي" : "Manual address"}
+                  </button>
+                </div>
+                {destinationMode === "stud" ? (
+                  <ExternalStudPicker
+                    value={selectedStud?.id ?? null}
+                    selectedLabel={selectedStud ? (ar ? selectedStud.studArabicName || selectedStud.studName || "" : selectedStud.studName || selectedStud.studArabicName || "") : undefined}
+                    onChange={setSelectedStud}
+                  />
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {field("Destination", "عنوان التسليم", "Delivery address", "text", true)}
+                    {field("City", "المدينة", "City")}
+                  </div>
+                )}
+              </div>
               {field("RecipientName", "اسم المستلم", "Recipient")}
               {field("CustomerName", "اسم العميل", "Customer")}
-              {field("Latitude", "خط العرض", "Latitude")}
-              {field("Longitude", "خط الطول", "Longitude")}
               {field(
                 "Concentration",
                 "التركيز",

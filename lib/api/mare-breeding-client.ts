@@ -39,6 +39,19 @@ export type ExaminationSummary = {
   hasFollowUp: boolean;
 };
 
+export type MareExaminationDetail = {
+  id: number;
+  profileId: number;
+  recordDate: string;
+  recordType: number;
+  veterinarianName: string | null;
+  clinicalResult: number | null;
+  clinicalResultEn: string | null;
+  clinicalResultAr: string | null;
+  expectedFoalingStartDate: string | null;
+  expectedFoalingEndDate: string | null;
+};
+
 export type EstrusCycle = {
   id: number;
   startDate: string;
@@ -154,6 +167,28 @@ export async function createExamination(
     locale,
     'POST',
     `/api/mare-breeding/${kind}-examinations`,
+    { body: formData },
+  );
+}
+
+export async function getExamination(locale: LocaleCode, id: number) {
+  return unwrap(await request<ApiResult<MareExaminationDetail>>(
+    locale,
+    'GET',
+    `/api/mare-breeding/examinations/${id}`,
+  ));
+}
+
+export async function updateExamination(
+  locale: LocaleCode,
+  kind: 'ovulation' | 'soundness',
+  id: number,
+  formData: FormData,
+) {
+  return request<ApiResult<null>>(
+    locale,
+    'PUT',
+    `/api/mare-breeding/${kind}-examinations/${id}`,
     { body: formData },
   );
 }

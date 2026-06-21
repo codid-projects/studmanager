@@ -7,8 +7,6 @@ import {
   createExamination,
   type BreedingProfile,
 } from "@/lib/api/mare-breeding-client";
-import { clientApiFetch } from "@/lib/api/client";
-import type { CalendarEventPayload } from "@/lib/api/types";
 import {
   fieldClass,
   FormActions,
@@ -42,9 +40,9 @@ export function OvulationExaminationForm({
     setError("");
     const data = new FormData(form);
     try {
-      const pregnant = clinicalResult === "3";
+      const pregnant = clinicalResult === "3" || clinicalResult === "4";
       if (pregnant && (!expectedStartDate || !expectedEndDate)) {
-        throw new Error(ar ? "يرجى تحديد نطاق موعد الولادة المتوقع" : "Please select the expected foaling range");
+        throw new Error(ar ? "يرجى تحديد نطاق موعد الولاده المتوقع" : "Please select the expected foaling range");
       }
       if (pregnant && expectedEndDate < expectedStartDate) {
         throw new Error(ar ? "يجب أن تكون نهاية النطاق بعد بدايته" : "The range end must be after its start");
@@ -61,33 +59,6 @@ export function OvulationExaminationForm({
         new Date(String(data.get("RecordDate"))).toISOString(),
       );
       await createExamination(locale, "ovulation", data);
-
-      if (pregnant) {
-        const mareNameEn = profile.englishName || profile.arabicName || "Mare";
-        const mareNameAr = profile.arabicName || profile.englishName || "الفرس";
-        const calendarPayload: CalendarEventPayload = {
-          title: `Expected foaling window — ${mareNameEn}`,
-          titleAr: `موعد الولادة المتوقع — ${mareNameAr}`,
-          description: `Expected foaling range for mare "${mareNameEn}"`,
-          descriptionAr: `نطاق موعد الولادة المتوقع للفرس "${mareNameAr}"`,
-          eventDate: `${expectedStartDate}T00:00:00`,
-          endDate: `${expectedEndDate}T23:59:59`,
-          isAllDay: true,
-          eventType: 6,
-          color: "#E8D8B8",
-          relatedEntityType: "FoalingExpectedRange",
-          relatedEntityId: profile.profileId,
-        };
-        await clientApiFetch({
-          method: "POST",
-          backendPath: "/api/Calendar",
-          nextPath: "/api/calendar",
-          query: { locale },
-          body: calendarPayload,
-          locale,
-        });
-      }
-
       form.reset();
       setClinicalResult("");
       setExpectedStartDate("");
@@ -182,7 +153,7 @@ export function OvulationExaminationForm({
                     checked={clinicalResult === String(value)}
                     onChange={(event) => {
                       setClinicalResult(event.target.value);
-                      if (event.target.value !== "3") {
+                      if (event.target.value !== "3" && event.target.value !== "4") {
                         setExpectedStartDate("");
                         setExpectedEndDate("");
                       }
@@ -195,11 +166,11 @@ export function OvulationExaminationForm({
                 </label>
               ))}
             </div>
-            {clinicalResult === "3" ? (
+            {clinicalResult === "3" || clinicalResult === "4" ? (
               <div className="mt-4 rounded-xl border border-[#d7dfc3] bg-[#f7f9f1] p-3">
                 <div className="mb-3 flex items-center gap-2 text-xs font-bold text-[#53603d]">
                   <CalendarDays className="h-4 w-4" />
-                  {ar ? "نطاق موعد الولادة المتوقع" : "Expected foaling range"}
+                  {ar ? "نطاق موعد الولاده المتوقع" : "Expected foaling range"}
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <FormField label={ar ? "من" : "From"} required>
@@ -250,9 +221,9 @@ export function OvulationExaminationForm({
               </FormField>
               <FormField label={ar ? "طريقة الفحص" : "Method"}>
                 <select name="ExaminationMethod" className={fieldClass}>
-                  <option value="1">Ultrasound</option>
-                  <option value="2">Manual</option>
-                  <option value="3">Speculum</option>
+                  <option value="1">{ar ? "الموجات فوق الصوتية" : "Ultrasound"}</option>
+                  <option value="2">{ar ? "فحص يدوي" : "Manual"}</option>
+                  <option value="3">{ar ? "المنظار المهبلي" : "Speculum"}</option>
                 </select>
               </FormField>
               <FormField

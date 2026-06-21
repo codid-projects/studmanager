@@ -51,13 +51,16 @@ export function SemenShipmentForm({
 
       data.set("ProfileId", String(profile.profileId));
       if (destinationMode === "stud" && selectedStud) {
-        data.set("DestinedStudId", String(selectedStud.id));
+        data.set("UseManualDestination", "false");
+        data.set("DestinedStudbookId", String(selectedStud.id));
         data.set("Destination", selectedStudName);
         data.set("City", selectedStud.city || selectedStud.country || "");
         data.set("Longitude", selectedStud.xCor == null ? "" : String(selectedStud.xCor));
         data.set("Latitude", selectedStud.yCor == null ? "" : String(selectedStud.yCor));
       } else {
+        data.set("UseManualDestination", "true");
         data.delete("DestinedStudId");
+        data.delete("DestinedStudbookId");
         data.delete("Longitude");
         data.delete("Latitude");
       }
