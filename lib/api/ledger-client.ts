@@ -40,12 +40,25 @@ export async function getLedgerTransactions(
   direction: "expense" | "revenue",
   pageNumber: number,
   category = "breeding",
+  filters?: {
+    type?: string;
+    fromDate?: string;
+    toDate?: string;
+  },
 ) {
   const result = await clientApiFetch<ApiResult<LedgerPage>>({
     method: "GET",
     backendPath: "/api/ledger",
     nextPath: "/api/ledger",
-    query: { direction, category, pageNumber, pageSize: 20 },
+    query: {
+      direction,
+      category,
+      type: filters?.type,
+      fromDate: filters?.fromDate,
+      toDate: filters?.toDate,
+      pageNumber,
+      pageSize: 20,
+    },
     locale,
   });
   if (!result.succeeded || !result.data)

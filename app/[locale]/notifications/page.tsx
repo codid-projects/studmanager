@@ -27,6 +27,34 @@ const ACTIVITY_TYPE_KEYS: Record<string, string> = {
   marebreedingsoundnessadded: "mareBreedingSoundnessAdded",
   marebreedingsoundnessupdated: "mareBreedingSoundnessUpdated",
   marebreedingsoundnessdeleted: "mareBreedingSoundnessDeleted",
+  foalregistered: "foalRegistered",
+  foalregistrationadded: "foalRegistered",
+  foalregistrationupdated: "foalRegistrationUpdated",
+  foalregistrationdeleted: "foalRegistrationDeleted",
+  newcyclestarted: "newCycleStarted",
+  estruscycleadded: "newCycleStarted",
+  cycleupdated: "cycleUpdated",
+  estruscycleupdated: "cycleUpdated",
+  cycledeleted: "cycleDeleted",
+  estruscycledeleted: "cycleDeleted",
+  injuryexaminationadded: "injuryExaminationAdded",
+  injuryexaminationupdated: "injuryExaminationUpdated",
+  injuryexaminationdeleted: "injuryExaminationDeleted",
+  stallionbreedingeventadded: "stallionBreedingEventAdded",
+  stallionbreedingeventupdated: "stallionBreedingEventUpdated",
+  stallionbreedingeventdeleted: "stallionBreedingEventDeleted",
+  naturalbreedingadded: "stallionBreedingEventAdded",
+  naturalbreedingupdated: "stallionBreedingEventUpdated",
+  naturalbreedingdeleted: "stallionBreedingEventDeleted",
+  semencollectionadded: "semenCollectionAdded",
+  semencollectionupdated: "semenCollectionUpdated",
+  semencollectiondeleted: "semenCollectionDeleted",
+  semenshipmentadded: "semenShipmentAdded",
+  semenshipmentupdated: "semenShipmentUpdated",
+  semenshipmentdeleted: "semenShipmentDeleted",
+  stallionbreedingsoundnessadded: "stallionBreedingSoundnessAdded",
+  stallionbreedingsoundnessupdated: "stallionBreedingSoundnessUpdated",
+  stallionbreedingsoundnessdeleted: "stallionBreedingSoundnessDeleted",
 };
 
 const ENTITY_TYPE_KEYS: Record<string, string> = {
@@ -35,6 +63,15 @@ const ENTITY_TYPE_KEYS: Record<string, string> = {
   ovulationexamination: "ovulationExamination",
   marebreedingexamination: "mareBreedingSoundness",
   marebreedingsoundness: "mareBreedingSoundness",
+  foalregistration: "foalRegistration",
+  foalbirth: "foalRegistration",
+  estruscycle: "estrusCycle",
+  injuryexamination: "injuryExamination",
+  stallionbreedingevent: "stallionBreedingEvent",
+  naturalbreeding: "stallionBreedingEvent",
+  semencollection: "semenCollection",
+  semenshipment: "semenShipment",
+  stallionbreedingsoundness: "stallionBreedingSoundness",
 };
 
 function unwrapResult<T>(payload: T | ApiResult<T>): T {
@@ -132,13 +169,14 @@ export default function NotificationsPage() {
   const activityTypeLabel = (type: string | null) => {
     const mapped = ACTIVITY_TYPE_KEYS[normalizeKey(type)];
     if (mapped) return label(`notifications.types.${mapped}`, humanize(type), humanize(type));
-    return humanize(type) || label("notifications.newActivity", "New activity", "نشاط جديد");
+    // Do not leak an untranslated backend enum into the Arabic interface.
+    return (isRTL ? "" : humanize(type)) || label("notifications.newActivity", "New activity", "نشاط جديد");
   };
 
   const entityTypeLabel = (entityType: string | null) => {
     const mapped = ENTITY_TYPE_KEYS[normalizeKey(entityType)];
     if (mapped) return label(`notifications.entities.${mapped}`, humanize(entityType), humanize(entityType));
-    return humanize(entityType);
+    return isRTL ? "" : humanize(entityType);
   };
 
   return (

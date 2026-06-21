@@ -1,9 +1,5 @@
 import type { CalendarEventDto } from "@/lib/api/types";
-
-function dateKey(value: string) {
-  const date = new Date(value);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
+import { calendarEventDateKey } from "@/lib/calendar-dates";
 
 function isGeneratedFollowUp(event: CalendarEventDto) {
   const title = `${event.title ?? ""} ${event.titleAr ?? ""}`.trim().toLowerCase();
@@ -11,13 +7,18 @@ function isGeneratedFollowUp(event: CalendarEventDto) {
 }
 
 function duplicateKey(event: CalendarEventDto) {
-  if (!isGeneratedFollowUp(event)) return `id:${event.id}`;
+  const generated = Boolean(event.relatedEntityType || event.relatedEntityId);
+  if (!generated) return `id:${event.id}`;
 
-  const source = event.relatedEntityType || event.relatedEntityId
-    ? `${event.relatedEntityType ?? ""}:${event.relatedEntityId ?? ""}`
-    : `${event.type}:${event.title.trim().toLowerCase()}:${event.titleAr.trim()}`;
+  const normalizedTitle = (event.title || event.titleAr)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+  const kind = isGeneratedFollowUp(event) ? "follow-up" : "primary";
 
-  return `follow-up:${source}:${dateKey(event.start)}`;
+  // Generated records with the same horse/type/title on one day are one
+  // business event even if an earlier background task inserted another row.
+  return `generated:${kind}:${event.type}:${normalizedTitle}:${calendarEventDateKey(event)}`;
 }
 
 function descriptionLength(event: CalendarEventDto) {

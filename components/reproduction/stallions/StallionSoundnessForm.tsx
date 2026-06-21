@@ -55,7 +55,7 @@ export function StallionSoundnessForm({
       <h2 className="mb-5 text-[17px]">
         {ar ? "فحص تناسلي للفحول" : "Stallion breeding soundness"}
       </h2>
-      <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-3">
           <FormSection
             title={ar ? "الفحص السريري" : "Clinical examination"}
@@ -77,10 +77,18 @@ export function StallionSoundnessForm({
               </FormField>
               <FormField label={ar ? "التوصية النهائية" : "Recommendation"}>
                 <select name="Recommendation" className={fieldClass}>
-                  <option value="3">Fit for breeding</option>
-                  <option value="1">Needs treatment</option>
-                  <option value="2">Needs rest</option>
-                  <option value="4">Low quality</option>
+                  <option value="3">
+                    {ar ? "لائق للتربية" : "Fit for breeding"}
+                  </option>
+                  <option value="1">
+                    {ar ? "يحتاج إلى علاج" : "Needs treatment"}
+                  </option>
+                  <option value="2">
+                    {ar ? "يحتاج إلى راحة" : "Needs rest"}
+                  </option>
+                  <option value="4">
+                    {ar ? "جودة منخفضة" : "Low quality"}
+                  </option>
                 </select>
               </FormField>
             </div>

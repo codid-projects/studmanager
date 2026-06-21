@@ -55,7 +55,7 @@ export function SemenShipmentForm({
       <h2 className="mb-5 text-[17px]">
         {ar ? "إنشاء شحنة سائل منوي جديدة" : "Create semen shipment"}
       </h2>
-      <div className="grid gap-3 lg:grid-cols-[170px_1fr]">
+      <div className="grid gap-3 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="space-y-3">
           <FormSection
             title={ar ? "الدفع والتسليم" : "Delivery details"}
@@ -128,9 +128,11 @@ export function SemenShipmentForm({
               </FormField>
               <FormField label={ar ? "حالة الشحنة" : "Shipment status"}>
                 <select name="Status" className={fieldClass}>
-                  <option value="1">Preparing</option>
-                  <option value="2">Scheduled</option>
-                  <option value="3">Urgent</option>
+                  <option value="1">
+                    {ar ? "قيد التجهيز" : "Preparing"}
+                  </option>
+                  <option value="2">{ar ? "مجدولة" : "Scheduled"}</option>
+                  <option value="3">{ar ? "عاجلة" : "Urgent"}</option>
                 </select>
               </FormField>
             </div>

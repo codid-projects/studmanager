@@ -57,7 +57,7 @@ export function MareSoundnessForm({
   }
   return (
     <form onSubmit={submit} className="rounded-[10px] bg-white p-4">
-      <div className="grid gap-3 lg:grid-cols-[170px_1fr]">
+      <div className="grid gap-3 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="space-y-3">
           <FormSection
             title={ar ? "إجراءات إضافية" : "Additional actions"}
@@ -160,9 +160,11 @@ export function MareSoundnessForm({
           >
             <div className="grid gap-3 sm:grid-cols-3">
               <select name="CervicalStatus" className={fieldClass}>
-                <option value="1">Closed</option>
-                <option value="2">Partially open</option>
-                <option value="3">Open</option>
+                <option value="1">{ar ? "مغلق" : "Closed"}</option>
+                <option value="2">
+                  {ar ? "مفتوح جزئياً" : "Partially open"}
+                </option>
+                <option value="3">{ar ? "مفتوح" : "Open"}</option>
               </select>
               <input
                 name="VaginalStatus"
@@ -170,10 +172,10 @@ export function MareSoundnessForm({
                 className={fieldClass}
               />
               <select name="EdemaGrade" className={fieldClass}>
-                <option value="0">Edema 0</option>
-                <option value="1">Edema 1</option>
-                <option value="2">Edema 2</option>
-                <option value="3">Edema 3</option>
+                <option value="0">{ar ? "لا توجد وذمة" : "Edema 0"}</option>
+                <option value="1">{ar ? "وذمة خفيفة" : "Edema 1"}</option>
+                <option value="2">{ar ? "وذمة متوسطة" : "Edema 2"}</option>
+                <option value="3">{ar ? "وذمة شديدة" : "Edema 3"}</option>
               </select>
             </div>
           </FormSection>

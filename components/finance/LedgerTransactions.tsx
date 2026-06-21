@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Eye, LoaderCircle, X } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  LoaderCircle,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { useLocale } from "@/lib/locale-context";
 import type { LocaleCode } from "@/lib/api/types";
 import {
@@ -9,6 +17,20 @@ import {
   type LedgerPage,
   type LedgerTransaction,
 } from "@/lib/api/ledger-client";
+
+const transactionTypes = {
+  breeding: [
+    ["OvulationExamination", "متابعة التبويض", "Ovulation examination"],
+    ["MareBreedingSoundness", "فحص تناسلي للفرس", "Mare breeding soundness"],
+    ["StallionBreedingEvent", "طلوقة طبيعية", "Natural breeding"],
+    ["SemenCollection", "جمع سائل منوي", "Semen collection"],
+    ["SemenShipment", "شحنة سائل منوي", "Semen shipment"],
+    ["StallionBreedingSoundness", "فحص تناسلي للفحل", "Stallion soundness"],
+    ["HorseSale", "بيع خيل", "Horse sale"],
+  ],
+  nutrition: [["NutritionRecord", "التغذية", "Nutrition"]],
+  health: [["InjuryRecord", "إصابة", "Injury"]],
+} as const;
 
 export function LedgerTransactions({
   direction,
@@ -25,12 +47,31 @@ export function LedgerTransactions({
   const [selected, setSelected] = useState<LedgerTransaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [type, setType] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError("");
-    getLedgerTransactions(locale, direction, page, category)
+    if (fromDate && toDate && fromDate > toDate) {
+      setResult(null);
+      setLoading(false);
+      setError(
+        ar
+          ? "يجب أن يكون تاريخ البداية قبل تاريخ النهاية أو مساوياً له."
+          : "The from date must be before or equal to the to date.",
+      );
+      return () => {
+        active = false;
+      };
+    }
+    getLedgerTransactions(locale, direction, page, category, {
+      type,
+      fromDate,
+      toDate,
+    })
       .then((value) => active && setResult(value))
       .catch(
         (cause) =>
@@ -40,9 +81,24 @@ export function LedgerTransactions({
     return () => {
       active = false;
     };
-  }, [category, direction, locale, page]);
+  }, [ar, category, direction, fromDate, locale, page, toDate, type]);
 
-  useEffect(() => setPage(1), [category]);
+  useEffect(() => setPage(1), [category, fromDate, toDate, type]);
+  useEffect(() => setType(""), [category]);
+
+  const availableTypes =
+    transactionTypes[category as keyof typeof transactionTypes] ?? [];
+
+  const accountName = (value: string) => {
+    if (!ar) return value;
+    const names: Record<string, string> = {
+      "Farm Expenses": "مصروفات المزرعة",
+      "Breeding Provider": "مقدم خدمة التناسل",
+      "Cash Revenue": "إيرادات نقدية",
+      "Horse Sales Revenue": "إيرادات بيع الخيول",
+    };
+    return names[value] ?? value;
+  };
 
   const categoryName =
     category === "nutrition"
@@ -81,6 +137,55 @@ export function LedgerTransactions({
             : "Live financial entries linked to horse records — all values in EGP"}
         </p>
       </header>
+      <div className="rounded-2xl border bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center gap-2 font-semibold text-[#4b3020]">
+          <SlidersHorizontal className="h-4 w-4" />
+          {ar ? "تصفية النتائج" : "Filter results"}
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <label className="space-y-1 text-xs font-medium">
+            <span>{ar ? "نوع المعاملة" : "Transaction type"}</span>
+            <select
+              value={type}
+              onChange={(event) => setType(event.target.value)}
+              className="h-11 w-full rounded-xl border bg-white px-3"
+            >
+              <option value="">{ar ? "جميع الأنواع" : "All types"}</option>
+              {availableTypes.map(([value, arabic, english]) => (
+                <option key={value} value={value}>
+                  {ar ? arabic : english}
+                </option>
+              ))}
+            </select>
+          </label>
+          {[
+            {
+              label: ar ? "من تاريخ" : "From date",
+              value: fromDate,
+              setValue: setFromDate,
+            },
+            {
+              label: ar ? "إلى تاريخ" : "To date",
+              value: toDate,
+              setValue: setToDate,
+            },
+          ].map((dateFilter) => (
+            <label key={dateFilter.label} className="space-y-1 text-xs font-medium">
+              <span>{dateFilter.label}</span>
+              <span className="relative block">
+                <input
+                  type="date"
+                  value={dateFilter.value}
+                  onChange={(event) => dateFilter.setValue(event.target.value)}
+                  onClick={(event) => event.currentTarget.showPicker?.()}
+                  className="h-11 w-full cursor-pointer rounded-xl border bg-white px-3 pe-10"
+                />
+                <CalendarDays className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6f5a4c]" />
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
       {error && (
         <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
           {error}
@@ -193,8 +298,23 @@ export function LedgerTransactions({
                   key={`${line.accountName}-${index}`}
                   className="flex justify-between rounded-lg border p-3 text-sm"
                 >
-                  <span>{line.accountName}</span>
-                  <b>{money(line.amount)}</b>
+                  <span>
+                    {ar
+                      ? direction === "expense"
+                        ? "الجهة المستفيدة"
+                        : "جهة التحصيل"
+                      : direction === "expense"
+                        ? "Paid to"
+                        : "Received through"}
+                  </span>
+                  <span className="text-end">
+                    <b className="block">{accountName(line.accountName)}</b>
+                    {selected.lines.length > 1 && (
+                      <small className="text-[#8c7d74]">
+                        {money(line.amount)}
+                      </small>
+                    )}
+                  </span>
                 </div>
               ))}
             </div>

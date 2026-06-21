@@ -12,14 +12,19 @@ import {
   Leaf,
   Mars,
   Plus,
+  Trash2,
   Venus,
   X,
 } from 'lucide-react';
+import Link from 'next/link';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { clientApiFetch } from '@/lib/api/client';
 import { useLocale, useTranslation } from '@/lib/locale-context';
 import { AnimatedCalendarView, type AnimatedCalendarMode } from '@/components/calendar/AnimatedCalendarView';
+import { FoalingWatch } from '@/components/calendar/FoalingWatch';
 import { deduplicateCalendarEvents } from '@/lib/calendar-events';
+import { calendarEventDate, calendarEventDateKey } from '@/lib/calendar-dates';
+import { fetchNutrition } from '@/lib/api/nutrition-client';
 import type {
   ActivityDto,
   ApiResult,
@@ -28,6 +33,8 @@ import type {
   CalendarEventType,
   DashboardDto,
   DefaultStudDto,
+  LocaleCode,
+  NutritionRecordDto,
   PagedResponse,
 } from '@/lib/api/types';
 
@@ -247,6 +254,8 @@ export default function DashboardPage() {
   const [dashboard, setDashboard] = useState<DashboardDto>(emptyDashboard);
   const [stud, setStud] = useState<DefaultStudDto>(emptyStud);
   const [activities, setActivities] = useState<ActivityDto[]>([]);
+  const [rationRecords, setRationRecords] = useState<NutritionRecordDto[]>([]);
+  const [rationLoading, setRationLoading] = useState(true);
   const [activityPageInfo, setActivityPageInfo] = useState<PagedResponse<ActivityDto> | null>(null);
   const [activityPage, setActivityPage] = useState(1);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
@@ -264,6 +273,7 @@ export default function DashboardPage() {
   const [eventSaving, setEventSaving] = useState(false);
   const [eventForm, setEventForm] = useState(emptyEventForm);
   const [editingCalendarEvent, setEditingCalendarEvent] = useState<CalendarEventDto | null>(null);
+  const [eventDeleting, setEventDeleting] = useState(false);
   const isRTL = direction === 'rtl';
 
   async function loadActivities(pageNumber: number, pageSize = 6) {
@@ -323,6 +333,31 @@ export default function DashboardPage() {
     loadDashboardData();
     loadActivities(1, 6);
 
+    return () => {
+      mounted = false;
+    };
+  }, [locale]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadCurrentRation() {
+      setRationLoading(true);
+      try {
+        const result = await fetchNutrition(locale as LocaleCode, {
+          type: 1,
+          pageNumber: 1,
+          pageSize: 4,
+        });
+        if (mounted) setRationRecords(result?.data ?? []);
+      } catch {
+        if (mounted) setRationRecords([]);
+      } finally {
+        if (mounted) setRationLoading(false);
+      }
+    }
+
+    loadCurrentRation();
     return () => {
       mounted = false;
     };
@@ -392,7 +427,7 @@ export default function DashboardPage() {
   const calendarEventsByDay = useMemo(
     () =>
       calendarEvents.reduce((map, event) => {
-        const key = toDateKey(event.start);
+        const key = calendarEventDateKey(event);
         map.set(key, [...(map.get(key) ?? []), event]);
         return map;
       }, new Map<string, CalendarEventDto[]>()),
@@ -476,7 +511,7 @@ export default function DashboardPage() {
       titleAr: event.titleAr ?? '',
       description: event.description ?? '',
       descriptionAr: event.descriptionAr ?? '',
-      eventDate: toDateInputValue(new Date(event.start)),
+      eventDate: toDateInputValue(calendarEventDate(event)),
       endDate: event.end ? toDateInputValue(new Date(event.end)) : '',
       isAllDay: event.allDay,
       eventType,
@@ -500,8 +535,8 @@ export default function DashboardPage() {
       titleAr: eventForm.titleAr.trim() || eventForm.title.trim(),
       description: eventForm.description.trim() || null,
       descriptionAr: eventForm.descriptionAr.trim() || null,
-      eventDate: new Date(eventForm.eventDate).toISOString(),
-      endDate: eventForm.endDate ? new Date(eventForm.endDate).toISOString() : null,
+      eventDate: eventForm.eventDate,
+      endDate: eventForm.endDate || null,
       isAllDay: eventForm.isAllDay,
       eventType: eventForm.eventType,
       color: eventForm.color,
@@ -522,6 +557,24 @@ export default function DashboardPage() {
       setCalendarRefreshKey((value) => value + 1);
     } finally {
       setEventSaving(false);
+    }
+  };
+
+  const deleteDashboardEvent = async () => {
+    if (!editingCalendarEvent || eventDeleting) return;
+    setEventDeleting(true);
+    try {
+      await clientApiFetch({
+        method: 'DELETE',
+        backendPath: `/api/Calendar/${editingCalendarEvent.id}`,
+        nextPath: `/api/calendar/${editingCalendarEvent.id}`,
+        query: { locale },
+        locale,
+      });
+      closeEventModal();
+      setCalendarRefreshKey((value) => value + 1);
+    } finally {
+      setEventDeleting(false);
     }
   };
 
@@ -769,13 +822,43 @@ export default function DashboardPage() {
     </div>
   </div>
 
-  <div className="mt-8 flex min-h-[220px] items-center justify-center rounded-xl bg-white/65 text-lg font-semibold text-[#8c847c]">
-    {t("common.noRecordsFound")}
+  <div className="mt-8 min-h-[220px] rounded-xl bg-white/65 p-4">
+    {rationLoading ? (
+      <div className="flex min-h-[188px] items-center justify-center text-lg font-semibold text-[#8c847c]">
+        {t("common.loading")}
+      </div>
+    ) : rationRecords.length === 0 ? (
+      <div className="flex min-h-[188px] items-center justify-center text-lg font-semibold text-[#8c847c]">
+        {t("common.noRecordsFound")}
+      </div>
+    ) : (
+      <div className="divide-y divide-[#e8e1da]">
+        {rationRecords.map((record) => {
+          const horseName = isRTL
+            ? record.horseArabicName || record.horseEnglishName
+            : record.horseEnglishName || record.horseArabicName;
+          const feedName = isRTL
+            ? record.supplementArabicName || record.supplementName
+            : record.supplementName || record.supplementArabicName;
+          return (
+            <div key={record.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-[#4b2f1a]">{feedName}</p>
+                <p className="truncate text-sm text-[#8c847c]">{horseName}</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-[#eef0df] px-3 py-1 text-sm font-bold text-[#606331]">
+                {record.quantity} {t("dashboard.quantityUnit")}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    )}
   </div>
 
-  <button className="mt-6 h-12 w-full rounded-lg bg-white text-base font-semibold text-[#4b2f1a] shadow-sm">
+  <Link href={`/${locale}/nutrition/feed-changes`} className="mt-6 flex h-12 w-full items-center justify-center rounded-lg bg-white text-base font-semibold text-[#4b2f1a] shadow-sm">
     {t("dashboard.editNutritionPlan")}
-  </button>
+  </Link>
 </article>
 
          <article
@@ -847,6 +930,16 @@ export default function DashboardPage() {
   </div>
 </article>
         </section>
+
+        <FoalingWatch
+          locale={locale}
+          events={calendarEvents}
+          onSelectDate={(date) => {
+            setCalendarDate(new Date(date.getFullYear(), date.getMonth(), 1));
+            setSelectedCalendarDate(startOfDay(date));
+            setActiveView('day');
+          }}
+        />
 
         <section className="grid gap-6 xl:grid-cols-[1fr_20rem]">
           <article className="rounded-2xl bg-white p-4 shadow-sm sm:p-6" dir={direction}>
@@ -922,13 +1015,13 @@ export default function DashboardPage() {
             />
           </article>
 
-          <aside className="rounded-2xl bg-white p-5 shadow-sm" dir={direction}>
+          <aside className="flex max-h-[44rem] flex-col rounded-2xl bg-white p-5 shadow-sm xl:sticky xl:top-6" dir={direction}>
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-xl font-bold text-[#3b2b20]">
                   {activeView === 'month'
                     ? t('calendar.event')
-                    : selectedCalendarDate.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}
+                    : selectedCalendarDate.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric', calendar: 'gregory' })}
                 </h3>
                 <p className="mt-1 text-sm text-[#8c847c]">
                   {visibleCalendarEvents.length} {t('calendar.events')}
@@ -937,7 +1030,7 @@ export default function DashboardPage() {
               <CalendarDays className="h-6 w-6 text-[#4b2f1a]" />
             </div>
 
-            <div className="space-y-3">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pe-1">
               {visibleCalendarEvents.length === 0 ? (
                 <div className="rounded-xl bg-[#f8f4f0] p-6 text-center text-sm font-semibold text-[#8c847c]">{t('common.noRecordsFound')}</div>
               ) : (
@@ -948,7 +1041,7 @@ export default function DashboardPage() {
                       <div className="mb-2 h-2 rounded-full" style={{ backgroundColor: color }} />
                       <div className="font-bold text-[#3b2b20]">{calendarEventTitle(event)}</div>
                       <div className="mt-1 text-sm text-[#8c847c]">
-                        {calendarEventTime(event)} · {new Date(event.start).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}
+                        {calendarEventTime(event)} · {calendarEventDate(event).toLocaleDateString(locale, { day: 'numeric', month: 'short', calendar: 'gregory' })}
                       </div>
                       {calendarEventDescription(event) ? <div className="mt-2 text-sm leading-6 text-[#6f665e]">{calendarEventDescription(event)}</div> : null}
                     </div>
@@ -993,19 +1086,34 @@ export default function DashboardPage() {
                   placeholder={label('calendar.titleAr', 'Arabic title', 'العنوان بالعربية')}
                   className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]"
                 />
-                <input
-                  required
-                  type="datetime-local"
-                  value={eventForm.eventDate}
-                  onChange={(event) => setEventForm((value) => ({ ...value, eventDate: event.target.value }))}
-                  className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]"
-                />
-                <input
-                  type="datetime-local"
-                  value={eventForm.endDate}
-                  onChange={(event) => setEventForm((value) => ({ ...value, endDate: event.target.value }))}
-                  className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]"
-                />
+                <label className="space-y-1 text-sm font-semibold text-[#4b2f1a]">
+                  <span>{label('calendar.startDate', 'Start date and time', 'تاريخ ووقت البداية')}</span>
+                  <span className="relative block">
+                    <input
+                      required
+                      type="datetime-local"
+                      value={eventForm.eventDate}
+                      onChange={(event) => setEventForm((value) => ({ ...value, eventDate: event.target.value }))}
+                      onClick={(event) => event.currentTarget.showPicker?.()}
+                      className="h-12 w-full cursor-pointer rounded-lg border border-[#ded6ce] px-4 pe-10 outline-none focus:border-[#4b2f1a]"
+                    />
+                    <CalendarDays className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+                  </span>
+                </label>
+                <label className="space-y-1 text-sm font-semibold text-[#4b2f1a]">
+                  <span>{label('calendar.endDate', 'End date and time (optional)', 'تاريخ ووقت النهاية (اختياري)')}</span>
+                  <span className="relative block">
+                    <input
+                      type="datetime-local"
+                      min={eventForm.eventDate || undefined}
+                      value={eventForm.endDate}
+                      onChange={(event) => setEventForm((value) => ({ ...value, endDate: event.target.value }))}
+                      onClick={(event) => event.currentTarget.showPicker?.()}
+                      className="h-12 w-full cursor-pointer rounded-lg border border-[#ded6ce] px-4 pe-10 outline-none focus:border-[#4b2f1a]"
+                    />
+                    <CalendarDays className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+                  </span>
+                </label>
                 <select
                   value={eventForm.eventType}
                   onChange={(event) => {
@@ -1051,10 +1159,21 @@ export default function DashboardPage() {
                 </label>
               </div>
 
-              <div className="flex items-center justify-end border-t border-[#f1ece8] px-6 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#f1ece8] px-6 py-4">
+                {editingCalendarEvent ? (
+                  <button
+                    type="button"
+                    disabled={eventSaving || eventDeleting}
+                    onClick={deleteDashboardEvent}
+                    className="inline-flex h-11 items-center gap-2 rounded-lg bg-red-50 px-4 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {eventDeleting ? t('calendar.deletingEvent') : t('calendar.deleteEvent')}
+                  </button>
+                ) : <span />}
                 <button
                   type="submit"
-                  disabled={eventSaving}
+                  disabled={eventSaving || eventDeleting}
                   className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#3b2b20] px-5 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   <Edit3 className="h-4 w-4" />

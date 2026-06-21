@@ -91,7 +91,7 @@ export function FoalRegistrationForm({
         </h2>
         <p className="text-[10px] text-[#8e827b]">Add New Foal Record</p>
       </div>
-      <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-3">
           <FormSection
             title={ar ? "النسب (Parentage)" : "Parentage"}

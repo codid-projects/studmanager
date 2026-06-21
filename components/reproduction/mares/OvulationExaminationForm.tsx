@@ -54,7 +54,7 @@ export function OvulationExaminationForm({
   }
   return (
     <form onSubmit={submit} className="rounded-[10px] bg-white p-4">
-      <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-3">
           <FormSection
             title={ar ? "النتائج الإكلينيكية" : "Clinical results"}
@@ -79,17 +79,19 @@ export function OvulationExaminationForm({
               </FormField>
               <FormField label={ar ? "الوذمة" : "Edema"}>
                 <select name="EdemaGrade" className={fieldClass}>
-                  <option value="0">None / لا يوجد</option>
-                  <option value="1">Mild / خفيف</option>
-                  <option value="2">Moderate / متوسط</option>
-                  <option value="3">Severe / شديد</option>
+                  <option value="0">{ar ? "لا يوجد" : "None"}</option>
+                  <option value="1">{ar ? "خفيف" : "Mild"}</option>
+                  <option value="2">{ar ? "متوسط" : "Moderate"}</option>
+                  <option value="3">{ar ? "شديد" : "Severe"}</option>
                 </select>
               </FormField>
               <FormField label={ar ? "عنق الرحم" : "Cervix"}>
                 <select name="CervicalStatus" className={fieldClass}>
-                  <option value="1">Closed / مغلق</option>
-                  <option value="2">Partially open</option>
-                  <option value="3">Open / مفتوح</option>
+                  <option value="1">{ar ? "مغلق" : "Closed"}</option>
+                  <option value="2">
+                    {ar ? "مفتوح جزئياً" : "Partially open"}
+                  </option>
+                  <option value="3">{ar ? "مفتوح" : "Open"}</option>
                 </select>
               </FormField>
               <FormField label={ar ? "الرحم" : "Uterus"}>

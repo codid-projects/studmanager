@@ -68,7 +68,7 @@ export function NaturalBreedingForm({
       <h2 className="mb-5 text-[17px]">
         {ar ? "تسجيل طلوقة جديدة" : "New breeding service"}
       </h2>
-      <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-3">
           <FormSection
             title={ar ? "بيانات الفرسة" : "Mare details"}

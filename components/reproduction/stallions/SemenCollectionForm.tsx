@@ -60,7 +60,7 @@ export function SemenCollectionForm({
           ? "تسجيل بيانات الجمع والتقييم المعملي"
           : "Collection and laboratory evaluation"}
       </p>
-      <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-3">
           <FormSection
             title={
@@ -133,9 +133,11 @@ export function SemenCollectionForm({
               </FormField>
               <FormField label={ar ? "المظهر" : "Appearance"}>
                 <select name="Appearance" className={fieldClass}>
-                  <option value="1">Milky white</option>
-                  <option value="2">Yellowish</option>
-                  <option value="3">Watery</option>
+                  <option value="1">
+                    {ar ? "أبيض حليبي" : "Milky white"}
+                  </option>
+                  <option value="2">{ar ? "مُصفر" : "Yellowish"}</option>
+                  <option value="3">{ar ? "مائي" : "Watery"}</option>
                 </select>
               </FormField>
             </div>

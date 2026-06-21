@@ -1,6 +1,7 @@
 "use client";
 
 import type { CalendarEventDto } from "@/lib/api/types";
+import { calendarDateKey, calendarEventDate, calendarEventDateKey } from "@/lib/calendar-dates";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Layers3 } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
@@ -25,8 +26,7 @@ type Props = {
 };
 
 function dateKey(date: Date | string) {
-  const value = typeof date === "string" ? new Date(date) : date;
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+  return calendarDateKey(date);
 }
 
 function addDays(date: Date, amount: number) {
@@ -54,7 +54,7 @@ export function AnimatedCalendarView(props: Props) {
   const cells = useMemo(() => buildMonth(monthDate, isRTL), [monthDate, isRTL]);
   const byDay = useMemo(() => {
     const map = new Map<string, CalendarEventDto[]>();
-    events.forEach((event) => map.set(dateKey(event.start), [...(map.get(dateKey(event.start)) ?? []), event]));
+    events.forEach((event) => map.set(calendarEventDateKey(event), [...(map.get(calendarEventDateKey(event)) ?? []), event]));
     return map;
   }, [events]);
   const selectedIndex = Math.max(0, cells.findIndex((date) => dateKey(date) === dateKey(selectedDate)));
@@ -84,8 +84,8 @@ function MonthView(props: Props & { cells: Date[]; byDay: Map<string, CalendarEv
           <span className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-bold transition-colors ${selected ? "bg-[#4b2f1a] text-white" : "group-hover:bg-[#f1e7df]"}`}>{date.getDate()}</span>
           <div className="mt-2 space-y-1">
             {dayEvents.slice(0, 3).map((event) => {
-              return <div key={event.id} role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); props.onOpenDay?.(new Date(event.start)); }}
-                onKeyDown={(key) => { if (key.key === "Enter" || key.key === " ") { key.preventDefault(); key.stopPropagation(); props.onOpenDay?.(new Date(event.start)); } }}
+              return <div key={event.id} role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); props.onOpenDay?.(calendarEventDate(event)); }}
+                onKeyDown={(key) => { if (key.key === "Enter" || key.key === " ") { key.preventDefault(); key.stopPropagation(); props.onOpenDay?.(calendarEventDate(event)); } }}
                 className="truncate rounded-md px-2 py-1 text-[10px] font-bold shadow-sm transition-all duration-300 hover:scale-[1.03] sm:text-[11px]"
                 style={{ backgroundColor: props.getEventColor(event), color: "#3b2b20" }}>
                 <div className="truncate">{props.getEventTitle(event)}</div>
@@ -112,7 +112,7 @@ function WeekView(props: Props & { week: Date[]; byDay: Map<string, CalendarEven
         </div>
         <div className="space-y-2">
           {dayEvents.map((event) => {
-            return <div key={event.id} role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); props.onOpenDay?.(new Date(event.start)); }} className="rounded-xl p-2.5 shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-lg" style={{ backgroundColor: props.getEventColor(event) }}>
+            return <div key={event.id} role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); props.onOpenDay?.(calendarEventDate(event)); }} className="rounded-xl p-2.5 shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-lg" style={{ backgroundColor: props.getEventColor(event) }}>
               <div className="text-[11px] font-black text-[#3b2b20]">{props.getEventTitle(event)}</div>
               <div className="mt-1 flex items-center gap-1 text-[9px] font-bold text-[#6f665e]"><Clock3 className="h-3 w-3" />{props.getEventTime(event)}</div>
             </div>;
@@ -125,21 +125,16 @@ function WeekView(props: Props & { week: Date[]; byDay: Map<string, CalendarEven
 }
 
 function DayView(props: Props & { dayEvents: CalendarEventDto[] }) {
-  const hours = [8, 10, 12, 14, 16, 18, 20];
   return <div className="rounded-[1.6rem] border border-[#eee5de] bg-white shadow-sm">
     <div className="flex items-center gap-4 bg-gradient-to-l from-[#4b2f1a] to-[#765033] p-5 text-white">
       <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-3xl font-black backdrop-blur">{props.selectedDate.getDate()}</div>
       <div><div className="text-sm font-semibold text-white/70">{props.selectedDate.toLocaleDateString(props.locale, { weekday: "long" })}</div><div className="text-xl font-black">{props.selectedDate.toLocaleDateString(props.locale, { month: "long", year: "numeric" })}</div></div>
     </div>
-    <div className="relative min-h-[430px] overflow-hidden p-4 sm:p-6">
-      <div className="pointer-events-none absolute inset-x-4 top-4 sm:inset-x-6 sm:top-6" aria-hidden="true">
-        {hours.map((hour) => <div key={hour} className="flex h-14 gap-3"><span className="w-12 text-xs font-bold text-[#a1978f]">{new Date(2000, 0, 1, hour).toLocaleTimeString(props.locale, { hour: "numeric" })}</span><div className="mt-2 flex-1 border-t border-dashed border-[#e8dfd7]" /></div>)}
-      </div>
-      <div className="relative z-10 min-h-[382px] space-y-3 ps-16 sm:ps-20">
+    <div className="min-h-[260px] p-4 sm:p-6">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {props.dayEvents.map((event, index) => {
           return <div key={event.id} role="button" tabIndex={0} onClick={() => props.onEventClick?.(event)} style={{ backgroundColor: props.getEventColor(event), animationDelay: `${index * 80}ms` }} className="calendar-cell-rise w-full rounded-2xl border border-white/70 p-4 text-start shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl">
             <div className="whitespace-normal break-words font-black text-[#3b2b20]">{props.getEventTitle(event)}</div>
-            <div className="mt-1 text-xs font-bold text-[#6f665e]">{props.getEventTime(event)}</div>
             {props.getEventDescription(event) && <div className="mt-2 whitespace-normal break-words text-xs leading-5 text-[#6f665e]">{props.getEventDescription(event)}</div>}
           </div>;
         })}
@@ -150,7 +145,7 @@ function DayView(props: Props & { dayEvents: CalendarEventDto[] }) {
 }
 
 function SwipeView(props: Props & { cells: Date[] }) {
-  const items = props.events.length ? props.events.map((event) => ({ id: `e-${event.id}`, date: new Date(event.start), event })) : props.cells.map((date) => ({ id: `d-${dateKey(date)}`, date, event: undefined }));
+  const items = props.events.length ? props.events.map((event) => ({ id: `e-${event.id}`, date: calendarEventDate(event), event })) : props.cells.map((date) => ({ id: `d-${dateKey(date)}`, date, event: undefined }));
   const [order, setOrder] = useState(() => items.map((_, index) => index));
   useEffect(() => setOrder(items.map((_, index) => index)), [props.events, props.monthDate]);
   const rotate = (direction: 1 | -1) => setOrder((current) => direction === 1 ? [...current.slice(1), current[0]] : [current[current.length - 1], ...current.slice(0, -1)]);

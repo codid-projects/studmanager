@@ -9,7 +9,9 @@ import { CalendarDays, ChevronLeft, ChevronRight, Edit3, Plus, Trash2, X } from 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatedCalendarView, type AnimatedCalendarMode } from "@/components/calendar/AnimatedCalendarView";
+import { FoalingWatch } from "@/components/calendar/FoalingWatch";
 import { deduplicateCalendarEvents } from "@/lib/calendar-events";
+import { calendarEventDate, calendarEventDateKey } from "@/lib/calendar-dates";
 
 type ViewMode = AnimatedCalendarMode;
 
@@ -196,10 +198,16 @@ export default function CalendarPage() {
     loadEvents();
   }, [loadEvents]);
 
+  const openFoalingDate = (dueDate: Date) => {
+    setCurrentDate(new Date(dueDate.getFullYear(), dueDate.getMonth(), 1));
+    setSelectedDate(startOfDay(dueDate));
+    setViewMode("day");
+  };
+
   const eventsByDay = useMemo(() => {
     const grouped = new Map<string, CalendarEventDto[]>();
     events.forEach((event) => {
-      const key = toDateKey(event.start);
+      const key = calendarEventDateKey(event);
       grouped.set(key, [...(grouped.get(key) ?? []), event]);
     });
     return grouped;
@@ -260,7 +268,7 @@ export default function CalendarPage() {
       titleAr: event.titleAr,
       description: event.description ?? "",
       descriptionAr: event.descriptionAr ?? "",
-      eventDate: toDateInputValue(new Date(event.start)),
+      eventDate: toDateInputValue(calendarEventDate(event)),
       endDate: event.end ? toDateInputValue(new Date(event.end)) : "",
       isAllDay: event.allDay,
       eventType: getEventTypeValue(event.type),
@@ -285,8 +293,10 @@ export default function CalendarPage() {
       titleAr: form.titleAr.trim() || form.title.trim(),
       description: form.description.trim() || null,
       descriptionAr: form.descriptionAr.trim() || null,
-      eventDate: new Date(form.eventDate).toISOString(),
-      endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
+      // Keep the selected local wall-clock value. Converting to UTC here caused
+      // the date to shift when the same event was previewed or edited.
+      eventDate: form.eventDate,
+      endDate: form.endDate || null,
       isAllDay: form.isAllDay,
       eventType: form.eventType,
       color: form.color,
@@ -328,19 +338,17 @@ export default function CalendarPage() {
     }
   };
 
-  const prevMonth = () => {
-    setCurrentDate((date) => {
-      const next = new Date(date.getFullYear(), date.getMonth() - 1, 1);
+  const navigateCalendar = (direction: -1 | 1) => {
+    if (viewMode === "day" || viewMode === "week") {
+      const next = addDays(selectedDate, direction * (viewMode === "day" ? 1 : 7));
       setSelectedDate(next);
-      return next;
-    });
-  };
-  const nextMonth = () => {
-    setCurrentDate((date) => {
-      const next = new Date(date.getFullYear(), date.getMonth() + 1, 1);
-      setSelectedDate(next);
-      return next;
-    });
+      setCurrentDate(new Date(next.getFullYear(), next.getMonth(), 1));
+      return;
+    }
+
+    const next = new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, 1);
+    setCurrentDate(next);
+    setSelectedDate(next);
   };
 
   return (
@@ -357,14 +365,16 @@ export default function CalendarPage() {
           </button>
         </div>
 
+        <FoalingWatch locale={locale} events={events} onSelectDate={openFoalingDate} />
+
         <div className="grid gap-6 xl:grid-cols-[1fr_20rem]">
           <section className="rounded-2xl bg-white p-4 shadow-sm sm:p-6">
             <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-2">
-                <button onClick={prevMonth} className="rounded-full border border-[#d8d0c8] p-2 text-[#3b2b20] hover:bg-[#f8f4f0]" aria-label={t("common.back")}>
+                <button onClick={() => navigateCalendar(-1)} className="rounded-full border border-[#d8d0c8] p-2 text-[#3b2b20] hover:bg-[#f8f4f0]" aria-label={t("common.back")}>
                   {isRTL ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
                 </button>
-                <button onClick={nextMonth} className="rounded-full border border-[#d8d0c8] p-2 text-[#3b2b20] hover:bg-[#f8f4f0]" aria-label={t("common.next")}>
+                <button onClick={() => navigateCalendar(1)} className="rounded-full border border-[#d8d0c8] p-2 text-[#3b2b20] hover:bg-[#f8f4f0]" aria-label={t("common.next")}>
                   {isRTL ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                 </button>
               </div>
@@ -398,10 +408,10 @@ export default function CalendarPage() {
             />
           </section>
 
-          <aside className="rounded-2xl bg-white p-5 shadow-sm">
+          <aside className="flex max-h-[44rem] flex-col rounded-2xl bg-white p-5 shadow-sm xl:sticky xl:top-6">
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-xl font-bold text-[#3b2b20]">{viewMode === "month" ? t("calendar.event") : selectedDate.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}</h3>
+                <h3 className="text-xl font-bold text-[#3b2b20]">{viewMode === "month" ? t("calendar.event") : selectedDate.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric", calendar: "gregory" })}</h3>
                 <p className="mt-1 text-sm text-[#8c847c]">
                   {loading ? t("common.loading") : `${visibleList.length} ${label("calendar.events", "events", "أحداث")}`}
                 </p>
@@ -409,7 +419,7 @@ export default function CalendarPage() {
               <CalendarDays className="h-6 w-6 text-[#4b2f1a]" />
             </div>
 
-            <div className="space-y-3">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pe-1">
               {visibleList.length === 0 && !loading ? (
                 <div className="rounded-xl bg-[#f8f4f0] p-6 text-center text-sm font-semibold text-[#8c847c]">{t("common.noRecordsFound")}</div>
               ) : (
@@ -444,8 +454,20 @@ export default function CalendarPage() {
               <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
                 <input required value={form.title} onChange={(event) => setForm((value) => ({ ...value, title: event.target.value }))} placeholder={label("calendar.titleEn", "English title", "العنوان بالإنجليزية")} className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]" />
                 <input required value={form.titleAr} onChange={(event) => setForm((value) => ({ ...value, titleAr: event.target.value }))} placeholder={label("calendar.titleAr", "Arabic title", "العنوان بالعربية")} className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]" />
-                <input required type="datetime-local" value={form.eventDate} onChange={(event) => setForm((value) => ({ ...value, eventDate: event.target.value }))} className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]" />
-                <input type="datetime-local" value={form.endDate} onChange={(event) => setForm((value) => ({ ...value, endDate: event.target.value }))} className="h-12 rounded-lg border border-[#ded6ce] px-4 outline-none focus:border-[#4b2f1a]" />
+                <label className="space-y-1 text-sm font-semibold text-[#4b2f1a]">
+                  <span>{label("calendar.startDate", "Start date and time", "تاريخ ووقت البداية")}</span>
+                  <span className="relative block">
+                    <input required type="datetime-local" value={form.eventDate} onChange={(event) => setForm((value) => ({ ...value, eventDate: event.target.value }))} onClick={(event) => event.currentTarget.showPicker?.()} className="h-12 w-full cursor-pointer rounded-lg border border-[#ded6ce] px-4 pe-10 outline-none focus:border-[#4b2f1a]" />
+                    <CalendarDays className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+                  </span>
+                </label>
+                <label className="space-y-1 text-sm font-semibold text-[#4b2f1a]">
+                  <span>{label("calendar.endDate", "End date and time (optional)", "تاريخ ووقت النهاية (اختياري)")}</span>
+                  <span className="relative block">
+                    <input type="datetime-local" min={form.eventDate || undefined} value={form.endDate} onChange={(event) => setForm((value) => ({ ...value, endDate: event.target.value }))} onClick={(event) => event.currentTarget.showPicker?.()} className="h-12 w-full cursor-pointer rounded-lg border border-[#ded6ce] px-4 pe-10 outline-none focus:border-[#4b2f1a]" />
+                    <CalendarDays className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+                  </span>
+                </label>
                 <select value={form.eventType} onChange={(event) => {
                   const eventType = Number(event.target.value) as CalendarEventType;
                   setForm((value) => ({ ...value, eventType, color: DEFAULT_COLORS[eventType - 1] }));

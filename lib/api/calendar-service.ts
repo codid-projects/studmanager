@@ -17,6 +17,10 @@ export async function getCalendarEvents(params: { from: string; to: string }) {
   return unwrapResult(payload) ?? [];
 }
 
+export async function getFoalingAlerts(daysAhead: number) {
+  return apiFetch('/api/Calendar/foaling-alerts', { query: { daysAhead } });
+}
+
 export async function createCalendarEvent(payload: CalendarEventPayload) {
   const result = await apiFetch<ApiResult<number>>('/api/Calendar', {
     method: 'POST',
