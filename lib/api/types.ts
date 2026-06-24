@@ -356,6 +356,10 @@ export interface HorseInfoDto extends HorseListItemDto {
   box: string | null;
   owner: StudDto | null;
   breeder: StudDto | null;
+  ownerEn?: string | null;
+  ownerAr?: string | null;
+  breederEn?: string | null;
+  breederAr?: string | null;
 }
 
 export interface HousingHorseDto {
@@ -480,6 +484,10 @@ export type CreateHorsePayload = {
   HorseMotherStudbookId?: number;
   OwnerStudbookId?: number;
   BreederStudbookId?: number;
+  OwnerEn?: string;
+  OwnerAr?: string;
+  BreederEn?: string;
+  BreederAr?: string;
   IsStallion?: boolean;
   IsMare?: boolean;
   IsStrain?: boolean;

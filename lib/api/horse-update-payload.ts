@@ -19,6 +19,10 @@ type EditableHorseFormData = {
   birthCountry?: string;
   ownerStudbookId?: number;
   breederStudbookId?: number;
+  ownerEn?: string;
+  ownerAr?: string;
+  breederEn?: string;
+  breederAr?: string;
   faceMarks?: string;
   frontLeftLeg?: string;
   frontRightLeg?: string;
@@ -57,6 +61,10 @@ const stringFields = [
   ['feiRegistrationNumber', 'InternationalFEIRegistrationNumber'],
   ['nationalRegistrationNumber', 'NationalSportRegistrationNumber'],
   ['passportNumber', 'PassportNumber'],
+  ['ownerEn', 'OwnerEn'],
+  ['ownerAr', 'OwnerAr'],
+  ['breederEn', 'BreederEn'],
+  ['breederAr', 'BreederAr'],
 ] as const;
 
 const numberFields = [

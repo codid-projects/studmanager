@@ -53,6 +53,13 @@ export function OvulationExaminationEditModal({
         data.set("ExpectedFoalingStartDate", start);
         data.set("ExpectedFoalingEndDate", end);
       }
+      // Preserve existing attachments and billed services. The backend deletes
+      // anything not listed in these keep-lists, so we echo back every id since
+      // this dialog only edits the examination result, not its files/costs.
+      for (const attachment of record!.attachments ?? [])
+        data.append("AttachmentIdsToKeep", String(attachment.id));
+      for (const service of record!.billedServices ?? [])
+        data.append("BilledServiceIdsToKeep", String(service.id));
       await updateExamination(locale, "ovulation", recordId, data);
       await onSaved();
       onClose();

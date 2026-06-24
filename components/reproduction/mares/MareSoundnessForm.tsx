@@ -13,7 +13,10 @@ import {
   FormField,
   FormSection,
 } from "../shared/FormPrimitives";
-import { appendBilledService } from "../shared/BilledServiceFields";
+import {
+  appendBilledService,
+  BilledServiceFields,
+} from "../shared/BilledServiceFields";
 
 export function MareSoundnessForm({
   locale,
@@ -82,14 +85,7 @@ export function MareSoundnessForm({
               ))}
             </div>
           </FormSection>
-          <FormSection title={ar ? "تفاصيل التكاليف" : "Cost details"}>
-            <FormField label={ar ? "اسم الخدمة" : "Service name"}>
-              <input name="ServiceName" className={fieldClass} />
-            </FormField>
-            <FormField label={ar ? "السعر" : "Price"}>
-              <input name="ServicePrice" type="number" className={fieldClass} />
-            </FormField>
-          </FormSection>
+          <BilledServiceFields locale={locale} />
           <label className="grid h-28 cursor-pointer place-items-center rounded-[8px] border border-dashed border-[#cfc5bd] bg-[#faf8f3] text-center text-[10px] text-[#647e6a]">
             <input type="file" name="Attachments" className="hidden" />
             <span>

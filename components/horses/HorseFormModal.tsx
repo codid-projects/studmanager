@@ -48,6 +48,12 @@ export interface HorseFormData {
   ownerStudbookId?: number;
   breederName?: string;
   breederStudbookId?: number;
+  ownerMode?: 'stud' | 'text';
+  breederMode?: 'stud' | 'text';
+  ownerEn?: string;
+  ownerAr?: string;
+  breederEn?: string;
+  breederAr?: string;
   faceMarks?: string;
   frontLeftLeg?: string;
   frontRightLeg?: string;
@@ -90,6 +96,12 @@ const emptyFormData: HorseFormData = {
   ownerStudbookId: undefined,
   breederName: '',
   breederStudbookId: undefined,
+  ownerMode: 'stud',
+  breederMode: 'stud',
+  ownerEn: '',
+  ownerAr: '',
+  breederEn: '',
+  breederAr: '',
   faceMarks: '',
   frontLeftLeg: '',
   frontRightLeg: '',
@@ -410,6 +422,7 @@ function StudPicker({
   defaultStudLoading = false,
   onUseDefault,
   onSelect,
+  bare = false,
 }: {
   label: string;
   placeholder: string;
@@ -419,6 +432,7 @@ function StudPicker({
   defaultStudLoading?: boolean;
   onUseDefault?: () => void;
   onSelect: (stud: ExternalStudSearchItem) => void;
+  bare?: boolean;
 }) {
   const { t } = useTranslation();
   const { direction, locale } = useLocale();
@@ -479,8 +493,10 @@ function StudPicker({
     getLocalizedName(stud.studName, stud.studArabicName, isArabic);
 
   return (
-    <div className="rounded-2xl border border-[#eadfd9] bg-[#fffaf6] p-3">
-      <label className="mb-2 block text-xs font-bold text-[#4a2b1a]">{label}</label>
+    <div className={bare ? '' : 'rounded-2xl border border-[#eadfd9] bg-[#fffaf6] p-3'}>
+      {bare ? null : (
+        <label className="mb-2 block text-xs font-bold text-[#4a2b1a]">{label}</label>
+      )}
       <div className="flex flex-col gap-2 sm:flex-row">
         <button
           type="button"
@@ -575,6 +591,94 @@ function StudPicker({
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function StudOrTextPicker({
+  label,
+  placeholder,
+  mode,
+  onModeChange,
+  selectedId,
+  selectedName,
+  defaultStudName,
+  defaultStudLoading = false,
+  onUseDefault,
+  onSelect,
+  textEn,
+  textAr,
+  onTextChange,
+}: {
+  label: string;
+  placeholder: string;
+  mode: 'stud' | 'text';
+  onModeChange: (mode: 'stud' | 'text') => void;
+  selectedId?: number;
+  selectedName?: string;
+  defaultStudName?: string;
+  defaultStudLoading?: boolean;
+  onUseDefault?: () => void;
+  onSelect: (stud: ExternalStudSearchItem) => void;
+  textEn?: string;
+  textAr?: string;
+  onTextChange: (field: 'en' | 'ar', value: string) => void;
+}) {
+  const { locale } = useLocale();
+  const isArabic = locale === 'ar';
+  const isText = mode === 'text';
+
+  const tabClass = (active: boolean) =>
+    `rounded-lg px-3 py-1 transition ${
+      active ? 'bg-[#4a2b1a] text-white' : 'text-[#7a6c63] hover:text-[#4a2b1a]'
+    }`;
+
+  return (
+    <div className="rounded-2xl border border-[#eadfd9] bg-[#fffaf6] p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <label className="text-xs font-bold text-[#4a2b1a]">{label}</label>
+        <div className="flex rounded-xl border border-[#d8cec8] bg-white p-0.5 text-[11px] font-bold">
+          <button type="button" onClick={() => onModeChange('stud')} className={tabClass(!isText)}>
+            {isArabic ? 'اختيار مربط' : 'Select stud'}
+          </button>
+          <button type="button" onClick={() => onModeChange('text')} className={tabClass(isText)}>
+            {isArabic ? 'كتابة الاسم' : 'Type name'}
+          </button>
+        </div>
+      </div>
+
+      {isText ? (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <input
+            type="text"
+            value={textEn ?? ''}
+            onChange={(event) => onTextChange('en', event.target.value)}
+            placeholder={isArabic ? 'الاسم بالإنجليزية' : 'Name (English)'}
+            dir="ltr"
+            className="h-11 rounded-xl border border-[#d8cec8] bg-white px-3 text-left text-sm font-semibold text-[#3b2b20] outline-none transition focus:border-[#cdb8a7]"
+          />
+          <input
+            type="text"
+            value={textAr ?? ''}
+            onChange={(event) => onTextChange('ar', event.target.value)}
+            placeholder={isArabic ? 'الاسم بالعربية' : 'Name (Arabic)'}
+            dir="rtl"
+            className="h-11 rounded-xl border border-[#d8cec8] bg-white px-3 text-right text-sm font-semibold text-[#3b2b20] outline-none transition focus:border-[#cdb8a7]"
+          />
+        </div>
+      ) : (
+        <StudPicker
+          bare
+          label={label}
+          placeholder={placeholder}
+          selectedId={selectedId}
+          selectedName={selectedName}
+          defaultStudName={defaultStudName}
+          defaultStudLoading={defaultStudLoading}
+          onUseDefault={onUseDefault}
+          onSelect={onSelect}
+        />
+      )}
     </div>
   );
 }
@@ -1317,9 +1421,19 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <StudPicker
+                  <StudOrTextPicker
                     label={t('horses.ownerName')}
                     placeholder={isRTL ? 'ابحث باسم المالك' : 'Search owner stud'}
+                    mode={formData.ownerMode ?? 'stud'}
+                    onModeChange={(mode) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        ownerMode: mode,
+                        ...(mode === 'text'
+                          ? { ownerStudbookId: undefined, ownerName: '' }
+                          : { ownerEn: '', ownerAr: '' }),
+                      }))
+                    }
                     selectedId={formData.ownerStudbookId}
                     selectedName={formData.ownerName}
                     defaultStudName={defaultStudName}
@@ -1332,11 +1446,29 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                         ownerName: getLocalizedName(stud.studName, stud.studArabicName, isRTL),
                       }));
                     }}
+                    textEn={formData.ownerEn}
+                    textAr={formData.ownerAr}
+                    onTextChange={(field, value) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        ...(field === 'en' ? { ownerEn: value } : { ownerAr: value }),
+                      }))
+                    }
                   />
 
-                  <StudPicker
+                  <StudOrTextPicker
                     label={t('horses.breederName')}
                     placeholder={isRTL ? 'ابحث باسم المربي' : 'Search breeder stud'}
+                    mode={formData.breederMode ?? 'stud'}
+                    onModeChange={(mode) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        breederMode: mode,
+                        ...(mode === 'text'
+                          ? { breederStudbookId: undefined, breederName: '' }
+                          : { breederEn: '', breederAr: '' }),
+                      }))
+                    }
                     selectedId={formData.breederStudbookId}
                     selectedName={formData.breederName}
                     defaultStudName={defaultStudName}
@@ -1349,6 +1481,14 @@ export const HorseFormModal: FC<HorseFormModalProps> = ({
                         breederName: getLocalizedName(stud.studName, stud.studArabicName, isRTL),
                       }));
                     }}
+                    textEn={formData.breederEn}
+                    textAr={formData.breederAr}
+                    onTextChange={(field, value) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        ...(field === 'en' ? { breederEn: value } : { breederAr: value }),
+                      }))
+                    }
                   />
                 </div>
 

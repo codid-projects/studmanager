@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { PaginatedPicker } from "@/components/common/PaginatedPicker";
 import {
   normalizePagedList,
   searchExternalStuds,
-  syncExternalStuds,
 } from "@/lib/api/external-horses";
 import type { ExternalStudSearchItem, LocaleCode } from "@/lib/api/types";
 import { useLocale, useTranslation } from "@/lib/locale-context";
@@ -27,7 +26,6 @@ export function ExternalStudPicker({
 }: ExternalStudPickerProps) {
   const { locale } = useLocale();
   const { t } = useTranslation();
-  const syncedForOpen = useRef(false);
 
   const fetchPage = useCallback(async ({
     search,
@@ -38,11 +36,6 @@ export function ExternalStudPicker({
     pageNumber: number;
     pageSize: number;
   }) => {
-    if (!syncedForOpen.current) {
-      await syncExternalStuds();
-      syncedForOpen.current = true;
-    }
-
     const result = await searchExternalStuds({
       searchTerm: search,
       pageNumber,
@@ -74,9 +67,6 @@ export function ExternalStudPicker({
       onChange={onChange}
       disabled={disabled}
       pageSize={10}
-      onOpenChange={(open) => {
-        if (!open) syncedForOpen.current = false;
-      }}
       triggerClassName={triggerClassName}
     />
   );

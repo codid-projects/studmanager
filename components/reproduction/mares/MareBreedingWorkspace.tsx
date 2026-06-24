@@ -98,7 +98,7 @@ export default function MareBreedingWorkspace({
   useEffect(() => {
     void load();
   }, [load]);
-  const examColumns: TableColumn<ExaminationSummary>[] = [
+  const examColumnsBase: TableColumn<ExaminationSummary>[] = [
     {
       key: "date",
       label: ar ? "التاريخ" : "Date",
@@ -114,13 +114,20 @@ export default function MareBreedingWorkspace({
       label: ar ? "السعر" : "Cost",
       render: (row) => `${row.totalCost ?? 0} EGP`,
     },
-    {
-      key: "follow",
-      label: ar ? "متابعة" : "Follow-up",
-      render: (row) =>
-        row.hasFollowUp ? (ar ? "نعم" : "Yes") : ar ? "لا" : "No",
-    },
   ];
+  const makeExamColumns = (rows: ExaminationSummary[]): TableColumn<ExaminationSummary>[] => {
+    const hasFollowUps = rows.some((r) => r.hasFollowUp);
+    if (!hasFollowUps) return examColumnsBase;
+    return [
+      ...examColumnsBase,
+      {
+        key: "follow",
+        label: ar ? "متابعة" : "Follow-up",
+        render: (row) =>
+          row.hasFollowUp ? (ar ? "نعم" : "Yes") : ar ? "لا" : "No",
+      },
+    ];
+  };
   const foalColumns: TableColumn<FoalRegistration>[] = [
     {
       key: "name",
@@ -296,7 +303,7 @@ export default function MareBreedingWorkspace({
               </ExpandableFormCard>
               <RecordTable
                 rows={ovulation}
-                columns={examColumns}
+                columns={makeExamColumns(ovulation)}
                 emptyLabel={ar ? "لا توجد فحوصات" : "No examinations"}
                 onEdit={(row) => void editOvulation(row)}
                 onDelete={(row) => void remove("ovulation", row.id)}
@@ -351,7 +358,7 @@ export default function MareBreedingWorkspace({
               </ExpandableFormCard>
               <RecordTable
                 rows={soundness}
-                columns={examColumns}
+                columns={makeExamColumns(soundness)}
                 emptyLabel={ar ? "لا توجد فحوصات" : "No examinations"}
                 onDelete={(row) => void remove("soundness", row.id)}
               />

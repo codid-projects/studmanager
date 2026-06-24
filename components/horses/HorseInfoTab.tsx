@@ -160,7 +160,7 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
           
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "اسم المربي :" : "Breeder Name :"}</span>
-            <span className="text-black font-semibold">{studName(raw.breeder)}</span>
+            <span className="text-black font-semibold">{raw.breeder ? studName(raw.breeder) : localized(raw.breederAr, raw.breederEn)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -180,7 +180,7 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
           
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "اسم المالك :" : "Owner Name :"}</span>
-            <span className="text-black font-semibold">{studName(raw.owner)}</span>
+            <span className="text-black font-semibold">{raw.owner ? studName(raw.owner) : localized(raw.ownerAr, raw.ownerEn)}</span>
           </div>
 
           <div className="flex flex-col gap-1">

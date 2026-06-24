@@ -106,6 +106,10 @@ export const buildCreateHorseFormData = (
   appendValue(formData, 'HorseMotherStudbookId', payload.HorseMotherStudbookId, options);
   appendValue(formData, 'OwnerStudbookId', payload.OwnerStudbookId, options);
   appendValue(formData, 'BreederStudbookId', payload.BreederStudbookId, options);
+  appendValue(formData, 'OwnerEn', payload.OwnerEn, options);
+  appendValue(formData, 'OwnerAr', payload.OwnerAr, options);
+  appendValue(formData, 'BreederEn', payload.BreederEn, options);
+  appendValue(formData, 'BreederAr', payload.BreederAr, options);
 
   appendValue(formData, 'IsStallion', payload.IsStallion, options);
   appendValue(formData, 'IsMare', payload.IsMare, options);

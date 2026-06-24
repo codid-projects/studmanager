@@ -50,6 +50,17 @@ export type MareExaminationDetail = {
   clinicalResultAr: string | null;
   expectedFoalingStartDate: string | null;
   expectedFoalingEndDate: string | null;
+  // Existing related records returned by the detail endpoint. They must be
+  // echoed back as keep-lists on update, otherwise the backend deletes them.
+  attachments?: Array<{ id: number; fileUrl: string }>;
+  billedServices?: Array<{
+    id: number;
+    serviceName: string;
+    serviceType?: string | null;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+  }>;
 };
 
 export type EstrusCycle = {

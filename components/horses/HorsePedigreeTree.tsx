@@ -300,8 +300,15 @@ const getTopMetaItems = (horse: Horse, isRTL: boolean): TopMetaItem[] => {
     locale,
   );
   const birth = formatTopBirthDate(raw.dateofBirth, isRTL);
-  const breeder = getNestedName(raw.breeder, isRTL);
-  const owner = getNestedName(raw.owner, isRTL);
+  const pickText = (en: unknown, ar: unknown) => {
+    const e = typeof en === "string" ? en : "";
+    const a = typeof ar === "string" ? ar : "";
+    return isRTL ? a || e : e || a;
+  };
+  const breeder =
+    getNestedName(raw.breeder, isRTL) || pickText(raw.breederEn, raw.breederAr);
+  const owner =
+    getNestedName(raw.owner, isRTL) || pickText(raw.ownerEn, raw.ownerAr);
   const microchip =
     raw.microchipID ?? raw.microchip ?? raw.microchipId ?? raw.chipNumber ?? "";
 

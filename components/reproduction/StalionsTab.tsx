@@ -95,26 +95,7 @@ export default function StallionsTab({
   useEffect(() => {
     void load();
   }, [load]);
-  const columns: TableColumn<StallionRecord>[] = [
-    {
-      key: "related",
-      label:
-        section === "breeding-events"
-          ? ar
-            ? "الفرس المستقبلة"
-            : "Mare"
-          : ar
-            ? "الفحل"
-            : "Stallion",
-      render: (row) =>
-        section === "breeding-events"
-          ? (ar
-              ? row.relatedHorseNameAr || row.relatedHorseName
-              : row.relatedHorseName) || "—"
-          : ar
-            ? horse.profile?.arabicName || horse.profile?.englishName
-            : horse.profile?.englishName || horse.profile?.arabicName,
-    },
+  const baseColumns: TableColumn<StallionRecord>[] = [
     {
       key: "date",
       label: ar ? "التاريخ" : "Date",
@@ -127,25 +108,53 @@ export default function StallionsTab({
       render: (row) => row.veterinarianName || "—",
     },
     {
-      key: "result",
-      label:
-        section === "semen-shipments"
-          ? ar
-            ? "المحطة"
-            : "Destination"
-          : ar
-            ? "النتائج الأولية"
-            : "Result",
-      render: (row) =>
-        row.destination ||
-        (row.motilityPercent != null ? `${row.motilityPercent}%` : "—"),
-    },
-    {
       key: "price",
       label: ar ? "السعر" : "Cost",
       render: (row) => `${row.totalCost || 0} EGP`,
     },
   ];
+
+  const columns: TableColumn<StallionRecord>[] =
+    section === "breeding-events"
+      ? [
+          {
+            key: "related",
+            label: ar ? "الفرس المستقبلة" : "Mare",
+            render: (row) =>
+              (ar
+                ? row.relatedHorseNameAr || row.relatedHorseName
+                : row.relatedHorseName) || "—",
+          },
+          ...baseColumns,
+        ]
+      : section === "semen-collections"
+        ? [
+            ...baseColumns,
+            {
+              key: "motility",
+              label: ar ? "نسبة الحركة" : "Motility",
+              render: (row) =>
+                row.motilityPercent != null ? `${row.motilityPercent}%` : "—",
+            },
+          ]
+        : section === "semen-shipments"
+          ? [
+              ...baseColumns,
+              {
+                key: "destination",
+                label: ar ? "المحطة" : "Destination",
+                render: (row) => row.destination || "—",
+              },
+            ]
+          : [
+              ...baseColumns,
+              {
+                key: "followup",
+                label: ar ? "متابعة" : "Follow-up",
+                render: (row) =>
+                  row.hasFollowUp ? (ar ? "نعم" : "Yes") : ar ? "لا" : "No",
+              },
+            ];
   async function remove() {
     if (!deleteTarget) return;
     setBusyId(deleteTarget.id);

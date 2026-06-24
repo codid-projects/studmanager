@@ -9,7 +9,10 @@ import {
   type StallionRecordDetail,
   type StallionSection,
 } from "@/lib/api/stallion-breeding-client";
-import { appendBilledService } from "../shared/BilledServiceFields";
+import {
+  appendBilledServiceUpdate,
+  BilledServiceFields,
+} from "../shared/BilledServiceFields";
 import { ExternalStudPicker } from "@/components/horses/ExternalStudPicker";
 
 const value = (record: StallionRecordDetail, key: string) =>
@@ -162,7 +165,9 @@ export function StallionEditModal({
         "RecordDate",
         new Date(String(data.get("RecordDate"))).toISOString(),
       );
-      appendBilledService(data, section);
+      // Reconcile billed services against the backend keep-list contract:
+      // preserve untouched rows, replace the inline-edited one only if changed.
+      appendBilledServiceUpdate(data, section, record!.billedServices);
       await updateStallionRecord(locale, section, record!.id, data);
       await onSaved();
       onClose();
@@ -205,30 +210,12 @@ export function StallionEditModal({
             "text",
             true,
           )}
-          <label className="text-[11px] text-[#564941]">
-            {ar ? "اسم الخدمة" : "Service name"}
-            <input
-              name="ServiceName"
-              defaultValue={record.billedServices?.[0]?.serviceName ?? ""}
-              className={fieldClass}
+          <div className="sm:col-span-2">
+            <BilledServiceFields
+              locale={locale}
+              initial={record.billedServices}
             />
-          </label>
-          <label className="text-[11px] text-[#564941]">
-            {ar ? "القيمة بالجنيه المصري" : "Amount (EGP)"}
-            <div className="relative">
-              <input
-                name="ServicePrice"
-                type="number"
-                min="0"
-                step="any"
-                defaultValue={record.billedServices?.[0]?.totalPrice ?? ""}
-                className={`${fieldClass} pe-14`}
-              />
-              <span className="absolute end-3 top-1/2 -translate-y-1/2 text-[10px] font-bold">
-                EGP
-              </span>
-            </div>
-          </label>
+          </div>
           {section === "breeding-events" && (
             <>
               <label className="text-[11px] text-[#564941]">
