@@ -11,6 +11,8 @@
     "next": "Next",
     "all": "All",
     "search": "Search",
+    "noResults": "No results",
+    "requiredField": "Required field",
     "to": "To",
     "loading": "Loading...",
     "error": "Error occurred",

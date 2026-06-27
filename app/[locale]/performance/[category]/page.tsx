@@ -3,6 +3,8 @@
 import { use } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PerformanceCategoryTable } from "@/components/performance/PerformanceCategoryTable";
+import { CategoryTabs } from "@/components/common/CategoryTabs";
+import { PERFORMANCE_CATEGORIES } from "@/lib/section-categories";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useLocale, useTranslation } from "@/lib/locale-context";
@@ -39,6 +41,7 @@ export default function PerformanceCategoryPage(props: PerformanceCategoryPagePr
             </>
           )}
         </Link>
+        <CategoryTabs section="performance" categories={PERFORMANCE_CATEGORIES} activeId={params.category} />
         <PerformanceCategoryTable categoryId={params.category} />
       </div>
     </MainLayout>

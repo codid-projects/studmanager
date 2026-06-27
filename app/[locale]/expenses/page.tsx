@@ -2,30 +2,9 @@
 
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useLocale } from "@/lib/locale-context";
+import { EXPENSES_CATEGORIES } from "@/lib/section-categories";
 import Image from "next/image";
 import Link from "next/link";
-
-// ===== Categories =====
-const EXPENSES_CATEGORIES = [
-  {
-    id: "breeding",
-    labelAr: "التربية والتناسل",
-    labelEn: "Breeding",
-    icon: "/sidebar/التناسليات.svg",
-  },
-  {
-    id: "clinics",
-    labelAr: "العيادات",
-    labelEn: "Clinics",
-    icon: "/expenses/clinics.svg",
-  },
-  {
-    id: "nutrition",
-    labelAr: "التغذية",
-    labelEn: "Nutrition",
-    icon: "/expenses/nutrition.svg",
-  },
-];
 
 export default function ExpensesPage() {
   const { locale, direction } = useLocale();

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
@@ -193,6 +194,7 @@ export function HorseProfilePageClient({
 }: HorseProfilePageClientProps) {
   const { t } = useTranslation();
   const { locale, direction } = useLocale();
+  const router = useRouter();
   const isRTL = direction === 'rtl';
   const [activeTab, setActiveTab] = useState('pedigree');
   const [horse, setHorse] = useState(initialHorse);
@@ -220,6 +222,19 @@ export function HorseProfilePageClient({
 
   const profileHorse = horse ? toProfileHorseModel(horse, locale as LocaleCode) : null;
   const hasVideos = mediaUrls(horse?.videos).length > 0;
+
+  const handleTabChange = (tabId: string) => {
+    if (tabId === 'injuries') {
+      const id = horseId ?? (profileHorse ? String(profileHorse.id) : '');
+      if (!id) return;
+      const name = (locale === 'ar' ? profileHorse?.nameAr : profileHorse?.nameEn) ?? '';
+      const query = new URLSearchParams({ horseId: String(id) });
+      if (name) query.set('horseName', name);
+      router.push(`/${locale}/health/injuries?${query.toString()}`);
+      return;
+    }
+    setActiveTab(tabId);
+  };
 
   const formatFormDate = (value: string | null | undefined) => {
     if (!value) return '';
@@ -755,7 +770,7 @@ export function HorseProfilePageClient({
             />
             <HorseProfileTabs
               activeTab={activeTab}
-              onTabChange={setActiveTab}
+              onTabChange={handleTabChange}
               hiddenTabs={hasVideos ? [] : ['videos']}
             />
 

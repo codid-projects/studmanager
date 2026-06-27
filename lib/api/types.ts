@@ -171,6 +171,9 @@ export interface LineageNameDto {
 }
 
 export type NutritionTypeId = 1 | 2 | 3;
+export type PerformanceRecordTypeId = 1 | 2 | 3;
+export type TrainingTypeId = 1 | 2 | 3 | 4;
+export type HaircutTypeId = 1 | 2 | 3 | 4;
 
 export interface NutritionTypeDto {
   id: NutritionTypeId;
@@ -197,6 +200,103 @@ export interface NutritionRecordDto {
   isNotified: boolean;
   creationDate: string;
   modificationDate: string;
+}
+
+export interface TypeDto {
+  id: number;
+  name: string;
+}
+
+export interface SummarizedContactDto {
+  id: number;
+  name: string;
+  phone: string | null;
+  email: string | null;
+}
+
+export interface PerformanceRecordDto {
+  id: number;
+  horseId: number;
+  horseEnglishName: string;
+  horseArabicName: string;
+  type: PerformanceRecordTypeId;
+  typeName: string;
+  typeArabicName: string;
+  recordDate: string;
+  notifyOnDate: string | null;
+  cost: number;
+  providerContactId: number | null;
+  providerName: string;
+  phoneNumber: string;
+  trainingType: TrainingTypeId | null;
+  trainingTypeName: string;
+  trainingTypeArabicName: string;
+  durationMinutes: number | null;
+  competitionName: string;
+  location: string;
+  rank: number | null;
+  haircutType: HaircutTypeId | null;
+  haircutTypeName: string;
+  haircutTypeArabicName: string;
+  creationDate: string | null;
+  modificationDate: string | null;
+}
+
+export interface CreatePerformancePayload {
+  horseId: number;
+  type: PerformanceRecordTypeId;
+  recordDate: string;
+  notifyOnDate?: string | null;
+  cost: number;
+  providerContactId?: number | null;
+  providerName?: string | null;
+  phoneNumber?: string | null;
+  trainingType?: TrainingTypeId | null;
+  durationMinutes?: number | null;
+  competitionName?: string | null;
+  location?: string | null;
+  rank?: number | null;
+  haircutType?: HaircutTypeId | null;
+}
+
+export interface UpdatePerformancePayload extends CreatePerformancePayload {
+  id: number;
+}
+
+export type InjurySeverityId = 1 | 2 | 3 | 4 | 5;
+
+export interface InjuryRecordDto {
+  id: number;
+  horseId: number;
+  horseNameEn: string | null;
+  horseNameAr: string | null;
+  veterinarianId: number | null;
+  veterinarianName: string | null;
+  phoneNumber: string | null;
+  injuryDate: string | null;
+  notifyOnDate: string | null;
+  isNotified: boolean;
+  cost: number | null;
+  injuryReason: string | null;
+  severity: InjurySeverityId;
+  severityNameEn: string | null;
+  severityNameAr: string | null;
+}
+
+export interface CreateInjuryPayload {
+  horseId: number;
+  veterinarianId?: number | null;
+  veterinarianName?: string | null;
+  phoneNumber?: string | null;
+  injuryDate?: string | null;
+  notifyOnDate?: string | null;
+  cost?: number | null;
+  injuryReason: string;
+  severity: InjurySeverityId;
+}
+
+export interface UpdateInjuryPayload extends CreateInjuryPayload {
+  id: number;
 }
 
 export interface CreateNutritionPayload {

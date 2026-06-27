@@ -2,15 +2,9 @@
 
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useLocale } from "@/lib/locale-context";
+import { PERFORMANCE_CATEGORIES } from "@/lib/section-categories";
 import Link from "next/link";
 import Image from "next/image";
-
-// Performance dashboard categories mapped to the user-provided images
-const PERFORMANCE_CATEGORIES = [
-  { id: "trainings", labelAr: "التدريبات", labelEn: "Trainings", icon: "/performance/التدريبات.svg" },
-  { id: "competitions", labelAr: "المسابقات", labelEn: "Competitions", icon: "/performance/المسابقات.svg" },
-  { id: "haircut", labelAr: "قص الشعر", labelEn: "Haircut", icon: "/performance/قص الشعر.svg" },
-];
 
 export default function PerformanceDashboardPage() {
   const { locale, direction } = useLocale();

@@ -2,21 +2,9 @@
 
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useLocale } from "@/lib/locale-context";
+import { HEALTH_CATEGORIES } from "@/lib/section-categories";
 import Link from "next/link";
 import Image from "next/image";
-
-// Health dashboard categories mapped to the user-provided SVGs
-const HEALTH_CATEGORIES = [
-  { id: "blood-tests", labelAr: "تحاليل الدم", labelEn: "Blood Tests", icon: "/health/تحاليل الدم.svg" },
-  { id: "worm-doses", labelAr: "جرعة الديدان", labelEn: "Worming Doses", icon: "/health/جرعة الديدان.svg" },
-  { id: "hoof-care", labelAr: "العناية بالحافر و الساق", labelEn: "Hoof & Leg Care", icon: "/health/العناية  بالحافر  و الساق.svg" },
-  { id: "injuries", labelAr: "الإصابات", labelEn: "Injuries", icon: "/health/الإصابات.svg" },
-  { id: "vet-care", labelAr: "الرعاية البيطرية", labelEn: "Veterinary Care", icon: "/health/الرعاية البيطرية.svg" },
-  { id: "weight-height", labelAr: "الوزن و الطول", labelEn: "Weight & Height", icon: "/health/الوزن و الطول.svg" },
-  { id: "medications", labelAr: "الأدوية", labelEn: "Medications", icon: "/health/الأدوية.svg" },
-  { id: "x-rays", labelAr: "الأشعة", labelEn: "X-Rays", icon: "/health/الأشعة.svg" },
-  { id: "vaccinations", labelAr: "التطعيمات", labelEn: "Vaccinations", icon: "/health/التطعيمات.svg" },
-];
 
 export default function HealthDashboardPage() {
   const { locale, direction } = useLocale();

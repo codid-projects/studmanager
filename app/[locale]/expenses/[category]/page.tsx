@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { LedgerTransactions } from "@/components/finance/LedgerTransactions";
+import { CategoryTabs } from "@/components/common/CategoryTabs";
+import { EXPENSES_CATEGORIES } from "@/lib/section-categories";
 import { useLocale, useTranslation } from "@/lib/locale-context";
 
 interface ExpensesCategoryPageProps {
@@ -41,6 +43,8 @@ export default function ExpensesCategoryPage(props: ExpensesCategoryPageProps) {
             </>
           )}
         </Link>
+
+        <CategoryTabs section="expenses" categories={EXPENSES_CATEGORIES} activeId={params.category} />
 
         <LedgerTransactions
           direction="expense"

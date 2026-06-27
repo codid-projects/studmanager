@@ -3,6 +3,7 @@
 import React, { FormEvent, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  Banknote,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -220,27 +221,25 @@ function DashboardSkeleton() {
         ))}
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[1.35fr_1fr]">
-        <div className="grid gap-4 md:grid-cols-[0.85fr_1fr_1fr]">
-          <div className="min-h-[270px] rounded-2xl bg-white p-6 shadow-sm">
-            <div className="h-7 w-36 rounded bg-[#eee9e3]" />
-            <div className="mt-8 space-y-7">
-              {[0, 1, 2].map((item) => <div key={item} className="h-8 rounded-lg bg-[#f2eee9]" />)}
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 md:col-span-2">
-            {[0, 1, 2, 3, 4].map((item) => (
-              <div key={item} className={`min-h-[125px] rounded-2xl bg-white p-6 shadow-sm ${item === 4 ? 'sm:col-span-2' : ''}`}>
-                <div className="ms-auto h-6 w-24 rounded bg-[#eee9e3]" />
-                <div className="ms-auto mt-4 h-7 w-36 rounded bg-[#f2eee9]" />
-              </div>
-            ))}
-          </div>
-        </div>
+      <section className="grid gap-5 xl:grid-cols-[1.4fr_2fr_0.9fr]">
         <div className="min-h-[370px] rounded-xl border border-[#e2ddd7] bg-white p-7 shadow-sm">
           <div className="ms-auto h-8 w-40 rounded bg-[#eee9e3]" />
           <div className="mt-9 space-y-5">
             {[0, 1, 2, 3, 4].map((item) => <div key={item} className="h-7 rounded bg-[#f2eee9]" />)}
+          </div>
+        </div>
+        <div className="grid content-start gap-4 sm:grid-cols-2">
+          {[0, 1, 2, 3, 4].map((item) => (
+            <div key={item} className={`min-h-[125px] rounded-2xl bg-white p-6 shadow-sm ${item === 4 ? 'sm:col-span-2' : ''}`}>
+              <div className="ms-auto h-6 w-24 rounded bg-[#eee9e3]" />
+              <div className="ms-auto mt-4 h-7 w-36 rounded bg-[#f2eee9]" />
+            </div>
+          ))}
+        </div>
+        <div className="min-h-[270px] self-start rounded-2xl bg-white p-6 shadow-sm">
+          <div className="h-7 w-36 rounded bg-[#eee9e3]" />
+          <div className="mt-8 space-y-7">
+            {[0, 1, 2].map((item) => <div key={item} className="h-8 rounded-lg bg-[#f2eee9]" />)}
           </div>
         </div>
       </section>
@@ -647,89 +646,7 @@ export default function DashboardPage() {
   ))}
 </section>
 
-        <section className="grid gap-5 xl:grid-cols-[1.35fr_1fr]">
-          <div className="grid gap-4 md:grid-cols-[0.85fr_1fr_1fr]">
-            <article className="rounded-2xl bg-white p-6 shadow-sm">
-              <h3 className="text-xl font-semibold text-[#4b2f1a]">{t('dashboard.costAnalysis')}</h3>
-              <div className="mt-7 space-y-5">
-                {[
-                  { label: t('dashboard.feedCost'), value: 0 },
-                  { label: t('dashboard.vetCare'), value: 0 },
-                  { label: t('dashboard.operationalExpenses'), value: 0 },
-                ].map((item) => (
-                  <div key={item.label}>
-                    <div className="mb-2 flex items-center justify-between text-base font-semibold text-[#7a7069]">
-                      <span>{item.value}%</span>
-                      <span>{item.label}</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-[#e8e1da]">
-                      <div className="h-full rounded-full bg-[#4b2f1a]" style={{ width: `${item.value}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <div className="grid gap-4 sm:grid-cols-2 md:col-span-2">
-              {[
-                {
-                  label: t('dashboard.profit'),
-                  value: formatCurrency(dashboard.profit),
-                  icon: '/svgs/earning.svg',
-                  color: 'text-[#d45b00]',
-                },
-                {
-                  label: t('dashboard.totalExpenses'),
-                  value: formatCurrency(dashboard.expenses),
-                  icon: '/svgs/مصروفات.svg',
-                  color: 'text-[#008f9c]',
-                },
-                {
-                  label: t('dashboard.totalHorses'),
-                  value: formatNumber(dashboard.horsesInStud?.total),
-                  icon: '/svgs/عدد الخيل.svg',
-                  color: 'text-[#7a5b4a]',
-                },
-                {
-                  label: t('dashboard.totalSales'),
-                  value: formatCurrency(dashboard.sales),
-                  icon: '/svgs/red-horse.svg',
-                  color: 'text-[#d81c24]',
-                },
-                {
-                  label: t('dashboard.birthsThisYear'),
-                  value: formatNumber(dashboard.birthedThisYear?.total),
-                  icon: '/svgs/horse-active.svg',
-                  color: 'text-[#6f6d19]',
-                  meta: [
-                    `${t('dashboard.males')}: ${formatNumber(dashboard.birthedThisYear?.male)}`,
-                    `${t('dashboard.females')}: ${formatNumber(dashboard.birthedThisYear?.female)}`,
-                  ],
-                },
-              ].map((item) => (
-                <article
-                  key={item.label}
-                  className={`flex min-h-[125px] items-center justify-between rounded-2xl bg-white px-7 py-5 shadow-sm ${
-                    item.meta ? 'sm:col-span-2' : ''
-                  }`}
-                >
-                  <img src={item.icon} alt="" className="h-20 w-20 object-contain" />
-                  <div className="text-end">
-                    <div className={`text-xl font-black ${item.color}`}>{item.value}</div>
-                    <div className="mt-3 text-xl font-bold text-[#22243c]">{item.label}</div>
-                    {item.meta && (
-                      <div className="mt-2 flex flex-wrap justify-end gap-3 text-sm font-semibold text-[#7a7069]">
-                        {item.meta.map((value) => (
-                          <span key={value}>{value}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-
+        <section className="grid gap-5 xl:grid-cols-[1.4fr_2fr_0.9fr]">
           <article className="rounded-xl border border-[#bcc7d6] bg-white px-7 py-6 shadow-sm">
             <div className={`flex items-start ${isRTL ? 'flex-row-reverse' : ''} justify-between gap-3`}>
               <Info className="h-6 w-6 text-[#4b2f1a]" />
@@ -784,6 +701,93 @@ export default function DashboardPage() {
     </dd>
   </div>
 </dl>
+          </article>
+
+          <div dir={isRTL ? 'rtl' : 'ltr'} className="grid content-start gap-4 sm:grid-cols-2">
+            {[
+                {
+                  label: t('dashboard.birthsThisYear'),
+                  value: formatNumber(dashboard.birthedThisYear?.total),
+                  icon: '/svgs/horse-active.svg',
+                  color: 'text-[#8a5a2b]',
+                  highlight: true,
+                  meta: [
+                    `${t('dashboard.males')}: ${formatNumber(dashboard.birthedThisYear?.male)}`,
+                    `${t('dashboard.females')}: ${formatNumber(dashboard.birthedThisYear?.female)}`,
+                  ],
+                },
+                {
+                  label: t('dashboard.totalExpenses'),
+                  value: formatCurrency(dashboard.expenses),
+                  icon: '/svgs/مصروفات.svg',
+                  color: 'text-[#008f9c]',
+                },
+                {
+                  label: t('dashboard.profit'),
+                  value: formatCurrency(dashboard.profit),
+                  icon: '/svgs/earning.svg',
+                  color: 'text-[#d45b00]',
+                },
+                {
+                  label: t('dashboard.totalSales'),
+                  value: formatCurrency(dashboard.sales),
+                  icon: '/svgs/red-horse.svg',
+                  color: 'text-[#d81c24]',
+                },
+                {
+                  label: t('dashboard.totalHorses'),
+                  value: formatNumber(dashboard.horsesInStud?.total),
+                  icon: '/svgs/عدد الخيل.svg',
+                  color: 'text-[#7a5b4a]',
+                },
+              ].map((item) => (
+                <article
+                  key={item.label}
+                  dir={isRTL ? 'rtl' : 'ltr'}
+                  className={`flex min-h-[125px] items-center justify-between rounded-2xl px-7 py-5 shadow-sm ${
+                    item.meta ? 'sm:col-span-2' : ''
+                  } ${item.highlight ? 'bg-[#f7f4cf]' : 'bg-white'}`}
+                >
+                  <div className="text-start">
+                    <div className={`text-2xl font-black ${item.color}`}>{item.value}</div>
+                    <div className="mt-3 text-xl font-bold text-[#22243c]">{item.label}</div>
+                    {item.meta && (
+                      <div className="mt-2 flex flex-wrap gap-3 text-sm font-semibold text-[#c0392b]">
+                        {item.meta.map((value) => (
+                          <span key={value}>{value}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <img src={item.icon} alt="" className="h-20 w-20 object-contain" />
+                </article>
+              ))}
+            </div>
+
+          <article className="rounded-2xl bg-white p-6 shadow-sm">
+            <div className={`flex items-center ${isRTL ? 'flex-row-reverse' : ''} justify-between gap-2`}>
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#fdeaea] text-[#d81c24]">
+                <Banknote className="h-5 w-5" />
+              </span>
+              <h3 className="text-xl font-semibold text-[#4b2f1a]">{t('dashboard.costAnalysis')}</h3>
+            </div>
+            <div className="mt-7 space-y-5">
+              {[
+                { label: t('dashboard.feedCost'), value: 0 },
+                { label: t('dashboard.vetCare'), value: 0 },
+                { label: t('dashboard.operationalExpenses'), value: 0 },
+              ].map((item) => (
+                <div key={item.label}>
+                  <div className="mb-2 flex items-center justify-between text-base font-semibold text-[#7a7069]">
+                    <span>{item.value}%</span>
+                    <span>{item.label}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-[#e8e1da]">
+                    <div className="h-full rounded-full bg-[#4b2f1a]" style={{ width: `${item.value}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
           </article>
         </section>
 

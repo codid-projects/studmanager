@@ -2,16 +2,9 @@
 
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useLocale } from "@/lib/locale-context";
+import { NUTRITION_CATEGORIES } from "@/lib/section-categories";
 import Link from "next/link";
 import Image from "next/image";
-
-// Nutrition dashboard categories mapped to the user-provided images
-const NUTRITION_CATEGORIES = [
-  { id: "feed-changes", labelAr: "تغييرات الأعلاف", labelEn: "Feed Changes", icon: "/nutrition/تغييرات الأعلاف.svg" },
-  { id: "monthly-supplements", labelAr: "المكملات الشهرية", labelEn: "Monthly Supplements", icon: "/nutrition/المكملات الشهرية.svg" },
-  { id: "tournament-supplements", labelAr: "مكملات المهرجنات", labelEn: "Tournament Supplements", icon: "/nutrition/مكملات المهرجنات.svg" },
-  { id: "nutrition-assistant", labelAr: "مساعد التغذية", labelEn: "Nutrition Assistant", icon: "/nutrition/مساعد التغذية.png" },
-];
 
 export default function NutritionDashboardPage() {
   const { locale, direction } = useLocale();

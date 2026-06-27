@@ -11,8 +11,9 @@ import {
 } from "lucide-react";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import { HorsePicker } from "@/components/horses/HorsePicker";
+import { OptionPicker } from "@/components/common/OptionPicker";
 import { isClientApiNotFound } from "@/lib/api/client";
-import { fetchSupplements } from "@/lib/api/management-client";
+import { fetchSupplements, saveSupplement } from "@/lib/api/management-client";
 import {
   fetchNutrition,
   fetchNutritionTypes,
@@ -44,6 +45,14 @@ const TYPE_NAMES: Record<string, string> = {
   "feed-changes": "FeedChanges",
   "monthly-supplements": "MonthlySuppliments",
   "tournament-supplements": "TournamentSuppliments",
+};
+
+// SupplementType enum on the backend: Food=1, Monthly=2, Tournament=3.
+// Inferred from the current category when quick-adding a supplement/feed.
+const SUPPLEMENT_TYPE_BY_CATEGORY: Record<string, number> = {
+  "feed-changes": 1,
+  "monthly-supplements": 2,
+  "tournament-supplements": 3,
 };
 
 const PAGE_SIZE = 10;
@@ -453,6 +462,9 @@ export const NutritionCategoryTable = ({
         <div
           className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4"
           dir={direction}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setFormOpen(false);
+          }}
         >
           <form
             onSubmit={submitForm}
@@ -497,30 +509,41 @@ export const NutritionCategoryTable = ({
               </label>
               <label className="flex flex-col gap-2 text-sm font-medium text-[#58483e]">
                 <span>{isRTL ? "المكمل أو العلف" : "Supplement or feed"}</span>
-                <select
-                  required
-                  value={form.supplementId || ""}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      supplementId: Number(event.target.value),
-                    })
-                  }
-                  className="rounded-xl border px-4 py-3"
-                >
-                  <option value="" disabled>
-                    {isRTL
-                      ? "اختر المكمل أو العلف"
-                      : "Select supplement or feed"}
-                  </option>
-                  {supplements.map((supplement) => (
-                    <option key={supplement.id} value={supplement.id}>
-                      {isRTL
-                        ? supplement.arabicName || supplement.englishName
-                        : supplement.englishName || supplement.arabicName}
-                    </option>
-                  ))}
-                </select>
+                <OptionPicker
+                  value={form.supplementId || null}
+                  options={supplements.map((supplement) => ({
+                    id: supplement.id,
+                    label: isRTL
+                      ? supplement.arabicName || supplement.englishName
+                      : supplement.englishName || supplement.arabicName,
+                  }))}
+                  onChange={(option) => setForm({ ...form, supplementId: Number(option.id) })}
+                  placeholder={isRTL ? "اختر المكمل أو العلف" : "Select supplement or feed"}
+                  title={isRTL ? "المكمل أو العلف" : "Supplement or feed"}
+                  searchPlaceholder={isRTL ? "ابحث عن مكمل أو علف" : "Search supplements or feed"}
+                  emptyText={isRTL ? "لا توجد عناصر" : "No items"}
+                  createLabel={isRTL ? "إضافة مكمل / علف جديد" : "Add new supplement / feed"}
+                  createTitle={isRTL ? "إضافة مكمل / علف" : "Add supplement / feed"}
+                  createFields={[
+                    { key: "arabicName", label: isRTL ? "الاسم بالعربية" : "Arabic name", required: true },
+                    { key: "englishName", label: isRTL ? "الاسم بالإنجليزية" : "English name" },
+                  ]}
+                  onCreate={async (values) => {
+                    const ar = values.arabicName?.trim() || values.englishName?.trim() || "";
+                    const en = values.englishName?.trim() || values.arabicName?.trim() || "";
+                    const type = SUPPLEMENT_TYPE_BY_CATEGORY[categoryId] ?? 1;
+                    await saveSupplement(localeCode, { arabicName: ar, englishName: en, description: "", type });
+                    const refreshed = await fetchSupplements(localeCode, 1, 100);
+                    const list = refreshed.data ?? [];
+                    setSupplements(list);
+                    const created = list.find((item) => item.arabicName === ar || item.englishName === en);
+                    if (!created) throw new Error(isRTL ? "تعذر إيجاد العنصر المضاف" : "Could not find the created item");
+                    return {
+                      id: created.id,
+                      label: isRTL ? created.arabicName || created.englishName : created.englishName || created.arabicName,
+                    };
+                  }}
+                />
               </label>
               <label className="flex flex-col gap-2 text-sm font-medium text-[#58483e]">
                 <span>{isRTL ? "اسم المورد" : "Supplier name"}</span>

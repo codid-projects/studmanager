@@ -137,12 +137,12 @@ export function PaginatedPicker<T>({
         type="button"
         disabled={disabled}
         onClick={() => setOpen(true)}
-        className={`flex min-h-[50px] w-full items-center justify-between gap-3 rounded-xl border bg-white px-4 py-3 text-start disabled:cursor-not-allowed disabled:bg-gray-100 ${triggerClassName ?? ""}`}
+        className={`flex min-h-[52px] w-full items-center justify-between gap-3 rounded-xl border border-solid border-gray-300 bg-white px-4 py-3.5 text-start outline-none transition-colors hover:border-[#4b2f1a] focus:border-[#4b2f1a] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:hover:border-gray-300 sm:py-4 ${triggerClassName ?? ""}`}
       >
-        <span className={selectedLabel ? "text-gray-900" : "text-gray-500"}>
+        <span className={`truncate ${selectedLabel ? "text-gray-700" : "text-gray-400"}`}>
           {selectedLabel || placeholder}
         </span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" />
+        <ChevronDown className="h-5 w-5 shrink-0 text-gray-400" />
       </button>
 
       {open && (

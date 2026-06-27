@@ -13,6 +13,7 @@ const TABS = [
   { id: "children", labelAr: "الأبناء", labelEn: "Children", icon: "/horse/الأبناء.svg" },
   { id: "siblings", labelAr: "الأشقاء", labelEn: "Siblings", icon: "/horse/الأشقاء.svg" },
   { id: "competition", labelAr: "المنافسة", labelEn: "Competition", icon: "/horse/المنافسه.svg" },
+  { id: "injuries", labelAr: "الإصابات", labelEn: "Injuries", icon: "/health/الإصابات.svg" },
 ];
 
 interface HorseProfileTabsProps {
