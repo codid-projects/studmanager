@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, useEffect, useRef, useState } from 'react';
+import { FC, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { getHorseFamilyAnalysisTree, normalizePagedList } from '@/lib/api/external-horses';
 import { getLocalizedName } from '@/lib/api/localization';
@@ -8,13 +8,63 @@ import { useLocale } from '@/lib/locale-context';
 import type { HorseFamilyTreeItem } from '@/lib/api/types';
 
 const SEARCH_LEVELS = 12;
-const DEBOUNCE_MS = 450;
 const MIN_QUERY_LENGTH = 2;
-const PAGE_SIZE = 30;
+const FETCH_PAGE_SIZE = 1000;
+const MAX_RENDERED_RESULTS = 50;
 
 interface HorseFamilySearchProps {
   localId: number;
 }
+
+// Mirrors the backend StringNormalizer so matching is tolerant of Arabic
+// diacritics/letter variants and common transliteration differences.
+const normalizeName = (value: string) => {
+  let text = value.trim().toLowerCase();
+  if (!text) return '';
+
+  // Arabic: strip tashkeel + tatweel, unify letter variants
+  text = text
+    .replace(/[ً-ٟ]/g, '')
+    .replace(/ـ/g, '')
+    .replace(/[أإآٱٲٳ]/g, 'ا')
+    .replace(/[ىئٸ]/g, 'ي')
+    .replace(/ؤ/g, 'و')
+    .replace(/[ةۀ]/g, 'ه')
+    .replace(/ء/g, 'ا');
+
+  // English: unify common Arabic-name transliteration tokens
+  const tokens = text.split(/\s+/).map((token) => {
+    switch (token) {
+      case 'el':
+        return 'al';
+      case 'ibn':
+      case 'abn':
+      case 'ebn':
+        return 'bin';
+      case 'bent':
+        return 'bint';
+      case 'abo':
+      case 'abou':
+        return 'abu';
+      default:
+        return token;
+    }
+  });
+
+  return tokens.join('').replace(/[^\p{L}\p{N}]/gu, '');
+};
+
+const matchesQuery = (item: HorseFamilyTreeItem, rawQuery: string, normalizedQuery: string) => {
+  const rawLower = rawQuery.toLowerCase();
+
+  for (const name of [item.englishName, item.arabicName]) {
+    if (!name) continue;
+    if (name.toLowerCase().includes(rawLower)) return true;
+    if (normalizedQuery && normalizeName(name).includes(normalizedQuery)) return true;
+  }
+
+  return false;
+};
 
 const formatPercentage = (value: number | null | undefined) => {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
@@ -35,19 +85,17 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<HorseFamilyTreeItem[] | null>(null);
-  const [totalCount, setTotalCount] = useState(0);
+  const [ancestors, setAncestors] = useState<HorseFamilyTreeItem[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const requestIdRef = useRef(0);
+  const [reloadKey, setReloadKey] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const trimmedQuery = query.trim();
 
   useEffect(() => {
     setQuery('');
-    setResults(null);
-    setTotalCount(0);
+    setAncestors(null);
     setError('');
   }, [localId]);
 
@@ -71,56 +119,55 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
     };
   }, [open]);
 
+  // Load the full family tree once per horse; filtering happens locally so
+  // results stay correct even when the API ignores the search parameter.
   useEffect(() => {
-    if (trimmedQuery.length < MIN_QUERY_LENGTH) {
-      setResults(null);
-      setTotalCount(0);
-      setError('');
-      setLoading(false);
-      return;
-    }
+    if (!open || ancestors !== null) return;
 
-    const requestId = ++requestIdRef.current;
+    let mounted = true;
     setLoading(true);
     setError('');
 
-    const timer = window.setTimeout(async () => {
+    (async () => {
       try {
         const result = await getHorseFamilyAnalysisTree({
           localId,
           levels: SEARCH_LEVELS,
           pageNumber: 1,
-          pageSize: PAGE_SIZE,
-          search: trimmedQuery,
+          pageSize: FETCH_PAGE_SIZE,
         });
 
-        if (requestIdRef.current !== requestId) return;
-
-        const page = normalizePagedList(result);
-        setResults(page.items);
-        setTotalCount(page.totalCount);
+        if (!mounted) return;
+        setAncestors(normalizePagedList(result).items);
       } catch (requestError) {
-        if (requestIdRef.current !== requestId) return;
-        setResults(null);
-        setTotalCount(0);
+        if (!mounted) return;
         setError(
           requestError instanceof Error
             ? requestError.message
             : isRTL
-              ? 'تعذر البحث في شجرة العائلة.'
-              : 'Failed to search the family tree.',
+              ? 'تعذر تحميل شجرة العائلة.'
+              : 'Failed to load the family tree.',
         );
       } finally {
-        if (requestIdRef.current === requestId) setLoading(false);
+        if (mounted) setLoading(false);
       }
-    }, DEBOUNCE_MS);
+    })();
 
-    return () => window.clearTimeout(timer);
-  }, [trimmedQuery, localId, isRTL]);
+    return () => {
+      mounted = false;
+    };
+  }, [open, ancestors, localId, isRTL, reloadKey]);
 
-  const hasSearched = trimmedQuery.length >= MIN_QUERY_LENGTH && !loading && results !== null;
-  const showEmpty = hasSearched && results.length === 0 && !error;
-  const showIdle = trimmedQuery.length < MIN_QUERY_LENGTH && !loading;
+  const matches = useMemo(() => {
+    if (!ancestors || trimmedQuery.length < MIN_QUERY_LENGTH) return null;
+
+    const normalizedQuery = normalizeName(trimmedQuery);
+    return ancestors.filter((item) => matchesQuery(item, trimmedQuery, normalizedQuery));
+  }, [ancestors, trimmedQuery]);
+
+  const showIdle = !loading && !error && trimmedQuery.length < MIN_QUERY_LENGTH;
+  const showEmpty = !loading && !error && matches !== null && matches.length === 0;
+  const visibleMatches = matches?.slice(0, MAX_RENDERED_RESULTS) ?? [];
 
   return (
     <>
@@ -218,17 +265,6 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
             </div>
 
             <div className="min-h-[180px] flex-1 overflow-y-auto px-5 pb-5">
-              {showIdle ? (
-                <div className="flex h-full min-h-[160px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[#e0d3c5] bg-[#fbf8f4] px-6 py-8 text-center">
-                  <Search className="h-6 w-6 text-[#cbbba9]" />
-                  <p className="text-sm text-[#7a6c63]">
-                    {isRTL
-                      ? 'اكتب اسم خيل للتحقق مما إذا كان موجوداً في عائلة هذا الخيل — حتى لو لم يظهر في شهادة النسب المعروضة.'
-                      : "Type a horse name to check whether it appears anywhere in this horse's family — even beyond what the pedigree certificate shows."}
-                  </p>
-                </div>
-              ) : null}
-
               {loading ? (
                 <div className="space-y-2">
                   {[0, 1, 2].map((index) => (
@@ -238,8 +274,37 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
               ) : null}
 
               {error ? (
-                <div className="rounded-2xl border border-[#f2c7c7] bg-[#fff3f3] px-4 py-3 text-sm text-[#b04444]">
-                  {error}
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-[#f2c7c7] bg-[#fff3f3] px-4 py-5 text-center text-sm text-[#b04444]">
+                  <span>{error}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError('');
+                      setAncestors(null);
+                      setReloadKey((key) => key + 1);
+                    }}
+                    className="rounded-xl bg-white px-4 py-2 text-xs font-semibold text-[#b04444] shadow-sm transition hover:bg-[#fdeaea]"
+                  >
+                    {isRTL ? 'إعادة المحاولة' : 'Retry'}
+                  </button>
+                </div>
+              ) : null}
+
+              {showIdle ? (
+                <div className="flex h-full min-h-[160px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[#e0d3c5] bg-[#fbf8f4] px-6 py-8 text-center">
+                  <Search className="h-6 w-6 text-[#cbbba9]" />
+                  <p className="text-sm text-[#7a6c63]">
+                    {isRTL
+                      ? 'اكتب اسم خيل للتحقق مما إذا كان موجوداً في عائلة هذا الخيل — حتى لو لم يظهر في شهادة النسب المعروضة.'
+                      : "Type a horse name to check whether it appears anywhere in this horse's family — even beyond what the pedigree certificate shows."}
+                  </p>
+                  {ancestors ? (
+                    <p className="text-xs text-[#b3a698]">
+                      {isRTL
+                        ? `${ancestors.length} من الأجداد جاهزون للبحث`
+                        : `${ancestors.length} ancestors ready to search`}
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -257,16 +322,16 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
                 </div>
               ) : null}
 
-              {hasSearched && results.length > 0 ? (
+              {!loading && !error && matches && matches.length > 0 ? (
                 <div>
                   <p className="mb-2 text-xs font-semibold text-[#7a6c63]">
                     {isRTL
-                      ? `تم العثور على ${totalCount} من الأقارب المطابقين`
-                      : `Found ${totalCount} matching family ${totalCount === 1 ? 'member' : 'members'}`}
+                      ? `تم العثور على ${matches.length} من الأقارب المطابقين`
+                      : `Found ${matches.length} matching family ${matches.length === 1 ? 'member' : 'members'}`}
                   </p>
 
                   <div className="space-y-2">
-                    {results.map((item) => {
+                    {visibleMatches.map((item) => {
                       const name = getLocalizedName(item.englishName, item.arabicName, isRTL) || '-';
                       const fatherName = getLocalizedName(
                         item.horseFatherEnglishName,
@@ -337,6 +402,14 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
                         </div>
                       );
                     })}
+
+                    {matches.length > MAX_RENDERED_RESULTS ? (
+                      <p className="pt-1 text-center text-xs text-[#b3a698]">
+                        {isRTL
+                          ? `يتم عرض أول ${MAX_RENDERED_RESULTS} نتيجة — اكتب اسماً أدق لتضييق البحث.`
+                          : `Showing the first ${MAX_RENDERED_RESULTS} results — type a more specific name to narrow down.`}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               ) : null}
