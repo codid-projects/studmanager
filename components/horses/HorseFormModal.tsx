@@ -3,7 +3,7 @@
 import { FC, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslation } from '@/lib/locale-context';
 import { COUNTRY_TRANSLATIONS, HORSE_COLOR_TRANSLATIONS } from '@/lib/api/localization';
-import { getDefaultStud, normalizePagedList, searchExternalHorses, searchExternalStuds, syncExternalStuds } from '@/lib/api/external-horses';
+import { getDefaultStud, normalizePagedList, searchExternalHorses, searchExternalStuds } from '@/lib/api/external-horses';
 import { getLocalizedName } from '@/lib/api/localization';
 import type { DefaultStudDto, ExternalHorseSearchItem, ExternalStudSearchItem } from '@/lib/api/types';
 
@@ -154,7 +154,7 @@ const BACK_LEG_OPTIONS: MarkingOption[] = [
   { value: 'Coronet', label: 'Coronet', labelAr: 'التاج', image: '/horse-options/lb-coronet.png' },
 ];
 
-const ARABIC_ONLY_REGEX = /^[\u0600-\u06FF\s]+$/;
+const ARABIC_ONLY_REGEX = /^[\u0600-\u06FF\s.\-]+$/;
 const YOUTUBE_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/i;
 
 function FieldError({ message }: { message?: string }) {
@@ -446,7 +446,6 @@ function StudPicker({
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const syncedForOpen = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -456,10 +455,6 @@ function StudPicker({
       setError('');
 
       try {
-        if (!syncedForOpen.current) {
-          await syncExternalStuds();
-          syncedForOpen.current = true;
-        }
         const result = await searchExternalStuds({
           searchTerm: query.trim() || undefined,
           pageNumber,
@@ -484,10 +479,6 @@ function StudPicker({
 
     return () => window.clearTimeout(timer);
   }, [open, query, pageNumber, isArabic]);
-
-  useEffect(() => {
-    if (!open) syncedForOpen.current = false;
-  }, [open]);
 
   const studName = (stud: ExternalStudSearchItem) =>
     getLocalizedName(stud.studName, stud.studArabicName, isArabic);
