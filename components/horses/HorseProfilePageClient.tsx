@@ -9,6 +9,7 @@ import {
   HorseAnalyticsTab,
   HorseCompetitionTab,
   HorseInfoTab,
+  HorseFamilySearch,
   HorsePedigreeStats,
   HorsePedigreeTree,
   HorsePhotosTab,
@@ -774,7 +775,12 @@ export function HorseProfilePageClient({
               hiddenTabs={hasVideos ? [] : ['videos']}
             />
 
-            {activeTab === 'pedigree' && <HorsePedigreeTree horse={profileHorse} />}
+            {activeTab === 'pedigree' && (
+              <>
+                <HorseFamilySearch localId={Number(profileHorse.id)} />
+                <HorsePedigreeTree horse={profileHorse} />
+              </>
+            )}
             {activeTab === 'analytics' && <HorseAnalyticsTab localId={profileHorse.id} />}
             {activeTab === 'info' && <HorseInfoTab horse={profileHorse} />}
             {activeTab === 'photos' && <HorsePhotosTab horse={profileHorse} />}

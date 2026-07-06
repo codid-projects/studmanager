@@ -44,8 +44,8 @@ export const externalHorseQueryKeys = {
   dashboard: (localId: number) => ['horse', localId, 'dashboard'] as const,
   summary: (studbookId: number) => ['external-horse', studbookId, 'summary'] as const,
   pedigree: (localId: number, levels = 6) => ['horse', localId, 'pedigree', levels] as const,
-  analysisTree: (localId: number, levels = 12, pageNumber = 1, pageSize = 20) =>
-    ['horse', localId, 'analysis-tree', levels, pageNumber, pageSize] as const,
+  analysisTree: (localId: number, levels = 12, pageNumber = 1, pageSize = 20, search?: string) =>
+    ['horse', localId, 'analysis-tree', levels, pageNumber, pageSize, search] as const,
   tailMale: (localId: number, levels = 12, pageNumber = 1, pageSize = 20) =>
     ['horse', localId, 'tail-male', levels, pageNumber, pageSize] as const,
   tailFemale: (localId: number, levels = 12, pageNumber = 1, pageSize = 20) =>
@@ -205,16 +205,18 @@ export const getHorseFamilyAnalysisTree = async ({
   levels = 12,
   pageNumber = 1,
   pageSize = 20,
+  search,
 }: {
   localId: number;
   levels?: number;
   pageNumber?: number;
   pageSize?: number;
+  search?: string;
 }): Promise<ApiResult<PagedResponse<HorseFamilyTreeItem>>> =>
   clientApiFetch<ApiResult<PagedResponse<HorseFamilyTreeItem>>>({
     backendPath: `/api/ExternalHorses/${localId}/analysis-tree`,
     nextPath: `/api/external-horses/${localId}/analysis-tree`,
-    query: { levels, pageNumber, pageSize },
+    query: { levels, pageNumber, pageSize, search },
   });
 
 export const getTailMale = async ({

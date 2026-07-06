@@ -5,6 +5,7 @@ export { HorseProfileHeader } from './HorseProfileHeader';
 export { HorsePedigreeStats } from './HorsePedigreeStats';
 export { HorseProfileTabs } from './HorseProfileTabs';
 export { HorsePedigreeTree } from './HorsePedigreeTree';
+export { HorseFamilySearch } from './HorseFamilySearch';
 export { HorseInfoTab } from './HorseInfoTab';
 export { HorsePhotosTab } from './HorsePhotosTab';
 export { HorseVideosTab } from './HorseVideosTab';
