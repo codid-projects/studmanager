@@ -21,6 +21,39 @@ interface ExternalHorseSearchModalProps {
 
 const PAGE_SIZE = 12;
 
+function toStudbookHorse(summary: ExternalHorseSummaryItem): StudbookHorseDto {
+  return {
+    id: summary.id,
+    englishName: summary.englishName,
+    arabicName: summary.arabicName,
+    knownAs: summary.knownAs ?? null,
+    registrationNumber: summary.registrationNumber ?? null,
+    microchipID: summary.microchipID ?? null,
+    horseProfileImage: summary.horseProfileImage ?? null,
+    images: summary.images ?? null,
+    horseFatherId: summary.horseFatherId,
+    horseMotherId: summary.horseMotherId,
+    horseFatherArabicName: summary.horseFatherArabicName ?? null,
+    horseMotherArabicName: summary.horseMotherArabicName ?? null,
+    horseFatherEnglishName: summary.horseFatherEnglishName ?? null,
+    horseMotherEnglishName: summary.horseMotherEnglishName ?? null,
+    dateofBirth: summary.dateofBirth,
+    gender: summary.gender,
+    bornIn: summary.bornIn ?? null,
+    currentlyIn: summary.currentlyIn ?? null,
+    color: summary.color ?? null,
+    isActive: summary.isActive ?? false,
+    isMare: summary.isMare ?? null,
+    isStallion: summary.isStallion ?? null,
+    strain: null,
+    specialLine: null,
+    strainAr: null,
+    specialLineAr: null,
+    studBreeder: typeof summary.studBreeder === 'string' ? summary.studBreeder : summary.studBreeder?.studName ?? null,
+    studOwner: typeof summary.studOwner === 'string' ? summary.studOwner : summary.studOwner?.studName ?? null,
+  };
+}
+
 function formatDate(value: string | null | undefined) {
   if (!value) return '-';
   const date = new Date(value);
@@ -60,7 +93,9 @@ export function ExternalHorseSearchModal({ onClose }: ExternalHorseSearchModalPr
       setMessage(null);
 
       try {
-        const payload = await clientApiFetch<PagedResponse<StudbookHorseDto>>({
+        const exactStudbookId = /^\d+$/.test(query.trim()) ? Number(query.trim()) : null;
+        const [payload, exactResult] = await Promise.all([
+          clientApiFetch<PagedResponse<StudbookHorseDto>>({
           backendPath: '/api/ExternalHorses/search-external-horses',
           nextPath: '/api/horses/studbook',
           backendQuery: {
@@ -75,10 +110,28 @@ export function ExternalHorseSearchModal({ onClose }: ExternalHorseSearchModalPr
             locale,
           },
           locale: localeCode,
-        });
+          }),
+          exactStudbookId && page === 1
+            ? clientApiFetch<ApiResult<ExternalHorseSummaryItem>>({
+                backendPath: `/api/ExternalHorses/${exactStudbookId}/summary`,
+                nextPath: `/api/external-horses/${exactStudbookId}/summary`,
+                nextQuery: { locale },
+                locale: localeCode,
+              }).catch(() => null)
+            : Promise.resolve(null),
+        ]);
+
+        const exactHorse = exactResult?.data ? toStudbookHorse(exactResult.data) : null;
+        const nextPayload = exactHorse && !payload.data.some((horse) => horse.id === exactHorse.id)
+          ? {
+              ...payload,
+              data: [exactHorse, ...payload.data],
+              totalCount: payload.totalCount + 1,
+            }
+          : payload;
 
         if (active) {
-          setResults(payload);
+          setResults(nextPayload);
           resultsScrollerRef.current?.scrollTo({ top: 0 });
         }
       } catch (error) {
@@ -252,7 +305,7 @@ export function ExternalHorseSearchModal({ onClose }: ExternalHorseSearchModalPr
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={isRTL ? 'ابحث بالاسم العربي أو الإنجليزي أو الرقم...' : 'Search name or studbook id...'}
+                placeholder={isRTL ? 'ابحث بالاسم أو رقم Studbook أو الشريحة...' : 'Search name, Studbook ID, or microchip...'}
                 className={`h-12 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] text-sm font-semibold text-[#2b1a12] outline-none focus:border-[#5a3b25] focus:ring-2 focus:ring-[#5a3b25]/10 ${
                   isRTL ? 'pr-11 pl-4 text-right' : 'pl-11 pr-4 text-left'
                 }`}
@@ -291,6 +344,9 @@ export function ExternalHorseSearchModal({ onClose }: ExternalHorseSearchModalPr
                       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[#7a6c63]">
                         <span>{horse.gender || '-'}</span>
                         <span>{formatDate(horse.dateofBirth)}</span>
+                        {horse.microchipID ? (
+                          <span>{isRTL ? `الشريحة: ${horse.microchipID}` : `Microchip: ${horse.microchipID}`}</span>
+                        ) : null}
                         {horse.strain || horse.strainAr ? (
                           <span>{isRTL ? horse.strainAr || horse.strain : horse.strain || horse.strainAr}</span>
                         ) : null}
@@ -316,39 +372,39 @@ export function ExternalHorseSearchModal({ onClose }: ExternalHorseSearchModalPr
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
-              disabled={!canGoPrevious}
-              className="h-9 rounded-xl border border-[#eadfd7] px-3 transition enabled:hover:bg-[#fbf8f4] disabled:opacity-40"
-            >
-              {isRTL ? 'السابق' : 'Previous'}
-            </button>
-            <div className="flex min-w-0 items-center justify-center gap-1">
-              {visiblePages.map((pageNumber) => (
-                <button
-                  key={pageNumber}
-                  type="button"
-                  onClick={() => setPage(pageNumber)}
-                  disabled={loading}
-                  className={`h-9 min-w-9 rounded-xl border px-2 transition ${
-                    pageNumber === page
-                      ? 'border-[#311C11] bg-[#311C11] text-white'
-                      : 'border-[#eadfd7] bg-white hover:bg-[#fbf8f4]'
-                  } disabled:opacity-50`}
-                >
-                  {pageNumber}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-              disabled={!canGoNext}
-              className="h-9 rounded-xl border border-[#eadfd7] px-3 transition enabled:hover:bg-[#fbf8f4] disabled:opacity-40"
-            >
-              {isRTL ? 'التالي' : 'Next'}
-            </button>
+              <button
+                type="button"
+                onClick={() => setPage((value) => Math.max(1, value - 1))}
+                disabled={!canGoPrevious}
+                className="h-9 rounded-xl border border-[#eadfd7] px-3 transition enabled:hover:bg-[#fbf8f4] disabled:opacity-40"
+              >
+                {isRTL ? 'السابق' : 'Previous'}
+              </button>
+              <div className="flex min-w-0 items-center justify-center gap-1">
+                {visiblePages.map((pageNumber) => (
+                  <button
+                    key={pageNumber}
+                    type="button"
+                    onClick={() => setPage(pageNumber)}
+                    disabled={loading}
+                    className={`h-9 min-w-9 rounded-xl border px-2 transition ${
+                      pageNumber === page
+                        ? 'border-[#311C11] bg-[#311C11] text-white'
+                        : 'border-[#eadfd7] bg-white hover:bg-[#fbf8f4]'
+                    } disabled:opacity-50`}
+                  >
+                    {pageNumber}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                disabled={!canGoNext}
+                className="h-9 rounded-xl border border-[#eadfd7] px-3 transition enabled:hover:bg-[#fbf8f4] disabled:opacity-40"
+              >
+                {isRTL ? 'التالي' : 'Next'}
+              </button>
             </div>
           </div>
         </div>
@@ -365,6 +421,11 @@ export function ExternalHorseSearchModal({ onClose }: ExternalHorseSearchModalPr
                   <div className="min-w-0">
                     <h3 className="truncate text-base font-black text-[#2b1a12]">{selectedName}</h3>
                     <p className="mt-1 text-xs font-bold text-[#7a6c63]">Studbook ID: {selected.id}</p>
+                    {summary?.microchipID ?? selected.microchipID ? (
+                      <p className="mt-1 text-xs font-bold text-[#7a6c63]">
+                        {isRTL ? 'الشريحة' : 'Microchip'}: {summary?.microchipID ?? selected.microchipID}
+                      </p>
+                    ) : null}
                   </div>
                   {detailsLoading ? (
                     <span className="rounded-full bg-[#f0e5d3] px-2 py-1 text-[11px] font-bold text-[#6a5548]">

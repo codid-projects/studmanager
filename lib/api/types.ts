@@ -524,6 +524,8 @@ export interface StudbookHorseDto {
   englishName: string | null;
   arabicName: string | null;
   knownAs: string | null;
+  registrationNumber?: string | null;
+  microchipID?: string | null;
   horseProfileImage: string | null;
   images?: Array<string | HorseAttachmentDto> | null;
   horseFatherId: number | null;
@@ -671,6 +673,10 @@ export type ExternalHorseSummaryItem = {
   isActive?: boolean | null;
   studBreeder?: string | StudDto | null;
   studOwner?: string | StudDto | null;
+  registrationNumber?: string | null;
+  microchipID?: string | null;
+  uelnNumber?: string | null;
+  UELNNumber?: string | null;
   generationLevel?: number | null;
   isStrain?: boolean | null;
   isSpecial?: boolean | null;
