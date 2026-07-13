@@ -378,6 +378,7 @@ export interface HorseTagDto {
   name: string;
   isInherited: boolean;
   sourceHorseId: number;
+  sourceHorseLocalId?: number | null;
   sourceHorseEnglishName: string | null;
   sourceHorseArabicName: string | null;
 }
@@ -624,6 +625,7 @@ export type ExternalHorseDashboardInformation = {
 
 export type HorsePedigreeNode = {
   id: number;
+  localId?: number | null;
   englishName: string | null;
   arabicName: string | null;
   horseFatherId: number | null;

@@ -1,9 +1,11 @@
 "use client";
 
-import { FC, useEffect, useMemo, useRef, useState } from "react";
+import { FC, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toPng } from "html-to-image";
 import { useLocale } from "@/lib/locale-context";
-import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
+import { GitBranch, Pencil, Plus, Save, Tag, Trash2, X } from "lucide-react";
+import { clientApiFetch } from "@/lib/api/client";
 import {
   getExternalHorseSummary,
   getHorsePedigree,
@@ -20,7 +22,12 @@ import {
   mediaUrl,
   localizeGender,
 } from "@/lib/api/horse-formatters";
-import type { ExternalHorseSummaryItem, HorseTagDto } from "@/lib/api/types";
+import type {
+  ApiResult,
+  ExternalHorseSummaryItem,
+  HorseTagDto,
+  LocaleCode,
+} from "@/lib/api/types";
 
 interface Horse {
   id?: string;
@@ -36,12 +43,14 @@ interface HorsePedigreeTreeProps {
   controlsVariant?: "default" | "compact";
   pedigreeData?: unknown;
   loading?: boolean;
+  onTagsMutated?: () => void;
 }
 
 type ParentRole = "Root" | "Mother" | "Father";
 
 type PedigreeNode = {
   id: string;
+  localId: number | null;
   studbookId: number | null;
   name: string;
   role: ParentRole;
@@ -73,18 +82,20 @@ type TopMetaItem = {
 type BranchExpansion = {
   nodeKey: string;
   horseId: number;
+  title: string;
+  rootNode: PedigreeNode;
   columns: PedigreeNode[][];
   requestedLevels: number;
   maxAdditionalLevels: number;
   endReached: boolean;
 };
 
-const NODE_HEIGHT_PX = 58;
-const CERTIFICATE_ASPECT = 1600 / 1200;
-const MIN_COLUMN_WIDTH_PX = 220;
+const CERTIFICATE_ASPECT = 1600 / 1340;
+const MIN_COLUMN_WIDTH_PX = 205;
+const CERTIFICATE_BASE_WIDTH_PX = 1320;
 const INITIAL_PEDIGREE_LEVELS = 6;
 const MAX_PEDIGREE_LEVELS = 12;
-const PEDIGREE_LEVEL_STEP = 2;
+const PEDIGREE_LEVEL_STEP = 3;
 
 const DUPLICATE_ANCESTOR_COLORS = [
   { background: "#FEE2E2", border: "#DC2626" },
@@ -97,10 +108,43 @@ const DUPLICATE_ANCESTOR_COLORS = [
   { background: "#FAE8FF", border: "#C026D3" },
 ];
 
-const getTopPercent = (count: number, index: number, maxLeafCount: number) => {
+const getTopPercent = (
+  count: number,
+  index: number,
+  maxLeafCount: number,
+  edgeInsetPercent = 0,
+) => {
   const span = maxLeafCount / count;
   const center = index * span + span / 2;
-  return (center / maxLeafCount) * 100;
+  const percent = (center / maxLeafCount) * 100;
+  return edgeInsetPercent + (percent / 100) * (100 - edgeInsetPercent * 2);
+};
+
+const ARABIC_DIACRITICS = ["َ", "ُ", "ْ", "ِ", "ّ"];
+const ARABIC_LETTER_PATTERN = /[\u0621-\u064A]/;
+const ARABIC_DIACRITIC_PATTERN = /[\u064B-\u065F]/;
+
+const decorateArabicName = (value: string, seed: string) => {
+  if (!value || ARABIC_DIACRITIC_PATTERN.test(value)) return value;
+
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) % 997;
+  }
+
+  let letterIndex = 0;
+
+  return Array.from(value)
+    .map((char) => {
+      if (!ARABIC_LETTER_PATTERN.test(char)) return char;
+
+      letterIndex += 1;
+
+      if ((letterIndex + hash) % 3 !== 0) return char;
+
+      return `${char}${ARABIC_DIACRITICS[(letterIndex + hash) % ARABIC_DIACRITICS.length]}`;
+    })
+    .join("");
 };
 
 const normalizePedigreeLevels = (payload: unknown): unknown[][] => {
@@ -170,6 +214,10 @@ const mapPedigreeLevels = (
 
         return {
           id: String(node.id ?? `${generationIndex}-${nodeIndex}`),
+          localId:
+            typeof node.localId === "number"
+              ? node.localId
+              : Number(node.localId) || null,
           studbookId:
             typeof node.id === "number" ? node.id : Number(node.id) || null,
           englishName:
@@ -340,10 +388,6 @@ const getTopMetaItems = (horse: Horse, isRTL: boolean): TopMetaItem[] => {
     (isRTL
       ? raw.strainAr ?? raw.lineAr ?? raw.strainEn ?? raw.lineEn
       : raw.strainEn ?? raw.lineEn ?? raw.strainAr ?? raw.lineAr) ?? "";
-  const line =
-    (isRTL
-      ? raw.lineAr ?? raw.specialLineAr ?? raw.specialAr ?? raw.lineEn
-      : raw.lineEn ?? raw.specialLineEn ?? raw.specialEn ?? raw.lineAr) ?? "";
   const gender = localizeGender(
     typeof raw.gender === "string" ? raw.gender : "",
     locale,
@@ -358,8 +402,30 @@ const getTopMetaItems = (horse: Horse, isRTL: boolean): TopMetaItem[] => {
     getNestedName(raw.breeder, isRTL) || pickText(raw.breederEn, raw.breederAr);
   const owner =
     getNestedName(raw.owner, isRTL) || pickText(raw.ownerEn, raw.ownerAr);
-  const microchip =
-    raw.microchipID ?? raw.microchip ?? raw.microchipId ?? raw.chipNumber ?? "";
+  if (isRTL) {
+    return [
+      {
+        label: "النوع",
+        value: String(gender || "-"),
+      },
+      {
+        label: "تاريخ الميلاد",
+        value: birth,
+      },
+      {
+        label: "الرسن",
+        value: String(strain || "-"),
+      },
+      {
+        label: "المنتج",
+        value: String(breeder || "-"),
+      },
+      {
+        label: "المربي",
+        value: String(owner || "-"),
+      },
+    ];
+  }
 
   return [
     {
@@ -381,14 +447,6 @@ const getTopMetaItems = (horse: Horse, isRTL: boolean): TopMetaItem[] => {
     {
       label: isRTL ? "المالك" : "Owner",
       value: String(owner || "-"),
-    },
-    {
-      label: isRTL ? "الرقاقة" : "Microchip",
-      value: String(microchip || "-"),
-    },
-    {
-      label: isRTL ? "الخط" : "Line",
-      value: String(line || "-"),
     },
   ];
 };
@@ -440,29 +498,113 @@ const TopMetaRow = ({
   return (
     <div
       dir={isRTL ? "rtl" : "ltr"}
-      className="pointer-events-none flex w-full justify-center px-2 pb-4 pt-1 font-serif text-[#2c3953]"
+      className="pointer-events-none w-full px-8 pb-5 pt-5 text-[#159456]"
+      style={{
+        fontFamily: isRTL
+          ? "'Diwani Letter', 'SF Pro AR', serif"
+          : "'SF Pro AR', serif",
+      }}
     >
-   <div className="flex max-w-full flex-nowrap items-center justify-center gap-0 overflow-hidden whitespace-nowrap text-[12px] leading-none sm:text-[13px] md:text-[14px] lg:text-[16px] xl:text-[18px]">
-  {items.map((item, index) => (
-    <div
-      key={`${item.label}-${index}`}
-      className="flex min-w-0 shrink items-center"
+      <div className="flex max-w-full flex-nowrap items-center justify-between gap-4 overflow-hidden whitespace-nowrap text-[18px] md:text-[24px] xl:text-[30px]">
+        {items.map((item, index) => (
+          <div
+            key={`${item.label}-${index}`}
+            className="flex min-w-0 shrink items-baseline gap-2"
+          >
+            <span className="shrink-0">{item.label} :</span>
+
+            <span className="min-w-0 truncate">{item.value}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mx-7 mt-3 h-[3px] rounded-full bg-[#159456]" />
+    </div>
+  );
+};
+
+const CertificateBorder = () => (
+  <>
+    <img
+      src="/horse/pedigree-certificate-border.png"
+      alt="Border Frame"
+      className="pointer-events-none absolute inset-0 z-[2] h-full w-full object-fill"
+    />
+  </>
+);
+
+const PedigreeConnectors = ({
+  columns,
+  maxLeafCount,
+}: {
+  columns: PedigreeNode[][];
+  maxLeafCount: number;
+}) => {
+  const columnCount = Math.max(1, columns.length);
+
+  if (columnCount < 2) return null;
+
+  return (
+    <svg
+      className="pointer-events-none absolute inset-0 z-[4] h-full w-full"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-hidden="true"
     >
-      <span className="shrink-0 font-semibold text-[#566178]">
-        {item.label} :
-      </span>
+      {columns.slice(0, -1).flatMap((column, columnIndex) => {
+        const nextColumn = columns[columnIndex + 1] ?? [];
+        if (!column.length || !nextColumn.length) return [];
 
-      <span className="min-w-0 truncate px-1.5 font-extrabold text-[#111827]">
-        {item.value}
-      </span>
+        const xChild = ((columnIndex + 0.77) / columnCount) * 100;
+        const xParent = ((columnIndex + 1.23) / columnCount) * 100;
+        const ratio = column.length / nextColumn.length;
 
-      {index < items.length - 1 ? (
-        <span className="mx-2 h-4 w-px shrink-0 bg-[#cdd5e1]" />
-      ) : null}
-    </div>
-  ))}
-</div>
-    </div>
+        return nextColumn.map((_, parentIndex) => {
+          const firstChildIndex = Math.min(
+            column.length - 1,
+            Math.floor(parentIndex * ratio),
+          );
+          const secondChildIndex = Math.min(
+            column.length - 1,
+            Math.max(firstChildIndex, Math.floor((parentIndex + 1) * ratio) - 1),
+          );
+          const yA = getTopPercent(column.length, firstChildIndex, maxLeafCount, 4);
+          const yB = getTopPercent(column.length, secondChildIndex, maxLeafCount, 4);
+          const yParent = getTopPercent(
+            nextColumn.length,
+            parentIndex,
+            maxLeafCount,
+            4,
+          );
+          const yMid = (yA + yB) / 2;
+
+          return (
+            <g key={`connector-${columnIndex}-${parentIndex}`}>
+              {firstChildIndex !== secondChildIndex ? (
+                <line
+                  x1={xChild}
+                  y1={yA}
+                  x2={xChild}
+                  y2={yB}
+                  stroke="#1a7350"
+                  strokeWidth="0.22"
+                  strokeLinecap="round"
+                  opacity="0.62"
+                />
+              ) : null}
+              <path
+                d={`M ${xChild} ${yMid} H ${(xChild + xParent) / 2} V ${yParent} H ${xParent}`}
+                fill="none"
+                stroke="#1a7350"
+                strokeWidth="0.22"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.62"
+              />
+            </g>
+          );
+        });
+      })}
+    </svg>
   );
 };
 
@@ -470,187 +612,564 @@ const PedigreeBox = ({
   node,
   nodeKey,
   top,
+  columnSize,
   isRTL,
   onClick,
   highlighted,
-  onDuplicateHover,
+  related,
+  onNodeHover,
   canExpand,
   isExpanding,
-  branch,
+  isExhausted,
   onExpand,
 }: {
   node: PedigreeNode;
   nodeKey: string;
   top: number;
+  columnSize: number;
   isRTL: boolean;
   onClick: (node: PedigreeNode) => void;
   highlighted: boolean;
-  onDuplicateHover: (id: string | null) => void;
+  related: boolean;
+  onNodeHover: (node: PedigreeNode | null) => void;
   canExpand?: boolean;
   isExpanding?: boolean;
-  branch?: BranchExpansion | null;
+  isExhausted?: boolean;
   onExpand?: (node: PedigreeNode, nodeKey: string) => void;
+}) => {
+  const boxHeight =
+    columnSize > 24
+      ? 44
+      : columnSize > 16
+        ? 50
+        : columnSize > 8
+          ? 60
+          : node.role === "Root"
+            ? 108
+            : 88;
+  const fontSize = isRTL
+    ? node.role === "Root"
+      ? 48
+      : node.generationIndex === 1
+        ? 38
+        : node.generationIndex === 2
+          ? 32
+          : columnSize > 16
+            ? 18
+            : columnSize > 8
+              ? 24
+              : 28
+    : node.role === "Root"
+      ? 30
+      : columnSize > 16
+        ? 16
+        : 20;
+  const displayName = isRTL
+    ? decorateArabicName(node.name, `${node.id}-${node.generationIndex}-${node.nodeIndex}`)
+    : node.name;
+
+  return (
+    <div
+      dir="ltr"
+      className="group absolute left-0 right-0 px-1"
+      style={{
+        top: `calc(${top}% - ${boxHeight / 2}px)`,
+        height: `${boxHeight}px`,
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => {
+          if (canExpand && onExpand && !isExhausted && !node.localId) {
+            onExpand(node, nodeKey);
+            return;
+          }
+
+          onClick(node);
+        }}
+        onMouseEnter={() => onNodeHover(node)}
+        onMouseLeave={() => onNodeHover(null)}
+        onFocus={() => onNodeHover(node)}
+        onBlur={() => onNodeHover(null)}
+        className={`relative flex h-full w-full flex-col items-center justify-center gap-1 overflow-visible rounded-[6px] bg-transparent px-1 text-center text-[#159456] focus:outline-none focus:ring-2 focus:ring-[#159456]/20 ${
+          isExpanding ? "cursor-wait opacity-70" : ""
+        }`}
+        title={
+          canExpand && !isExhausted && !node.localId
+            ? isRTL
+              ? "عرض أجداد هذا الخيل"
+              : "Show this horse's ancestors"
+            : node.name
+        }
+        style={
+          node.duplicateColor
+            ? {
+                zIndex: highlighted ? 10 : undefined,
+                direction: "ltr",
+                unicodeBidi: "isolate",
+                fontFamily: isRTL
+                  ? "'Diwani Letter', 'SF Pro AR', serif"
+                  : "'SF Pro AR', serif",
+                fontSize,
+              }
+            : {
+                direction: "ltr",
+                unicodeBidi: "isolate",
+                fontFamily: isRTL
+                  ? "'Diwani Letter', 'SF Pro AR', serif"
+                  : "'SF Pro AR', serif",
+                fontSize,
+              }
+        }
+      >
+        <ParentIcon role={node.role} />
+        <span
+          className="block min-w-0 max-w-full overflow-visible whitespace-nowrap py-2 transition-colors duration-150 drop-shadow-[0_1px_0_rgba(255,255,255,0.45)] group-hover:font-semibold group-hover:text-[#005f38] group-hover:[text-shadow:0_0_1px_rgba(0,95,56,0.45),0_1px_0_rgba(255,255,255,0.65)] group-focus-visible:font-semibold group-focus-visible:text-[#005f38]"
+          style={{
+            color:
+              highlighted && node.duplicateColor
+                ? node.duplicateColor.border
+                : related
+                  ? "#b35d18"
+                : undefined,
+            textShadow:
+              highlighted && node.duplicateColor
+                ? `0 0 1px ${node.duplicateColor.border}55`
+                : related
+                  ? "0 0 1px rgba(179,93,24,0.45), 0 1px 0 rgba(255,255,255,0.7)"
+                : undefined,
+          }}
+        >
+          {displayName}
+        </span>
+      </button>
+
+      {isExhausted ? (
+        <div className="pointer-events-none absolute bottom-0 right-1 z-30 max-w-[calc(100%-8px)] rounded-full border border-[#159456]/20 bg-[#f2f5c6]/90 px-2 py-1 text-[9px] font-bold text-[#0f7543] opacity-0 shadow-sm transition group-hover:opacity-100">
+          {isRTL ? "لا يوجد أجداد أكثر" : "No more ancestors"}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+const normalizeTagName = (value: string) =>
+  value.trim().replace(/\s+/g, " ").toLowerCase();
+
+const PedigreeTagsEditor = ({
+  horseId,
+  idType,
+  horseEnglishName,
+  horseArabicName,
+  tags,
+  isRTL,
+  locale,
+  onChange,
+}: {
+  horseId: number;
+  idType: "local" | "studbook";
+  horseEnglishName?: string | null;
+  horseArabicName?: string | null;
+  tags: HorseTagDto[];
+  isRTL: boolean;
+  locale: string;
+  onChange: (tags: HorseTagDto[]) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const directTags = tags.filter((tag) => !tag.isInherited);
+  const canAdd = directTags.length === 0;
+  const labels = {
+    title: isRTL ? "وسوم العائلة" : "Family tags",
+    add: isRTL ? "إضافة وسم" : "Add tag",
+    save: isRTL ? "حفظ" : "Save",
+    cancel: isRTL ? "إلغاء" : "Cancel",
+    placeholder: isRTL ? "أضف وسمًا لهذا الخيل" : "Add a tag for this horse",
+    oneTagBlock: isRTL
+      ? "يمكن إضافة وسم واحد فقط لكل خيل — عدّل أو احذف الوسم الحالي"
+      : "Only one tag per horse — edit or delete the existing tag",
+    noTags: isRTL ? "لا توجد وسوم" : "No tags",
+    required: isRTL ? "اسم الوسم مطلوب." : "Tag name is required.",
+    duplicate: isRTL ? "هذا الوسم موجود بالفعل." : "This tag already exists.",
+    error: isRTL ? "تعذر حفظ الوسم." : "Failed to save tag.",
+    inherited: isRTL ? "موروث" : "Inherited",
+  };
+  const directNames = useMemo(
+    () => new Set(directTags.map((tag) => normalizeTagName(tag.name))),
+    [directTags],
+  );
+
+  const sourceName = (tag: HorseTagDto) => {
+    const en = tag.sourceHorseEnglishName?.trim();
+    const ar = tag.sourceHorseArabicName?.trim();
+    return isRTL ? ar || en || "" : en || ar || "";
+  };
+
+  async function saveTag(
+    method: "POST" | "PUT" | "DELETE",
+    tagId?: number,
+    nextName?: string,
+  ) {
+    setSaving(true);
+    setError("");
+
+    try {
+      const result = await clientApiFetch<ApiResult<HorseTagDto[]>>({
+        method,
+        backendPath: tagId
+          ? `/api/Horses/${horseId}/tags/${tagId}`
+          : `/api/Horses/${horseId}/tags`,
+        nextPath: tagId
+          ? `/api/horses/${horseId}/tags/${tagId}`
+          : `/api/horses/${horseId}/tags`,
+        backendQuery: { idType },
+        nextQuery: { locale, idType },
+        locale: locale as LocaleCode,
+        body:
+          method === "DELETE"
+            ? undefined
+            : method === "POST"
+              ? {
+                  name: nextName,
+                  englishName: horseEnglishName ?? null,
+                  arabicName: horseArabicName ?? null,
+                }
+              : { name: nextName },
+      });
+
+      if (result.succeeded === false) {
+        throw new Error(result.message || labels.error);
+      }
+
+      onChange(result.data ?? []);
+      setName("");
+      setEditingId(null);
+      setEditingName("");
+      if (method !== "DELETE") setOpen(false);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : labels.error);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleAdd(event: FormEvent) {
+    event.preventDefault();
+    const cleaned = name.trim().replace(/\s+/g, " ");
+
+    if (!cleaned) {
+      setError(labels.required);
+      return;
+    }
+
+    if (directNames.has(normalizeTagName(cleaned))) {
+      setError(labels.duplicate);
+      return;
+    }
+
+    saveTag("POST", undefined, cleaned);
+  }
+
+  function startEdit(tag: HorseTagDto) {
+    setOpen(true);
+    setError("");
+    setEditingId(tag.id);
+    setEditingName(tag.name);
+  }
+
+  function openAddForm() {
+    setOpen(true);
+    setError("");
+    setEditingId(null);
+    setEditingName("");
+  }
+
+  function handleUpdate(tag: HorseTagDto) {
+    const cleaned = editingName.trim().replace(/\s+/g, " ");
+
+    if (!cleaned) {
+      setError(labels.required);
+      return;
+    }
+
+    const duplicate = directTags.some(
+      (item) =>
+        item.id !== tag.id &&
+        normalizeTagName(item.name) === normalizeTagName(cleaned),
+    );
+
+    if (duplicate) {
+      setError(labels.duplicate);
+      return;
+    }
+
+    saveTag("PUT", tag.id, cleaned);
+  }
+
+  return (
+    <section className="rounded-[16px] border border-[#e8dbcf] bg-[#fffdfa] p-4 shadow-[0_8px_22px_rgba(61,42,27,0.05)]">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 text-[#3d2a1b]">
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-[#f7f1eb] text-[#6f4127] shadow-sm">
+              <Tag className="h-4 w-4" />
+            </span>
+            <span className="text-lg font-black">{labels.title}</span>
+          </div>
+
+          {!open ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {tags.length ? (
+                tags.slice(0, 5).map((tag) => (
+                  <span
+                    key={`${tag.id}-${tag.sourceHorseId}-${tag.isInherited ? "i" : "d"}`}
+                    className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-black shadow-[0_2px_7px_rgba(52,35,22,0.08)] ${
+                      tag.isInherited
+                        ? "border-[#9dccaa] bg-[#e6f8ea] text-[#155d37]"
+                        : "border-[#e2bd90] bg-[#fff0d6] text-[#5c3420]"
+                    }`}
+                    title={
+                      tag.isInherited && sourceName(tag)
+                        ? `${tag.name} - ${sourceName(tag)}`
+                        : tag.name
+                    }
+                  >
+                    <Tag className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{tag.name}</span>
+                    {tag.isInherited && sourceName(tag) ? (
+                      <span className="max-w-[130px] truncate text-xs font-black opacity-75">
+                        <GitBranch className="me-1 inline h-3.5 w-3.5" />
+                        {sourceName(tag)}
+                      </span>
+                    ) : null}
+                  </span>
+                ))
+              ) : (
+                <span className="rounded-full border border-dashed border-[#d9c9bd] px-3 py-2 text-sm font-bold text-[#8b7a6e]">
+                  {labels.noTags}
+                </span>
+              )}
+              {tags.length > 5 ? (
+                <span className="rounded-full bg-[#f7f1eb] px-3 py-2 text-sm font-black text-[#6f4127]">
+                  +{tags.length - 5}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        {open ? (
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setError("");
+              setEditingId(null);
+              setEditingName("");
+            }}
+            disabled={saving}
+            className="grid h-10 w-10 place-items-center rounded-xl border border-[#e8dbcf] bg-white text-[#6f4127] transition hover:bg-[#f7f1eb]"
+            aria-label={labels.cancel}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={openAddForm}
+            disabled={saving}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#3d2a1b] px-4 text-sm font-black text-white shadow-[0_8px_18px_rgba(61,42,27,0.16)] transition hover:bg-[#513823] disabled:cursor-not-allowed disabled:bg-[#cbbcad] disabled:shadow-none"
+          >
+            {canAdd ? <Plus className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+            {canAdd ? labels.add : isRTL ? "إدارة الوسم" : "Manage tag"}
+          </button>
+        )}
+      </div>
+
+      {open ? (
+        <div className="mt-4 border-t border-[#eee3d9] pt-4">
+          <div className="mb-3 flex flex-wrap gap-2">
+            {tags.length ? (
+              tags.map((tag) => (
+                <div
+                  key={`editor-${tag.id}-${tag.sourceHorseId}-${tag.isInherited ? "i" : "d"}`}
+                  className={`flex items-center gap-2 rounded-full border px-3 py-2 text-sm shadow-sm ${
+                    tag.isInherited
+                      ? "border-[#bcdac6] bg-[#eef8f1] text-[#245338]"
+                      : "border-[#e6c9ad] bg-[#fff3e2] text-[#63391f]"
+                  }`}
+                >
+                  {editingId === tag.id && !tag.isInherited ? (
+                    <>
+                      <input
+                        value={editingName}
+                        onChange={(event) => setEditingName(event.target.value)}
+                        maxLength={80}
+                        disabled={saving}
+                        className="h-9 w-44 rounded-lg border border-[#d9c9bd] bg-white px-3 font-bold outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleUpdate(tag)}
+                        disabled={saving}
+                        className="grid h-8 w-8 place-items-center rounded-full bg-[#3d2a1b] text-white disabled:opacity-60"
+                        aria-label={labels.save}
+                      >
+                        <Save className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        disabled={saving}
+                        className="grid h-8 w-8 place-items-center rounded-full bg-white text-[#6f4127] disabled:opacity-60"
+                        aria-label={labels.cancel}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Tag className="h-4 w-4 shrink-0" />
+                      <span className="font-black">{tag.name}</span>
+                      {tag.isInherited ? (
+                        <span className="text-xs font-bold opacity-75">
+                          <GitBranch className="me-1 inline h-3.5 w-3.5" />
+                          {sourceName(tag) || labels.inherited}
+                        </span>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => startEdit(tag)}
+                            disabled={saving}
+                            className="grid h-8 w-8 place-items-center rounded-full bg-white text-[#6f4127] disabled:opacity-60"
+                            aria-label={isRTL ? "تعديل" : "Edit"}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => saveTag("DELETE", tag.id)}
+                            disabled={saving}
+                            className="grid h-8 w-8 place-items-center rounded-full bg-white text-[#a6423a] disabled:opacity-60"
+                            aria-label={isRTL ? "حذف" : "Delete"}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              ))
+            ) : (
+              <span className="rounded-xl border border-dashed border-[#d9c9bd] px-3 py-2 text-sm text-[#8b7a6e]">
+                {labels.noTags}
+              </span>
+            )}
+          </div>
+
+          <form onSubmit={handleAdd} className="flex flex-col gap-2 sm:flex-row">
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={80}
+              disabled={!canAdd || saving}
+              placeholder={canAdd ? labels.placeholder : labels.oneTagBlock}
+              className="h-11 min-w-0 flex-1 rounded-xl border border-[#d9c9bd] bg-[#fdfbf7] px-3 text-sm font-bold text-[#2a2a2a] outline-none focus:border-[#3d2a1b] disabled:bg-[#f1ece7]"
+            />
+            <button
+              type="submit"
+              disabled={!canAdd || saving}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#3d2a1b] px-4 text-sm font-black text-white disabled:opacity-60"
+            >
+              <Save className="h-4 w-4" />
+              {labels.save}
+            </button>
+          </form>
+
+          {error ? (
+            <div className="mt-3 rounded-xl border border-[#f2c7c7] bg-[#fff3f3] px-3 py-2 text-sm font-bold text-[#b04444]">
+              {error}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+};
+
+const PedigreeTagsSkeleton = () => (
+  <section className="animate-pulse rounded-[16px] border border-[#e8dbcf] bg-[#fffdfa] p-4 shadow-[0_8px_22px_rgba(61,42,27,0.05)]">
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        <span className="h-9 w-9 rounded-full bg-[#f0e7dc]" />
+        <span className="h-5 w-28 rounded-full bg-[#f0e7dc]" />
+      </div>
+      <span className="h-11 w-28 rounded-xl bg-[#f0e7dc]" />
+    </div>
+    <div className="mt-3 flex flex-wrap gap-2">
+      <span className="h-10 w-24 rounded-full bg-[#f0e7dc]" />
+      <span className="h-10 w-32 rounded-full bg-[#f0e7dc]" />
+    </div>
+  </section>
+);
+
+const PedigreeReadonlyTags = ({
+  tags,
+  isRTL,
+}: {
+  tags: HorseTagDto[];
+  isRTL: boolean;
 }) => {
   const sourceName = (tag: HorseTagDto) => {
     const en = tag.sourceHorseEnglishName?.trim();
     const ar = tag.sourceHorseArabicName?.trim();
     return isRTL ? ar || en || "" : en || ar || "";
   };
-  const ExpandDirectionIcon = isRTL ? ChevronRight : ChevronLeft;
-  const branchColumns = branch?.columns.slice(1) ?? [];
-  const hasBranch = branchColumns.length > 0;
-  const canLoadMoreBranch =
-    Boolean(branch) &&
-    !branch?.endReached &&
-    branch!.requestedLevels < branch!.maxAdditionalLevels;
 
   return (
-    <div
-      dir="ltr"
-      className="group absolute left-0 right-0 px-[2px]"
-      style={{
-        top: `calc(${top}% - ${NODE_HEIGHT_PX / 2}px)`,
-        height: `${NODE_HEIGHT_PX}px`,
-      }}
-    >
-      <button
-        type="button"
-        onClick={() => onClick(node)}
-        onMouseEnter={() => node.duplicateColor && onDuplicateHover(node.id)}
-        onMouseLeave={() => node.duplicateColor && onDuplicateHover(null)}
-        onFocus={() => node.duplicateColor && onDuplicateHover(node.id)}
-        onBlur={() => node.duplicateColor && onDuplicateHover(null)}
-        className="relative flex h-full w-full flex-col items-center justify-center gap-1 rounded-[8px] border border-dashed border-[#bbb3aa] bg-[#f7f3ee]/80 px-2 text-center font-serif text-[13px] leading-none text-[#2c3953] shadow-[0_1px_0_rgba(0,0,0,0.02)] transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#4a2b1a]/30 sm:text-[12px] md:text-[13px] lg:text-[14px] xl:text-[15px]"
-        style={
-          node.duplicateColor
-            ? {
-                backgroundColor: node.duplicateColor.background,
-                borderColor: node.duplicateColor.border,
-                borderWidth: highlighted ? "3px" : "1px",
-                boxShadow: highlighted
-                  ? `0 0 0 3px ${node.duplicateColor.border}35, 0 5px 14px rgba(0,0,0,0.16)`
-                  : undefined,
-                transform: highlighted ? "scale(1.04)" : undefined,
-                zIndex: highlighted ? 10 : undefined,
-                direction: "ltr",
-                unicodeBidi: "isolate",
-              }
-            : {
-                direction: "ltr",
-                unicodeBidi: "isolate",
-              }
-        }
-      >
-        <ParentIcon role={node.role} />
-        <span className="block min-w-0 truncate whitespace-nowrap">
-          {node.name}
+    <section className="rounded-[16px] border border-[#e8dbcf] bg-[#fffdfa] p-4 shadow-[0_8px_22px_rgba(61,42,27,0.05)]">
+      <div className="mb-3 flex items-center gap-2 text-[#3d2a1b]">
+        <span className="grid h-9 w-9 place-items-center rounded-full bg-[#f7f1eb] text-[#6f4127] shadow-sm">
+          <Tag className="h-4 w-4" />
         </span>
-        {node.tags?.length ? (
-          <span className="flex max-w-full items-center gap-1 overflow-hidden">
-            {node.tags.slice(0, 2).map((tag) => (
-              <span
-                key={`${tag.id}-${tag.sourceHorseId}`}
-                className={`flex max-w-[118px] flex-col rounded-full border px-2 py-0.5 text-[9px] font-bold leading-none shadow-[0_1px_0_rgba(0,0,0,0.04)] ${
-                  tag.isInherited
-                    ? "border-[#a8d3b5] bg-[#e5f5e9] text-[#245338]"
-                    : "border-[#e1c09d] bg-[#fff0dc] text-[#5a3824]"
-                }`}
-                title={
-                  tag.isInherited && sourceName(tag)
-                    ? `${tag.name} - ${isRTL ? "من" : "from"} ${sourceName(tag)}`
-                    : tag.name
-                }
-              >
-                <span className="truncate">{tag.name}</span>
-                {tag.isInherited && sourceName(tag) ? (
-                  <span className="mt-0.5 truncate text-[8px] font-black opacity-75">
-                    {isRTL ? "من" : "from"} {sourceName(tag)}
-                  </span>
-                ) : null}
-              </span>
-            ))}
-            {node.tags.length > 2 ? (
-              <span className="text-[9px] font-bold text-[#6b5f57]">+{node.tags.length - 2}</span>
-            ) : null}
+        <span className="text-lg font-black">
+          {isRTL ? "وسوم العائلة" : "Family tags"}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {!tags.length ? (
+          <span className="rounded-full border border-dashed border-[#d9c9bd] px-3 py-2 text-sm font-bold text-[#8b7a6e]">
+            {isRTL ? "لا توجد وسوم" : "No tags"}
           </span>
         ) : null}
-      </button>
-
-      {canExpand && onExpand && !hasBranch ? (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onExpand(node, nodeKey);
-          }}
-          disabled={isExpanding}
-          className="absolute bottom-1 right-1 z-30 flex max-w-[calc(100%-8px)] items-center gap-1 rounded-full border border-[#d4b891] bg-[#fffaf1]/95 px-2 py-1 text-[9px] font-black uppercase tracking-[0.02em] text-[#5b321d] opacity-0 shadow-[0_5px_14px_rgba(74,43,26,0.16)] transition duration-150 hover:border-[#b7834f] hover:bg-white focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-[#b7834f]/30 disabled:cursor-wait disabled:opacity-70 group-hover:opacity-100 group-focus-within:opacity-100"
-          title={
-            isRTL
-              ? "عرض أجداد هذا الخيل"
-              : "Show this horse's ancestors"
-          }
-        >
-          {isExpanding ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <ExpandDirectionIcon className="h-3.5 w-3.5" />
-          )}
-          <span className="truncate whitespace-nowrap">
-            {isRTL ? "أجداد أكثر" : "More ancestors"}
+        {tags.map((tag) => (
+          <span
+            key={`readonly-${tag.id}-${tag.sourceHorseId}-${tag.isInherited ? "i" : "d"}`}
+            className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-black shadow-[0_2px_7px_rgba(52,35,22,0.08)] ${
+              tag.isInherited
+                ? "border-[#9dccaa] bg-[#e6f8ea] text-[#155d37]"
+                : "border-[#e2bd90] bg-[#fff0d6] text-[#5c3420]"
+            }`}
+          >
+            <Tag className="h-4 w-4 shrink-0" />
+            <span className="truncate">{tag.name}</span>
+            {tag.isInherited && sourceName(tag) ? (
+              <span className="max-w-[130px] truncate text-xs font-black opacity-75">
+                <GitBranch className="me-1 inline h-3.5 w-3.5" />
+                {sourceName(tag)}
+              </span>
+            ) : null}
           </span>
-        </button>
-      ) : null}
-
-      {hasBranch ? (
-        <div
-          className="absolute left-full top-1/2 z-40 ml-2 flex max-h-[220px] max-w-[360px] -translate-y-1/2 items-stretch gap-2 overflow-auto rounded-[12px] border border-[#d8c1a4] bg-[#fffaf2]/98 p-2 shadow-[0_18px_45px_rgba(74,43,26,0.20)]"
-          dir="ltr"
-          onMouseEnter={() => node.duplicateColor && onDuplicateHover(node.id)}
-        >
-          {branchColumns.map((column, columnIndex) => (
-            <div
-              key={`${nodeKey}-branch-column-${columnIndex}`}
-              className="grid min-w-[106px] content-center gap-1.5"
-            >
-              {column.map((branchNode) => (
-                <button
-                  key={`${nodeKey}-branch-${columnIndex}-${branchNode.id}-${branchNode.nodeIndex}`}
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onClick(branchNode);
-                  }}
-                  className="h-8 rounded-[7px] border border-[#e3d2bd] bg-white px-2 text-center font-serif text-[10px] font-bold leading-none text-[#2c3953] shadow-[0_1px_0_rgba(0,0,0,0.04)] transition hover:border-[#b7834f] hover:bg-[#fff7e8] focus:outline-none focus:ring-2 focus:ring-[#b7834f]/25"
-                  title={branchNode.name}
-                >
-                  <span className="block truncate">{branchNode.name}</span>
-                </button>
-              ))}
-            </div>
-          ))}
-
-          {canLoadMoreBranch && onExpand ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onExpand(node, nodeKey);
-              }}
-              disabled={isExpanding}
-              className="flex min-w-[68px] flex-col items-center justify-center gap-1 rounded-[9px] border border-dashed border-[#caa77c] bg-[#fff4df] px-2 py-2 text-[9px] font-black uppercase leading-tight text-[#5b321d] transition hover:bg-white disabled:cursor-wait disabled:opacity-70"
-            >
-              {isExpanding ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ExpandDirectionIcon className="h-4 w-4" />
-              )}
-              <span>{isRTL ? "أجداد أكثر" : "More"}</span>
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
+        ))}
+      </div>
+    </section>
   );
 };
 
@@ -660,8 +1179,12 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
   controlsVariant = "default",
   pedigreeData,
   loading = false,
+  onTagsMutated,
 }) => {
-  const { direction } = useLocale();
+  const router = useRouter();
+  const onTagsMutatedRef = useRef(onTagsMutated);
+  onTagsMutatedRef.current = onTagsMutated;
+  const { direction, locale } = useLocale();
   const isRTL = direction === "rtl";
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [isNarrowViewport, setIsNarrowViewport] = useState(false);
@@ -673,8 +1196,10 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
   const [isDownloading, setIsDownloading] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [apiColumns, setApiColumns] = useState<PedigreeNode[][]>([]);
-  const [expandedBranch, setExpandedBranch] = useState<BranchExpansion | null>(
-    null,
+  const [branchSteps, setBranchSteps] = useState<BranchExpansion[]>([]);
+  const [activeBranchStepIndex, setActiveBranchStepIndex] = useState<number | null>(null);
+  const [exhaustedBranchKeys, setExhaustedBranchKeys] = useState<Set<string>>(
+    () => new Set(),
   );
   const [branchLoadingKey, setBranchLoadingKey] = useState<string | null>(null);
   const horseLocalId = horse.localId ?? horse.id;
@@ -688,10 +1213,9 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
   const [summaryHorse, setSummaryHorse] =
     useState<ExternalHorseSummaryItem | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryTagsLoading, setSummaryTagsLoading] = useState(false);
   const [summaryError, setSummaryError] = useState("");
-  const [hoveredDuplicateId, setHoveredDuplicateId] = useState<string | null>(
-    null,
-  );
+  const [hoveredNode, setHoveredNode] = useState<PedigreeNode | null>(null);
 
   const orderedColumns = useMemo(() => [...apiColumns].reverse(), [apiColumns]);
   const topMetaItems = useMemo(() => getTopMetaItems(horse, isRTL), [horse, isRTL]);
@@ -706,20 +1230,54 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
     hasPedigree &&
     apiColumns.length < MAX_PEDIGREE_LEVELS;
   const certificateMinWidth = Math.max(
-    1550,
+    CERTIFICATE_BASE_WIDTH_PX,
     apiColumns.length * MIN_COLUMN_WIDTH_PX,
   );
   const certificateScrollableHeight = Math.max(
-    900,
+    Math.round(CERTIFICATE_BASE_WIDTH_PX / CERTIFICATE_ASPECT),
     Math.round(certificateMinWidth / CERTIFICATE_ASPECT),
   );
   const shouldUseScrollableCanvas = isNarrowViewport || isMobileViewport;
+  const activeBranchStep =
+    activeBranchStepIndex === null ? null : branchSteps[activeBranchStepIndex] ?? null;
+  const hoveredRelationIds = useMemo(() => {
+    if (!hoveredNode) return new Set<string>();
+
+    const relatedIds = new Set<string>();
+    const hoverStudbookId = hoveredNode.studbookId;
+    const parentIds = [hoveredNode.fatherId, hoveredNode.motherId]
+      .filter((id): id is number => Boolean(id))
+      .map(String);
+    const allVisibleNodes = [
+      ...apiColumns.flat(),
+      ...(activeBranchStep?.columns.flat() ?? []),
+    ];
+
+    parentIds.forEach((id) => relatedIds.add(id));
+
+    if (hoverStudbookId) {
+      allVisibleNodes.forEach((node) => {
+        if (
+          node.fatherId === hoverStudbookId ||
+          node.motherId === hoverStudbookId
+        ) {
+          relatedIds.add(String(node.studbookId ?? node.id));
+        }
+      });
+    }
+
+    relatedIds.delete(String(hoveredNode.studbookId ?? hoveredNode.id));
+
+    return relatedIds;
+  }, [activeBranchStep, apiColumns, hoveredNode]);
 
   useEffect(() => {
     if (pedigreeData !== undefined) {
       setTreeError("");
       setIsTreeLoading(loading);
-      setExpandedBranch(null);
+      setBranchSteps([]);
+      setActiveBranchStepIndex(null);
+      setExhaustedBranchKeys(new Set());
       setBranchLoadingKey(null);
 
       if (!loading) {
@@ -735,7 +1293,9 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
       setApiColumns([]);
       setIsTreeLoading(false);
       setTreeError("");
-      setExpandedBranch(null);
+      setBranchSteps([]);
+      setActiveBranchStepIndex(null);
+      setExhaustedBranchKeys(new Set());
       setBranchLoadingKey(null);
       return;
     }
@@ -746,7 +1306,9 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
       setIsTreeLoading(true);
       setTreeError("");
       setApiColumns([]);
-      setExpandedBranch(null);
+      setBranchSteps([]);
+      setActiveBranchStepIndex(null);
+      setExhaustedBranchKeys(new Set());
       setBranchLoadingKey(null);
 
       try {
@@ -759,6 +1321,13 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
 
         if (mounted) {
           setApiColumns(mappedLevels);
+
+          // The backend caches this pedigree right after responding; refresh
+          // the profile tags shortly after so inherited tags resolved through
+          // the cached tree appear without a manual reload.
+          window.setTimeout(() => {
+            if (mounted) onTagsMutatedRef.current?.();
+          }, 2500);
         }
       } catch (requestError) {
         if (mounted) {
@@ -878,14 +1447,20 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
       return;
     }
 
-    const existing =
-      expandedBranch?.nodeKey === nodeKey ? expandedBranch : null;
+    const existingIndex = branchSteps.findIndex((step) => step.nodeKey === nodeKey);
+    if (existingIndex >= 0) {
+      setSummaryOpen(false);
+      setActiveBranchStepIndex(existingIndex);
+      return;
+    }
+
     const requestedLevels = Math.min(
       maxAdditionalLevels,
-      (existing?.requestedLevels ?? 0) + PEDIGREE_LEVEL_STEP,
+      PEDIGREE_LEVEL_STEP,
     );
 
     try {
+      setSummaryOpen(false);
       setBranchLoadingKey(nodeKey);
       setTreeError("");
 
@@ -904,16 +1479,32 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
       const levels = normalizePedigreeLevels(result.data);
       const mappedLevels = mapPedigreeLevels(levels, isRTL);
 
-      setExpandedBranch({
+      if (mappedLevels.length <= 1) {
+        setExhaustedBranchKeys((current) => {
+          const next = new Set(current);
+          next.add(nodeKey);
+          return next;
+        });
+        return;
+      }
+
+      const step: BranchExpansion = {
         nodeKey,
         horseId,
+        title: node.name,
+        rootNode: node,
         columns: mappedLevels,
         requestedLevels,
         maxAdditionalLevels,
         endReached:
-          mappedLevels.length <= (existing?.columns.length ?? 1) ||
           requestedLevels >= maxAdditionalLevels ||
           mappedLevels.length <= 1,
+      };
+
+      setBranchSteps((current) => {
+        const next = nodeKey.startsWith("modal-") ? [...current, step] : [step];
+        setActiveBranchStepIndex(next.length - 1);
+        return next;
       });
     } catch (requestError) {
       setTreeError(
@@ -972,6 +1563,10 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
     setSummaryHorse(null);
     setSummaryError("");
 
+    // Refresh this horse's tags from the tags API so the popup always shows
+    // the full effective list, not just what the tree enrichment attached.
+    fetchNodeTags(node);
+
     if (!node.studbookId) {
       setSummaryError(
         isRTL
@@ -996,6 +1591,80 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
     } finally {
       setSummaryLoading(false);
     }
+  };
+
+  const applyNodeTags = (ref: PedigreeNode, tags: HorseTagDto[]) => {
+    const matches = (node: PedigreeNode) =>
+      ref.localId
+        ? node.localId === ref.localId
+        : Boolean(ref.studbookId) && node.studbookId === ref.studbookId;
+
+    // The API response for external horses holds direct tags only, so keep
+    // the inherited chips the tree enrichment already attached to the node.
+    const nextTagsFor = (node: PedigreeNode) => {
+      const names = new Set(tags.map((tag) => normalizeTagName(tag.name)));
+      const keptInherited = (node.tags ?? []).filter(
+        (tag) => tag.isInherited && !names.has(normalizeTagName(tag.name)),
+      );
+      return [...tags, ...keptInherited];
+    };
+
+    const applyTags = (columns: PedigreeNode[][]) =>
+      columns.map((column) =>
+        column.map((node) =>
+          matches(node) ? { ...node, tags: nextTagsFor(node) } : node,
+        ),
+      );
+
+    setApiColumns((current) => applyTags(current));
+    setBranchSteps((current) =>
+      current.map((step) => ({
+        ...step,
+        rootNode: matches(step.rootNode)
+          ? { ...step.rootNode, tags: nextTagsFor(step.rootNode) }
+          : step.rootNode,
+        columns: applyTags(step.columns),
+      })),
+    );
+    setSummaryNode((current) =>
+      current && matches(current)
+        ? { ...current, tags: nextTagsFor(current) }
+        : current,
+    );
+  };
+
+  const updateNodeTags = (ref: PedigreeNode, tags: HorseTagDto[]) => {
+    applyNodeTags(ref, tags);
+
+    // Let the parent page (horse profile) re-fetch its own tags so inherited
+    // tags from the horse that was just tagged show up without a reload.
+    onTagsMutatedRef.current?.();
+  };
+
+  const fetchNodeTags = (node: PedigreeNode) => {
+    const tagsHorseId = node.localId ?? node.studbookId;
+    if (!tagsHorseId) return;
+
+    const idType = node.localId ? "local" : "studbook";
+
+    setSummaryTagsLoading(true);
+
+    clientApiFetch<ApiResult<HorseTagDto[]>>({
+      backendPath: `/api/Horses/${tagsHorseId}/tags`,
+      nextPath: `/api/horses/${tagsHorseId}/tags`,
+      backendQuery: { idType },
+      nextQuery: { locale, idType },
+      locale: locale as LocaleCode,
+    })
+      .then((result) => {
+        if (result.succeeded !== false) applyNodeTags(node, result.data ?? []);
+      })
+      .catch(() => {
+        // Keep the tags already attached to the tree node.
+      })
+      .finally(() => {
+        setSummaryTagsLoading(false);
+      });
   };
 
   const summaryName = summaryHorse
@@ -1116,40 +1785,92 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
 
       {isTreeLoading ? (
         <div
-          className="rounded-[26px] bg-[#efeae5] p-3"
+          className="rounded-[26px] bg-[#e8ead1] p-2 sm:p-3"
           dir="ltr"
           style={{ direction: "ltr" }}
         >
           <div
-            className="relative aspect-[1600/1200] w-full overflow-hidden rounded-[20px] bg-[#f7f3ee] shadow-[0_10px_30px_rgba(0,0,0,0.05)]"
+            className="relative mx-auto aspect-[1600/1340] w-full overflow-hidden rounded-[6px] bg-[#f2f5c6] shadow-[0_10px_30px_rgba(0,0,0,0.05)]"
             dir="ltr"
-            style={{ direction: "ltr" }}
+            style={{ direction: "ltr", maxWidth: `${CERTIFICATE_BASE_WIDTH_PX}px` }}
           >
-            <div
-              className="grid h-full grid-cols-5 gap-x-4 px-8 py-10"
-              dir="ltr"
-              style={{ direction: "ltr" }}
-            >
-              {[4, 3, 2, 1, 0].map((columnIndex) => (
-                <div
-                  key={columnIndex}
-                  className="flex flex-col justify-around"
-                >
-                  {Array.from({
-                    length: 2 ** Math.min(columnIndex + 1, 5),
-                  }).map((__, itemIndex) => (
+            <CertificateBorder />
+
+            <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center px-8">
+              <img
+                src="/WhatsApp%20Image%202026-06-29%20at%204.11.34%20PM.jpeg"
+                alt="Pedigree Center Logo"
+                className="h-auto w-[74%] max-w-[920px] object-contain opacity-[0.075] mix-blend-multiply"
+              />
+            </div>
+
+            <div className="relative z-10 flex h-full flex-col px-7 pb-7 pt-5 sm:px-9 sm:pb-9 sm:pt-7 lg:px-10 lg:pb-10 lg:pt-8 xl:px-12">
+              <TopMetaRow
+                isRTL={isRTL}
+                items={[
+                  { label: isRTL ? "النوع" : "Gender", value: "..." },
+                  { label: isRTL ? "تاريخ الميلاد" : "Birth Date", value: "..." },
+                  { label: isRTL ? "الرسن" : "Strain", value: "..." },
+                  { label: isRTL ? "المنتج" : "Breeder", value: "..." },
+                  { label: isRTL ? "المربي" : "Owner", value: "..." },
+                ]}
+              />
+
+              <div
+                className="relative min-h-0 flex-1 animate-pulse pt-4"
+                dir="ltr"
+                style={{
+                  direction: "ltr",
+                  fontFamily: isRTL
+                    ? "'Diwani Letter', 'SF Pro AR', serif"
+                    : "'SF Pro AR', serif",
+                }}
+              >
+                {[32, 21, 13, 8, 3, 1].map((count, columnIndex, columns) => {
+                  const columnCount = columns.length;
+                  const gapPx = 10;
+                  const columnWidth = `calc((100% - ${
+                    (columnCount - 1) * gapPx
+                  }px) / ${columnCount})`;
+
+                  return (
                     <div
-                      key={itemIndex}
-                      className="flex h-[28px] items-center gap-1 rounded-[8px] bg-[#ded6cf] px-1.5"
+                      key={`skeleton-column-${columnIndex}`}
+                      className="absolute top-0 h-full"
+                      style={{
+                        left: `calc(${
+                          (columnIndex / columnCount) * 100
+                        }% + ${
+                          columnIndex === 0 ? 0 : columnIndex * gapPx
+                        }px - ${
+                          columnIndex === 0
+                            ? 0
+                            : (columnIndex / columnCount) *
+                              (columnCount - 1) *
+                              gapPx
+                        }px)`,
+                        width: columnWidth,
+                      }}
                     >
-                      {columnIndex > 0 ? (
-                        <span className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#cfc6be]" />
-                      ) : null}
-                      <span className="h-2 flex-1 rounded-full bg-[#cfc6be]" />
+                      {Array.from({ length: count }).map((__, itemIndex) => (
+                        <div
+                          key={`skeleton-${columnIndex}-${itemIndex}`}
+                          className="absolute left-1 right-1 rounded-full bg-[#159456]/20"
+                          style={{
+                            top: `calc(${getTopPercent(
+                              count,
+                              itemIndex,
+                              32,
+                              count > 16 ? 4 : 3,
+                            )}% - ${columnIndex > 4 ? 15 : 8}px)`,
+                            height: columnIndex > 4 ? 30 : 16,
+                          }}
+                        />
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -1166,13 +1887,13 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
       ) : (
         <div
           ref={fullscreenRef}
-          className={`rounded-[26px] bg-[#efeae5] p-2 sm:p-3 ${
+          className={`rounded-[26px] bg-[#e8ead1] p-2 sm:p-3 ${
             isFullscreen && !isMobileViewport
-              ? "flex min-h-screen items-center justify-center bg-[#efeae5]"
+              ? "flex min-h-screen items-center justify-center bg-[#e8ead1]"
               : ""
           } ${
             isFullscreen && isMobileViewport
-              ? "fixed inset-0 z-[70] rounded-none bg-[#efeae5] p-3"
+              ? "fixed inset-0 z-[70] rounded-none bg-[#e8ead1] p-3"
               : ""
           }`}
         >
@@ -1192,7 +1913,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
           <div
             dir="ltr"
             ref={scrollerRef}
-            className={`w-full rounded-[22px] ${
+            className={`flex w-full justify-center rounded-[22px] ${
               isFullscreen && !shouldUseScrollableCanvas
                 ? "flex items-center justify-center overflow-hidden"
                 : ""
@@ -1215,44 +1936,39 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
           >
             <div
               ref={exportRef}
-              className="relative overflow-hidden rounded-[20px] bg-[#f7f3ee] shadow-[0_10px_30px_rgba(0,0,0,0.05)]"
+              className="relative overflow-hidden rounded-[6px] bg-[#f2f5c6] shadow-[0_10px_30px_rgba(0,0,0,0.05)]"
               style={{
                 aspectRatio: `${CERTIFICATE_ASPECT}`,
                 width: shouldUseScrollableCanvas
                   ? `${certificateMinWidth}px`
                   : isFullscreen
                     ? `min(96vw, calc((100dvh - 72px) * ${CERTIFICATE_ASPECT}))`
-                    : "100%",
+                    : `min(100%, ${CERTIFICATE_BASE_WIDTH_PX}px)`,
                 minWidth: shouldUseScrollableCanvas
                   ? `${certificateMinWidth}px`
                   : undefined,
                 height: shouldUseScrollableCanvas
                   ? `${certificateScrollableHeight}px`
                   : undefined,
-                maxWidth:
-                  shouldUseScrollableCanvas || isFullscreen ? undefined : "100%",
+                maxWidth: isFullscreen ? undefined : `${CERTIFICATE_BASE_WIDTH_PX}px`,
               }}
             >
-              <img
-                src="/horse/border.png"
-                alt="Border Frame"
-                className="pointer-events-none absolute inset-0 z-0 h-full w-full object-fill"
-              />
+              <CertificateBorder />
 
               <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center px-8">
                 <img
-                  src="/horse/centerinnerlogoofpedgree.svg"
+                  src="/WhatsApp%20Image%202026-06-29%20at%204.11.34%20PM.jpeg"
                   alt="Pedigree Center Logo"
-                  className="h-auto w-[28%] max-w-[340px] object-contain"
+                  className="h-auto w-[74%] max-w-[920px] object-contain opacity-[0.075] mix-blend-multiply"
                 />
               </div>
 
-              <div className="relative z-10 flex h-full flex-col px-5 pb-8 pt-8 sm:px-7 sm:pb-10 sm:pt-10 lg:px-8 lg:pb-12 lg:pt-12 xl:px-10">
+              <div className="relative z-10 flex h-full flex-col px-7 pb-7 pt-5 sm:px-9 sm:pb-9 sm:pt-7 lg:px-10 lg:pb-10 lg:pt-8 xl:px-12">
                 <TopMetaRow items={topMetaItems} isRTL={isRTL} />
 
                 <div
                   dir="ltr"
-                  className="relative min-h-0 flex-1"
+                  className="relative min-h-0 flex-1 pt-4"
                   style={{ direction: "ltr" }}
                 >
                   {orderedColumns.map((column, columnIndex) => {
@@ -1292,17 +2008,20 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
                               nodeKey={nodeKey}
                               node={node}
                               isRTL={isRTL}
+                              columnSize={column.length}
                               top={getTopPercent(
                                 column.length,
                                 nodeIndex,
                                 maxLeafCount,
+                                column.length > 16 ? 4 : 3,
                               )}
                               onClick={handleNodeClick}
                               highlighted={Boolean(
                                 node.duplicateColor &&
-                                  hoveredDuplicateId === node.id,
+                                  hoveredNode?.id === node.id,
                               )}
-                              onDuplicateHover={setHoveredDuplicateId}
+                              related={hoveredRelationIds.has(String(node.studbookId ?? node.id))}
+                              onNodeHover={setHoveredNode}
                               canExpand={
                                 canExpandPedigree &&
                                 columnIndex === 0 &&
@@ -1310,11 +2029,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
                                 Boolean(node.studbookId)
                               }
                               isExpanding={branchLoadingKey === nodeKey}
-                              branch={
-                                expandedBranch?.nodeKey === nodeKey
-                                  ? expandedBranch
-                                  : null
-                              }
+                              isExhausted={exhaustedBranchKeys.has(nodeKey)}
                               onExpand={handleExpandBranch}
                             />
                           );
@@ -1325,25 +2040,332 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
                 </div>
               </div>
 
-              <div
-                className={`pointer-events-none absolute bottom-8 z-20 h-8 w-24 sm:bottom-5 sm:h-9 sm:w-28 md:h-10 md:w-32 ${
-                  isRTL ? "right-7 sm:right-10" : "left-7 sm:left-5"
-                }`}
-              >
-                <img
-                  src="/horse/studbooklogo.png"
-                  alt="Studbook Logo"
-                  className={`h-full w-full object-contain ${
-                    isRTL ? "object-right" : "object-left"
-                  }`}
-                />
-              </div>
             </div>
           </div>
         </div>
       )}
 
-      {summaryOpen ? (
+      {activeBranchStep ? (
+        <div
+          className="fixed inset-0 z-[130] flex items-center justify-center bg-black/55 p-3"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setSummaryOpen(false);
+              setActiveBranchStepIndex(null);
+            }
+          }}
+        >
+          <div
+            dir={direction}
+            className="flex h-[92dvh] w-full max-w-6xl flex-col overflow-hidden rounded-[18px] bg-[#e8ead1] p-3 shadow-2xl"
+          >
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-[14px] bg-[#f2f5c6]/70 px-3 py-2 shadow-[inset_0_0_0_1px_rgba(21,148,86,0.12)]">
+              <div
+                className="flex min-w-0 flex-1 items-center overflow-x-auto px-1 py-1"
+                dir={isRTL ? "rtl" : "ltr"}
+              >
+                {branchSteps.map((step, index) => {
+                  const active = index === activeBranchStepIndex;
+                  const label = isRTL
+                    ? decorateArabicName(step.title, `${step.nodeKey}-step`)
+                    : step.title;
+
+                  return (
+                    <div
+                      key={step.nodeKey}
+                      className="flex shrink-0 items-center"
+                    >
+                      {index > 0 ? (
+                        <span className="mx-1 h-[2px] w-8 rounded-full bg-[#159456]/35" />
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveBranchStepIndex(index)}
+                        className={`flex min-w-[118px] items-center gap-2 rounded-full border px-2.5 py-1.5 text-sm font-bold transition ${
+                          active
+                            ? "border-[#159456] bg-[#159456] text-white shadow-[0_8px_20px_rgba(21,148,86,0.22)]"
+                            : "border-[#159456]/25 bg-[#fbffd8] text-[#0f7543] hover:border-[#159456]/70 hover:text-[#0b7d48]"
+                        }`}
+                        title={step.title}
+                      >
+                        <span
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] ${
+                            active
+                              ? "bg-white text-[#159456]"
+                              : "bg-[#159456]/10 text-[#0f7543]"
+                          }`}
+                        >
+                          {index + 1}
+                        </span>
+                        <span className="max-w-[150px] truncate">{label}</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSummaryOpen(false);
+                  setActiveBranchStepIndex(null);
+                }}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/90 text-[#203529] shadow"
+                aria-label={isRTL ? "إغلاق" : "Close"}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-auto rounded-[14px] bg-[#e8ead1] p-2" dir="ltr">
+              <div
+                className="relative mx-auto h-full min-h-[720px] w-[1040px] max-w-full overflow-hidden rounded-[6px] bg-[#f2f5c6] shadow-[0_10px_30px_rgba(0,0,0,0.08)]"
+                style={{ aspectRatio: `${CERTIFICATE_ASPECT}` }}
+              >
+                <CertificateBorder />
+
+                <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center px-8">
+                  <img
+                    src="/WhatsApp%20Image%202026-06-29%20at%204.11.34%20PM.jpeg"
+                    alt="Pedigree Center Logo"
+                    className="h-auto w-[74%] max-w-[820px] object-contain opacity-[0.075] mix-blend-multiply"
+                  />
+                </div>
+
+                <div className="relative z-10 flex h-full flex-col px-6 pb-8 pt-7">
+                  <div
+                    className="mb-2 pb-3 text-center text-[#159456]"
+                    style={{
+                      fontFamily: isRTL
+                        ? "'Diwani Letter', 'SF Pro AR', serif"
+                        : "'SF Pro AR', serif",
+                    }}
+                  >
+                    <span className="text-[34px]">
+                      {isRTL
+                        ? decorateArabicName(activeBranchStep.title, `${activeBranchStep.nodeKey}-title`)
+                        : activeBranchStep.title}
+                    </span>
+                    <div className="mx-10 mt-3 h-[3px] rounded-full bg-[#159456]" />
+                  </div>
+
+                  <div className="relative min-h-0 flex-1 pt-4" dir="ltr">
+                    {(() => {
+                      const columns = [...activeBranchStep.columns].reverse();
+                      const modalMaxLeafCount = Math.max(
+                        1,
+                        ...activeBranchStep.columns.map((level) => level.length),
+                      );
+
+                      return (
+                        <>
+                          <PedigreeConnectors
+                            columns={columns}
+                            maxLeafCount={modalMaxLeafCount}
+                          />
+
+                          {columns.map((column, columnIndex) => {
+                      const columnCount = Math.max(1, columns.length);
+                      const gapPx = 10;
+                      const columnWidth = `calc((100% - ${
+                        (columnCount - 1) * gapPx
+                      }px) / ${columnCount})`;
+
+                      return (
+                        <div
+                          key={`branch-modal-${activeBranchStep.nodeKey}-${columnIndex}`}
+                          className="absolute top-0 z-10 h-full"
+                          style={{
+                            left: `calc(${
+                              (columnIndex / columnCount) * 100
+                            }% + ${
+                              columnIndex === 0 ? 0 : columnIndex * gapPx
+                            }px - ${
+                              columnIndex === 0
+                                ? 0
+                                : (columnIndex / columnCount) *
+                                  (columnCount - 1) *
+                                  gapPx
+                            }px)`,
+                            width: columnWidth,
+                          }}
+                        >
+                          {column.map((node, nodeIndex) => {
+                            const nodeKey = `modal-${activeBranchStep.nodeKey}-${columnIndex}-${nodeIndex}-${node.id}`;
+                            const maxAdditionalLevels =
+                              MAX_PEDIGREE_LEVELS - node.generationIndex;
+
+                            return (
+                              <PedigreeBox
+                                key={nodeKey}
+                                nodeKey={nodeKey}
+                                node={node}
+                                isRTL={isRTL}
+                                columnSize={column.length}
+                                top={getTopPercent(
+                                  column.length,
+                                  nodeIndex,
+                                  modalMaxLeafCount,
+                                  column.length > 16 ? 4 : 3,
+                                )}
+                                onClick={handleNodeClick}
+                                highlighted={Boolean(
+                                  node.duplicateColor &&
+                                    hoveredNode?.id === node.id,
+                                )}
+                                related={hoveredRelationIds.has(String(node.studbookId ?? node.id))}
+                                onNodeHover={setHoveredNode}
+                                canExpand={
+                                  canExpandPedigree &&
+                                  columnIndex === 0 &&
+                                  node.role !== "Root" &&
+                                  maxAdditionalLevels > 0 &&
+                                  Boolean(node.studbookId)
+                                }
+                                isExpanding={branchLoadingKey === nodeKey}
+                                isExhausted={exhaustedBranchKeys.has(nodeKey)}
+                                onExpand={handleExpandBranch}
+                              />
+                            );
+                          })}
+                        </div>
+                      );
+                          })}
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {summaryOpen && summaryNode ? (
+              <div
+                dir={direction}
+                className="mt-3 max-h-[44dvh] overflow-auto rounded-[16px] border border-[#159456]/15 bg-white/92 p-4 shadow-[0_10px_30px_rgba(0,0,0,0.10)]"
+              >
+                <div className="mb-3 flex items-start justify-between gap-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <img
+                      src={summaryImage}
+                      alt={summaryName || (isRTL ? "صورة الخيل" : "Horse image")}
+                      className="h-14 w-14 shrink-0 rounded-[14px] object-cover"
+                    />
+                    <div className="min-w-0">
+                      <h3 className="truncate text-lg font-bold text-[#2b1a12]">
+                        {summaryName || (isRTL ? "بيانات الخيل" : "Horse details")}
+                      </h3>
+                      <p className="mt-1 text-xs font-semibold text-[#7a6c63]">
+                        {summaryNode.studbookId
+                          ? `Studbook ID: ${summaryNode.studbookId}`
+                          : ""}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-2">
+                    {summaryNode.localId ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSummaryOpen(false);
+                          setActiveBranchStepIndex(null);
+                          router.push(`/${locale}/horses/${summaryNode.localId}`);
+                        }}
+                        className="inline-flex h-8 items-center justify-center rounded-full bg-[#3d2a1b] px-3 text-xs font-black text-white transition hover:bg-[#2c1f14]"
+                      >
+                        {isRTL ? "الملف الشخصي" : "View profile"}
+                      </button>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={() => setSummaryOpen(false)}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f7f1eb] text-[#3b2b20]"
+                      aria-label={isRTL ? "إغلاق التفاصيل" : "Close details"}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {summaryLoading ? (
+                  <div className="grid animate-pulse grid-cols-2 gap-2 md:grid-cols-4">
+                    {Array.from({ length: 8 }).map((_, index) => (
+                      <div
+                        key={`branch-summary-skeleton-${index}`}
+                        className="h-16 rounded-xl bg-[#f3ece4]"
+                      />
+                    ))}
+                  </div>
+                ) : summaryError ? (
+                  <div className="rounded-xl border border-[#f2c7c7] bg-[#fff3f3] px-4 py-3 text-sm text-[#b04444]">
+                    {summaryError}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 text-sm text-[#3b2b20] md:grid-cols-4">
+                    {[
+                      [
+                        isRTL ? "النوع" : "Gender",
+                        localizeGender(
+                          summaryHorse?.gender ?? summaryNode.gender,
+                          isRTL ? "ar" : "en",
+                        ),
+                      ],
+                      [
+                        isRTL ? "تاريخ الميلاد" : "Date of birth",
+                        formatDate(summaryHorse?.dateofBirth ?? summaryNode.dateofBirth),
+                      ],
+                      [isRTL ? "الأب" : "Father", summaryFather && summaryFather !== "-" ? summaryFather : "-"],
+                      [isRTL ? "الأم" : "Mother", summaryMother && summaryMother !== "-" ? summaryMother : "-"],
+                      [isRTL ? "اللون" : "Color", summaryColor],
+                      [isRTL ? "ولد في" : "Born in", summaryBornIn],
+                      [isRTL ? "المالك" : "Owner", summaryOwner || "-"],
+                      [isRTL ? "المربي" : "Breeder", summaryBreeder || "-"],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="rounded-xl bg-[#fbf8f4] p-3"
+                      >
+                        <span className="block text-xs font-semibold text-[#7a6c63]">
+                          {label}
+                        </span>
+                        <span className="mt-1 block truncate font-bold">
+                          {value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-3">
+                  {summaryTagsLoading ? (
+                    <PedigreeTagsSkeleton />
+                  ) : summaryNode.localId || summaryNode.studbookId ? (
+                    <PedigreeTagsEditor
+                      horseId={(summaryNode.localId ?? summaryNode.studbookId)!}
+                      idType={summaryNode.localId ? "local" : "studbook"}
+                      horseEnglishName={summaryNode.englishName}
+                      horseArabicName={summaryNode.arabicName}
+                      tags={summaryNode.tags ?? []}
+                      isRTL={isRTL}
+                      locale={locale}
+                      onChange={(tags) => updateNodeTags(summaryNode, tags)}
+                    />
+                  ) : (
+                    <PedigreeReadonlyTags
+                      tags={summaryNode.tags ?? []}
+                      isRTL={isRTL}
+                    />
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {summaryOpen && !activeBranchStep ? (
         <div
           className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 p-4"
           onMouseDown={(event) => {
@@ -1352,18 +2374,18 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
         >
           <div
             dir={direction}
-            className="w-full max-w-lg rounded-[24px] bg-white p-5 shadow-xl"
+            className="max-h-[94dvh] w-full max-w-5xl overflow-auto rounded-[24px] bg-white p-6 shadow-xl"
           >
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div className="flex min-w-0 items-start gap-3">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-4">
                 <img
                   src={summaryImage}
                   alt={summaryName || (isRTL ? "صورة الخيل" : "Horse image")}
-                  className="h-16 w-16 shrink-0 rounded-2xl object-cover"
+                  className="h-20 w-20 shrink-0 rounded-2xl object-cover shadow-md"
                 />
 
                 <div className="min-w-0">
-                  <h3 className="truncate text-lg font-bold text-[#2b1a12]">
+                  <h3 className="truncate text-2xl font-black text-[#2b1a12]">
                     {summaryName || (isRTL ? "بيانات الخيل" : "Horse details")}
                   </h3>
 
@@ -1381,34 +2403,58 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setSummaryOpen(false)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f7f1eb] text-[#3b2b20]"
-                aria-label={isRTL ? "إغلاق" : "Close"}
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                {summaryNode?.localId ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSummaryOpen(false);
+                      router.push(`/${locale}/horses/${summaryNode.localId}`);
+                    }}
+                    className="inline-flex h-9 items-center justify-center rounded-full bg-[#3d2a1b] px-4 text-xs font-black text-white transition hover:bg-[#2c1f14]"
+                  >
+                    {isRTL ? "الملف الشخصي" : "View profile"}
+                  </button>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => setSummaryOpen(false)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f7f1eb] text-[#3b2b20]"
+                  aria-label={isRTL ? "إغلاق" : "Close"}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             {summaryLoading ? (
-              <div className="rounded-2xl bg-[#fbf8f4] px-4 py-8 text-center text-sm text-[#7a6c63]">
-                {isRTL ? "جارٍ التحميل..." : "Loading..."}
+              <div className="grid animate-pulse grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+                {Array.from({ length: 11 }).map((_, index) => (
+                  <div
+                    key={`summary-skeleton-${index}`}
+                    className="h-[74px] rounded-2xl bg-[#f3ece4]"
+                  />
+                ))}
               </div>
             ) : summaryError ? (
               <div className="rounded-2xl border border-[#f2c7c7] bg-[#fff3f3] px-4 py-3 text-sm text-[#b04444]">
                 {summaryError}
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-3 text-sm text-[#3b2b20] sm:grid-cols-2">
-                <div className="rounded-2xl bg-[#fbf8f4] p-3">
-                  <span className="block text-xs font-semibold text-[#7a6c63]">
-                    {isRTL ? "النوع" : "Gender"}
-                  </span>
-                  <span className="mt-1 block font-bold">
-                    {summaryHorse?.gender ?? summaryNode?.gender ?? "-"}
-                  </span>
-                </div>
+              <>
+                <div className="grid grid-cols-2 gap-3 text-sm text-[#3b2b20] md:grid-cols-3 xl:grid-cols-4">
+                  <div className="rounded-2xl bg-[#fbf8f4] p-3">
+                    <span className="block text-xs font-semibold text-[#7a6c63]">
+                      {isRTL ? "النوع" : "Gender"}
+                    </span>
+                    <span className="mt-1 block font-bold">
+                      {localizeGender(
+                        summaryHorse?.gender ?? summaryNode?.gender,
+                        isRTL ? "ar" : "en",
+                      )}
+                    </span>
+                  </div>
 
                 <div className="rounded-2xl bg-[#fbf8f4] p-3">
                   <span className="block text-xs font-semibold text-[#7a6c63]">
@@ -1510,8 +2556,31 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
                       .join(" / ") || "-"}
                   </span>
                 </div>
-              </div>
+                </div>
+              </>
             )}
+
+            <div className="mt-4">
+              {summaryTagsLoading ? (
+                <PedigreeTagsSkeleton />
+              ) : summaryNode && (summaryNode.localId || summaryNode.studbookId) ? (
+                <PedigreeTagsEditor
+                  horseId={(summaryNode.localId ?? summaryNode.studbookId)!}
+                  idType={summaryNode.localId ? "local" : "studbook"}
+                  horseEnglishName={summaryNode.englishName}
+                  horseArabicName={summaryNode.arabicName}
+                  tags={summaryNode.tags ?? []}
+                  isRTL={isRTL}
+                  locale={locale}
+                  onChange={(tags) => updateNodeTags(summaryNode, tags)}
+                />
+              ) : (
+                <PedigreeReadonlyTags
+                  tags={summaryNode?.tags ?? []}
+                  isRTL={isRTL}
+                />
+              )}
+            </div>
           </div>
         </div>
       ) : null}

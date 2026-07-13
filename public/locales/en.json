@@ -549,7 +549,8 @@
     "noTags": "No family tags yet.",
     "directTag": "Direct",
     "inheritedFrom": "Inherited from",
-    "inheritedTagBlocksAdd": "This horse already inherits a family tag"
+    "inheritedTagBlocksAdd": "This horse already inherits a family tag",
+    "oneTagOnly": "Only one tag per horse — edit or delete the existing tag"
   },
   "matingTest": {
     "title": "Pedigree Analysis",

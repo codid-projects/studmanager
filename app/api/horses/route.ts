@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
       strain: searchParams.get('strain') ?? undefined,
       line: searchParams.get('line') ?? undefined,
       microship: searchParams.get('microship') ?? undefined,
+      tag: searchParams.get('tag') ?? undefined,
       isActive:
         searchParams.get('isActive') === null
           ? undefined

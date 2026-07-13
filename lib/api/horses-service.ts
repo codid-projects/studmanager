@@ -37,6 +37,7 @@ export async function getHorses(params: {
   strain?: string;
   line?: string;
   microship?: string;
+  tag?: string;
   isActive?: boolean;
 } = {}) {
   return apiFetch<PagedResponse<HorseListItemDto>>('/api/Horses', {
@@ -48,6 +49,7 @@ export async function getHorses(params: {
       strain: params.strain,
       line: params.line,
       microship: params.microship,
+      tag: params.tag,
       isActive: params.isActive,
     },
   });
@@ -171,30 +173,44 @@ export async function setHorseDeceasedStatus(localId: string | number, payload: 
   });
 }
 
-export async function getHorseTags(localId: string | number) {
-  const payload = await apiFetch<ApiResult<HorseTagDto[]>>(`/api/Horses/${localId}/tags`);
+export async function getHorseTags(horseId: string | number, idType?: string) {
+  const payload = await apiFetch<ApiResult<HorseTagDto[]>>(`/api/Horses/${horseId}/tags`, {
+    query: { idType },
+  });
   return unwrapResult(payload) ?? [];
 }
 
-export async function addHorseTag(localId: string | number, name: string) {
-  const payload = await apiFetch<ApiResult<HorseTagDto[]>>(`/api/Horses/${localId}/tags`, {
+export async function addHorseTag(
+  horseId: string | number,
+  body: { name: string; englishName?: string | null; arabicName?: string | null },
+  idType?: string,
+) {
+  const payload = await apiFetch<ApiResult<HorseTagDto[]>>(`/api/Horses/${horseId}/tags`, {
     method: 'POST',
-    body: { name },
+    query: { idType },
+    body,
   });
   return unwrapResult(payload) ?? [];
 }
 
-export async function updateHorseTag(localId: string | number, tagId: number, name: string) {
-  const payload = await apiFetch<ApiResult<HorseTagDto[]>>(`/api/Horses/${localId}/tags/${tagId}`, {
+export async function updateHorseTag(
+  horseId: string | number,
+  tagId: number,
+  name: string,
+  idType?: string,
+) {
+  const payload = await apiFetch<ApiResult<HorseTagDto[]>>(`/api/Horses/${horseId}/tags/${tagId}`, {
     method: 'PUT',
+    query: { idType },
     body: { name },
   });
   return unwrapResult(payload) ?? [];
 }
 
-export async function deleteHorseTag(localId: string | number, tagId: number) {
-  const payload = await apiFetch<ApiResult<HorseTagDto[]>>(`/api/Horses/${localId}/tags/${tagId}`, {
+export async function deleteHorseTag(horseId: string | number, tagId: number, idType?: string) {
+  const payload = await apiFetch<ApiResult<HorseTagDto[]>>(`/api/Horses/${horseId}/tags/${tagId}`, {
     method: 'DELETE',
+    query: { idType },
   });
   return unwrapResult(payload) ?? [];
 }

@@ -549,7 +549,8 @@
     "noTags": "لا توجد وسوم عائلية بعد.",
     "directTag": "مباشر",
     "inheritedFrom": "موروث من",
-    "inheritedTagBlocksAdd": "هذا الخيل يرث وسمًا عائليًا بالفعل"
+    "inheritedTagBlocksAdd": "هذا الخيل يرث وسمًا عائليًا بالفعل",
+    "oneTagOnly": "يمكن إضافة وسم واحد فقط لكل خيل — عدّل أو احذف الوسم الحالي"
   },
   "matingTest": {
     "title": "تحليل الرسن",

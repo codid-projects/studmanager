@@ -143,6 +143,7 @@ export function HorsesPageClient({
   const [strainFilter, setStrainFilter] = useState('');
   const [lineFilter, setLineFilter] = useState('');
   const [microshipFilter, setMicroshipFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
   const [isActiveFilter, setIsActiveFilter] = useState<'' | 'true' | 'false'>('');
 
   const [strains, setStrains] = useState<LineageNameDto[]>([]);
@@ -183,6 +184,7 @@ export function HorsesPageClient({
       strain: isRTL ? 'السلالة' : 'Strain',
       line: isRTL ? 'الخط' : 'Line',
       microship: t('horses.microshipFilterLabel'),
+      tag: isRTL ? 'الوسم' : 'Tag',
       status: t('horses.statusFilterLabel'),
     }),
     [isRTL, pageInfo.totalCount, t],
@@ -254,6 +256,7 @@ export function HorsesPageClient({
     const strain = strainFilter || undefined;
     const line = lineFilter || undefined;
     const microship = microshipFilter.trim() || undefined;
+    const tag = tagFilter.trim() || undefined;
     const isActive =
       isActiveFilter === '' ? undefined : isActiveFilter === 'true';
 
@@ -263,6 +266,7 @@ export function HorsesPageClient({
       strain,
       line,
       microship,
+      tag,
       isActive,
     };
   }, [
@@ -272,6 +276,7 @@ export function HorsesPageClient({
     lineFilter,
     microshipFilter,
     strainFilter,
+    tagFilter,
   ]);
 
   const hasActiveFilters = Boolean(
@@ -280,6 +285,7 @@ export function HorsesPageClient({
       strainFilter ||
       lineFilter ||
       microshipFilter.trim() ||
+      tagFilter.trim() ||
       isActiveFilter,
   );
 
@@ -339,6 +345,15 @@ export function HorsesPageClient({
       });
     }
 
+    if (tagFilter.trim()) {
+      badges.push({
+        key: 'tag',
+        label: uiText.tag,
+        value: tagFilter.trim(),
+        onClear: () => setTagFilter(''),
+      });
+    }
+
     if (isActiveFilter) {
       badges.push({
         key: 'isActive',
@@ -362,6 +377,7 @@ export function HorsesPageClient({
     specialLines,
     strainFilter,
     strains,
+    tagFilter,
     t,
     uiText.gender,
     uiText.line,
@@ -369,6 +385,7 @@ export function HorsesPageClient({
     uiText.search,
     uiText.status,
     uiText.strain,
+    uiText.tag,
   ]);
 
   const clearFilters = () => {
@@ -378,6 +395,7 @@ export function HorsesPageClient({
     setStrainFilter('');
     setLineFilter('');
     setMicroshipFilter('');
+    setTagFilter('');
     setIsActiveFilter('');
   };
 
@@ -409,6 +427,7 @@ export function HorsesPageClient({
             strain: filtersQuery.strain,
             line: filtersQuery.line,
             microship: filtersQuery.microship,
+            tag: filtersQuery.tag,
             isActive: filtersQuery.isActive,
           },
           nextQuery: {
@@ -419,6 +438,7 @@ export function HorsesPageClient({
             strain: filtersQuery.strain,
             line: filtersQuery.line,
             microship: filtersQuery.microship,
+            tag: filtersQuery.tag,
             isActive: filtersQuery.isActive,
             locale,
           },
@@ -840,7 +860,7 @@ export function HorsesPageClient({
               />
             </div>
 
-            <div className="relative min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-4">
+            <div className="relative min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-3">
               <input
                 type="search"
                 value={microshipFilter}
@@ -853,6 +873,22 @@ export function HorsesPageClient({
               />
               <span className={`pointer-events-none absolute top-2 text-[11px] font-semibold text-[#927b6c] ${isRTL ? 'right-4' : 'left-4'}`}>
                 {t('horses.microshipFilter')}
+              </span>
+            </div>
+
+            <div className="relative min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-3">
+              <input
+                type="search"
+                value={tagFilter}
+                onChange={(event) => setTagFilter(event.target.value)}
+                placeholder={isRTL ? 'بحث بالوسم' : 'Search by tag'}
+                aria-label={isRTL ? 'بحث بالوسم' : 'Search by tag'}
+                className={`h-14 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] px-4 pt-4 text-sm font-semibold text-[#2c2330] outline-none transition placeholder:text-transparent focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 ${
+                  isRTL ? 'text-right' : 'text-left'
+                }`}
+              />
+              <span className={`pointer-events-none absolute top-2 text-[11px] font-semibold text-[#927b6c] ${isRTL ? 'right-4' : 'left-4'}`}>
+                {isRTL ? 'بحث بالوسم' : 'Search by tag'}
               </span>
             </div>
 

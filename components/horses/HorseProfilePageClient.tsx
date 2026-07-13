@@ -49,6 +49,7 @@ import type {
   HorseListItemDto,
   HorseRatingPayload,
   HorseRatingResponse,
+  HorseTagDto,
   ExternalHorseDashboardInformation,
   HorseSiblingsDto,
   LocaleCode,
@@ -228,6 +229,39 @@ export function HorseProfilePageClient({
   const profileHorse = horse ? toProfileHorseModel(horse, locale as LocaleCode) : null;
   const profileLocalId = Number(horse?.localId ?? horse?.id ?? horseId ?? profileHorse?.id);
   const hasVideos = mediaUrls(horse?.videos).length > 0;
+  const tagsHorseId = horseId ?? profileHorse?.id;
+  const [tagsLoaded, setTagsLoaded] = useState(false);
+
+  // Tags are loaded from the dedicated tags endpoint (not the horse-by-id
+  // payload) so they can be re-fetched whenever a tag changes anywhere. The
+  // panel stays hidden until this first fetch completes.
+  const refreshTags = async () => {
+    if (!tagsHorseId) return;
+
+    try {
+      const result = await clientApiFetch<ApiResult<HorseTagDto[]>>({
+        backendPath: `/api/Horses/${tagsHorseId}/tags`,
+        nextPath: `/api/horses/${tagsHorseId}/tags`,
+        nextQuery: { locale },
+        locale: locale as LocaleCode,
+      });
+
+      if (result.succeeded !== false) {
+        const tags = result.data ?? [];
+        setHorse((current) => (current ? { ...current, tags } : current));
+      }
+    } catch {
+      // Keep whatever tags are already displayed if the refresh fails.
+    } finally {
+      setTagsLoaded(true);
+    }
+  };
+
+  useEffect(() => {
+    setTagsLoaded(false);
+    refreshTags();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tagsHorseId, locale]);
 
   const handleTabChange = (tabId: string) => {
     if (tabId === 'injuries') {
@@ -793,11 +827,13 @@ export function HorseProfilePageClient({
                 femaleResults: dashboard?.siblings?.female,
               }}
             />
-            <HorseTagsPanel
-              horseId={horseId ?? profileHorse.id}
-              tags={horse?.tags}
-              onChange={(tags) => setHorse((current) => current ? { ...current, tags } : current)}
-            />
+            {tagsLoaded ? (
+              <HorseTagsPanel
+                horseId={horseId ?? profileHorse.id}
+                tags={horse?.tags}
+                onChange={(tags) => setHorse((current) => current ? { ...current, tags } : current)}
+              />
+            ) : null}
             <HorseProfileTabs
               activeTab={activeTab}
               onTabChange={handleTabChange}
@@ -807,7 +843,10 @@ export function HorseProfilePageClient({
             {activeTab === 'pedigree' && (
               <>
                 <HorseFamilySearch localId={profileLocalId} />
-                <HorsePedigreeTree horse={{ ...profileHorse, localId: profileLocalId }} />
+                <HorsePedigreeTree
+                  horse={{ ...profileHorse, localId: profileLocalId }}
+                  onTagsMutated={refreshTags}
+                />
               </>
             )}
             {activeTab === 'analytics' && <HorseAnalyticsTab localId={profileLocalId} />}

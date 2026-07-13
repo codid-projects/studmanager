@@ -10,13 +10,14 @@ interface HorseTagRouteProps {
 export async function PUT(request: NextRequest, { params }: HorseTagRouteProps) {
   const { id, tagId } = await params;
   const locale = (request.nextUrl.searchParams.get('locale') === 'en' ? 'en' : 'ar') as LocaleCode;
+  const idType = request.nextUrl.searchParams.get('idType') ?? undefined;
 
   try {
     const body = await request.json();
     return NextResponse.json({
       succeeded: true,
       statusCode: 200,
-      data: await updateHorseTag(id, Number(tagId), body?.name ?? ''),
+      data: await updateHorseTag(id, Number(tagId), body?.name ?? '', idType),
     });
   } catch (error) {
     const status = error instanceof ApiError ? error.status : 500;
@@ -32,12 +33,13 @@ export async function PUT(request: NextRequest, { params }: HorseTagRouteProps) 
 export async function DELETE(request: NextRequest, { params }: HorseTagRouteProps) {
   const { id, tagId } = await params;
   const locale = (request.nextUrl.searchParams.get('locale') === 'en' ? 'en' : 'ar') as LocaleCode;
+  const idType = request.nextUrl.searchParams.get('idType') ?? undefined;
 
   try {
     return NextResponse.json({
       succeeded: true,
       statusCode: 200,
-      data: await deleteHorseTag(id, Number(tagId)),
+      data: await deleteHorseTag(id, Number(tagId), idType),
     });
   } catch (error) {
     const status = error instanceof ApiError ? error.status : 500;
