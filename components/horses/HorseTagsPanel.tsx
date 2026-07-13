@@ -40,6 +40,29 @@ export function HorseTagsPanel({ horseId, tags = [], onChange }: HorseTagsPanelP
     const ar = tag.sourceHorseArabicName?.trim();
     return locale === "ar" ? ar || en || "" : en || ar || "";
   };
+
+  const sourceLineLabel = (tag: HorseTagDto) => {
+    const lines = (tag.sourceLine ?? "")
+      .split(",")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (lines.includes("father") && lines.includes("mother")) {
+      return locale === "ar" ? "خط الأب والأم" : "Father and mother lines";
+    }
+
+    if (lines.includes("father")) return locale === "ar" ? "خط الأب" : "Father line";
+    if (lines.includes("mother")) return locale === "ar" ? "خط الأم" : "Mother line";
+    return "";
+  };
+
+  const sourceLabel = (tag: HorseTagDto) => {
+    const name = sourceName(tag);
+    const line = sourceLineLabel(tag);
+    if (name && line) return `${name} - ${line}`;
+    return name || line;
+  };
+
   async function saveTag(method: "POST" | "PUT" | "DELETE", tagId?: number, nextName?: string) {
     setSaving(true);
     setError("");
@@ -168,10 +191,10 @@ export function HorseTagsPanel({ horseId, tags = [], onChange }: HorseTagsPanelP
                       <Tag className="h-3.5 w-3.5" />
                     </span>
                     <span className="truncate">{tag.name}</span>
-                    {tag.isInherited && sourceName(tag) ? (
+                    {tag.isInherited && sourceLabel(tag) ? (
                       <span className={`${compact ? "max-w-[150px]" : "max-w-[180px]"} truncate text-xs font-bold opacity-75`}>
                         <GitBranch className="me-1 inline h-3.5 w-3.5" />
-                        {sourceName(tag)}
+                        {sourceLabel(tag)}
                       </span>
                     ) : null}
                   </>
@@ -184,7 +207,7 @@ export function HorseTagsPanel({ horseId, tags = [], onChange }: HorseTagsPanelP
                         key={tagKey}
                         href={`/${locale}/horses/${tag.sourceHorseLocalId}`}
                         className={chipClassName}
-                        title={sourceName(tag) || tag.name}
+                        title={sourceLabel(tag) || tag.name}
                       >
                         {chipContent}
                       </Link>
@@ -195,7 +218,7 @@ export function HorseTagsPanel({ horseId, tags = [], onChange }: HorseTagsPanelP
                     <span
                       key={tagKey}
                       className={chipClassName}
-                      title={sourceName(tag) || tag.name}
+                      title={sourceLabel(tag) || tag.name}
                     >
                       {chipContent}
                     </span>
@@ -290,16 +313,16 @@ export function HorseTagsPanel({ horseId, tags = [], onChange }: HorseTagsPanelP
                     <Link
                       href={`/${locale}/horses/${tag.sourceHorseLocalId}`}
                       className="max-w-[190px] truncate rounded-full bg-white/70 px-2 py-1 text-xs font-bold text-[#4d735d] underline-offset-2 hover:underline"
-                      title={sourceName(tag)}
+                      title={sourceLabel(tag)}
                     >
-                      {t("horses.inheritedFrom")} {sourceName(tag)}
+                      {t("horses.inheritedFrom")} {sourceLabel(tag)}
                     </Link>
                   ) : (
                     <span
                       className="max-w-[190px] truncate rounded-full bg-white/70 px-2 py-1 text-xs font-bold text-[#4d735d]"
-                      title={sourceName(tag)}
+                      title={sourceLabel(tag)}
                     >
-                      {t("horses.inheritedFrom")} {sourceName(tag)}
+                      {t("horses.inheritedFrom")} {sourceLabel(tag)}
                     </span>
                   )
                 ) : null}

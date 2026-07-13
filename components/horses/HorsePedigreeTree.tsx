@@ -756,6 +756,28 @@ const PedigreeBox = ({
 const normalizeTagName = (value: string) =>
   value.trim().replace(/\s+/g, " ").toLowerCase();
 
+const formatTagSourceLabel = (tag: HorseTagDto, isRTL: boolean) => {
+  const en = tag.sourceHorseEnglishName?.trim();
+  const ar = tag.sourceHorseArabicName?.trim();
+  const name = isRTL ? ar || en || "" : en || ar || "";
+  const lines = (tag.sourceLine ?? "")
+    .split(",")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  let line = "";
+
+  if (lines.includes("father") && lines.includes("mother")) {
+    line = isRTL ? "خط الأب والأم" : "Father and mother lines";
+  } else if (lines.includes("father")) {
+    line = isRTL ? "خط الأب" : "Father line";
+  } else if (lines.includes("mother")) {
+    line = isRTL ? "خط الأم" : "Mother line";
+  }
+
+  if (name && line) return `${name} - ${line}`;
+  return name || line;
+};
+
 const PedigreeTagsEditor = ({
   horseId,
   idType,
@@ -802,12 +824,6 @@ const PedigreeTagsEditor = ({
     () => new Set(directTags.map((tag) => normalizeTagName(tag.name))),
     [directTags],
   );
-
-  const sourceName = (tag: HorseTagDto) => {
-    const en = tag.sourceHorseEnglishName?.trim();
-    const ar = tag.sourceHorseArabicName?.trim();
-    return isRTL ? ar || en || "" : en || ar || "";
-  };
 
   async function saveTag(
     method: "POST" | "PUT" | "DELETE",
@@ -933,17 +949,17 @@ const PedigreeTagsEditor = ({
                         : "border-[#e2bd90] bg-[#fff0d6] text-[#5c3420]"
                     }`}
                     title={
-                      tag.isInherited && sourceName(tag)
-                        ? `${tag.name} - ${sourceName(tag)}`
+                      tag.isInherited && formatTagSourceLabel(tag, isRTL)
+                        ? `${tag.name} - ${formatTagSourceLabel(tag, isRTL)}`
                         : tag.name
                     }
                   >
                     <Tag className="h-4 w-4 shrink-0" />
                     <span className="truncate">{tag.name}</span>
-                    {tag.isInherited && sourceName(tag) ? (
+                    {tag.isInherited && formatTagSourceLabel(tag, isRTL) ? (
                       <span className="max-w-[130px] truncate text-xs font-black opacity-75">
                         <GitBranch className="me-1 inline h-3.5 w-3.5" />
-                        {sourceName(tag)}
+                        {formatTagSourceLabel(tag, isRTL)}
                       </span>
                     ) : null}
                   </span>
@@ -1038,7 +1054,7 @@ const PedigreeTagsEditor = ({
                       {tag.isInherited ? (
                         <span className="text-xs font-bold opacity-75">
                           <GitBranch className="me-1 inline h-3.5 w-3.5" />
-                          {sourceName(tag) || labels.inherited}
+                          {formatTagSourceLabel(tag, isRTL) || labels.inherited}
                         </span>
                       ) : (
                         <>
@@ -1126,12 +1142,6 @@ const PedigreeReadonlyTags = ({
   tags: HorseTagDto[];
   isRTL: boolean;
 }) => {
-  const sourceName = (tag: HorseTagDto) => {
-    const en = tag.sourceHorseEnglishName?.trim();
-    const ar = tag.sourceHorseArabicName?.trim();
-    return isRTL ? ar || en || "" : en || ar || "";
-  };
-
   return (
     <section className="rounded-[16px] border border-[#e8dbcf] bg-[#fffdfa] p-4 shadow-[0_8px_22px_rgba(61,42,27,0.05)]">
       <div className="mb-3 flex items-center gap-2 text-[#3d2a1b]">
@@ -1160,10 +1170,10 @@ const PedigreeReadonlyTags = ({
           >
             <Tag className="h-4 w-4 shrink-0" />
             <span className="truncate">{tag.name}</span>
-            {tag.isInherited && sourceName(tag) ? (
+            {tag.isInherited && formatTagSourceLabel(tag, isRTL) ? (
               <span className="max-w-[130px] truncate text-xs font-black opacity-75">
                 <GitBranch className="me-1 inline h-3.5 w-3.5" />
-                {sourceName(tag)}
+                {formatTagSourceLabel(tag, isRTL)}
               </span>
             ) : null}
           </span>
@@ -1602,9 +1612,9 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
     // The API response for external horses holds direct tags only, so keep
     // the inherited chips the tree enrichment already attached to the node.
     const nextTagsFor = (node: PedigreeNode) => {
-      const names = new Set(tags.map((tag) => normalizeTagName(tag.name)));
+      const tagIds = new Set(tags.map((tag) => tag.id));
       const keptInherited = (node.tags ?? []).filter(
-        (tag) => tag.isInherited && !names.has(normalizeTagName(tag.name)),
+        (tag) => tag.isInherited && !tagIds.has(tag.id),
       );
       return [...tags, ...keptInherited];
     };

@@ -381,6 +381,7 @@ export interface HorseTagDto {
   sourceHorseLocalId?: number | null;
   sourceHorseEnglishName: string | null;
   sourceHorseArabicName: string | null;
+  sourceLine?: string | null;
 }
 
 export interface HorseDeceasedPayload {
