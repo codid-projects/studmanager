@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { HorseCard } from '@/components/horses/HorseCard';
 import {
@@ -11,6 +11,7 @@ import {
 } from '@/components/horses/HorseFormModal';
 import { LineageFilterPicker } from '@/components/horses/LineageFilterPicker';
 import { StudbookImportModal } from '@/components/horses/StudbookImportModal';
+import { ExternalHorseSearchModal } from '@/components/horses/ExternalHorseSearchModal';
 import DeleteConfirmModal from '@/components/common/DeleteConfirmModal';
 import { mediaUrl, toHorseCardModel } from '@/lib/api/horse-formatters';
 import { clientApiFetch } from '@/lib/api/client';
@@ -135,6 +136,7 @@ export function HorsesPageClient({
   const localeCode = locale as LocaleCode;
 
   const [isStudbookOpen, setIsStudbookOpen] = useState(false);
+  const [isExternalSearchOpen, setIsExternalSearchOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingHorseId, setEditingHorseId] = useState<string | null>(null);
 
@@ -1046,6 +1048,14 @@ export function HorsesPageClient({
             >
               + {t('horses.addNew')}
             </button>
+
+            <button
+              type="button"
+              onClick={() => setIsExternalSearchOpen(true)}
+              className="flex h-14 w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-[#311C11] bg-white px-5 text-sm font-semibold text-[#311C11] transition hover:bg-[#fbf8f4] sm:col-span-2 lg:col-span-2 xl:col-span-2"
+            >
+              {isRTL ? 'البحث في كل الخيول' : 'Search all horses'}
+            </button>
           </div>
 
           {hasActiveFilters ? (
@@ -1135,6 +1145,10 @@ export function HorsesPageClient({
           }}
           onImported={handleImported}
         />
+      ) : null}
+
+      {isExternalSearchOpen ? (
+        <ExternalHorseSearchModal onClose={() => setIsExternalSearchOpen(false)} />
       ) : null}
 
       <HorseFormModal

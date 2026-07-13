@@ -177,6 +177,38 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
   const showEmpty = !loading && !error && matches !== null && matches.length === 0;
   const visibleMatches = matches?.slice(0, MAX_RENDERED_RESULTS) ?? [];
 
+  useEffect(() => {
+    const missing = visibleMatches
+      .map((item) => item.id)
+      .filter((id) => directTagsByHorseId[id] === undefined);
+
+    if (!missing.length) return;
+
+    let mounted = true;
+
+    missing.forEach((horseId) => {
+      clientApiFetch<ApiResult<HorseTagDto[]>>({
+        backendPath: `/api/Horses/${horseId}/tags`,
+        nextPath: `/api/horses/${horseId}/tags`,
+        query: { idType: 'studbook' },
+        nextQuery: { idType: 'studbook' },
+      })
+        .then((result) => {
+          if (!mounted) return;
+          const directTag = (result.data ?? []).find((tag) => !tag.isInherited) ?? null;
+          setDirectTagsByHorseId((current) => ({ ...current, [horseId]: directTag }));
+        })
+        .catch(() => {
+          if (!mounted) return;
+          setDirectTagsByHorseId((current) => ({ ...current, [horseId]: null }));
+        });
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [directTagsByHorseId, visibleMatches]);
+
   async function loadDirectTag(item: HorseFamilyTreeItem) {
     setTagLoadingId(item.id);
     setTagMessage(null);
@@ -455,6 +487,7 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
                   <div className="space-y-2">
                     {visibleMatches.map((item) => {
                       const name = getLocalizedName(item.englishName, item.arabicName, isRTL) || '-';
+                      const directTag = directTagsByHorseId[item.id];
                       const fatherName = getLocalizedName(
                         item.horseFatherEnglishName,
                         item.horseFatherArabicName,
@@ -523,6 +556,13 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
                           ) : null}
 
                           <div className="mt-3 border-t border-[#eadfd4] pt-3">
+                            {directTag ? (
+                              <div className="mb-2 inline-flex max-w-full items-center gap-1.5 rounded-full bg-[#d8eddf] px-3 py-1 text-xs font-bold text-[#245338]">
+                                <Tag className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate">{directTag.name}</span>
+                              </div>
+                            ) : null}
+
                             {taggingHorseId === item.id ? (
                               <div className="space-y-2">
                                 <div className="flex items-center gap-2">
