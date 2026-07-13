@@ -44,6 +44,7 @@ export const externalHorseQueryKeys = {
   dashboard: (localId: number) => ['horse', localId, 'dashboard'] as const,
   summary: (studbookId: number) => ['external-horse', studbookId, 'summary'] as const,
   pedigree: (localId: number, levels = 6) => ['horse', localId, 'pedigree', levels] as const,
+  pedigreeBranch: (horseId: number, levels = 3) => ['horse', horseId, 'pedigree-branch', levels] as const,
   analysisTree: (localId: number, levels = 12, pageNumber = 1, pageSize = 20, search?: string) =>
     ['horse', localId, 'analysis-tree', levels, pageNumber, pageSize, search] as const,
   tailMale: (localId: number, levels = 12, pageNumber = 1, pageSize = 20) =>
@@ -198,6 +199,45 @@ export const getHorsePedigree = async ({
     backendPath: `/api/ExternalHorses/${localId}/pedigree`,
     nextPath: `/api/external-horses/${localId}/pedigree`,
     query: { levels },
+  });
+
+export const getHorsePedigreeBranch = async ({
+  horseId,
+  levels = 3,
+  fatherId,
+  motherId,
+  englishName,
+  arabicName,
+  fatherEnglishName,
+  fatherArabicName,
+  motherEnglishName,
+  motherArabicName,
+}: {
+  horseId: number;
+  levels?: number;
+  fatherId?: number | null;
+  motherId?: number | null;
+  englishName?: string | null;
+  arabicName?: string | null;
+  fatherEnglishName?: string | null;
+  fatherArabicName?: string | null;
+  motherEnglishName?: string | null;
+  motherArabicName?: string | null;
+}): Promise<ApiResult<HorsePedigreeNode[][]>> =>
+  clientApiFetch<ApiResult<HorsePedigreeNode[][]>>({
+    backendPath: `/api/ExternalHorses/pedigree-branch/${horseId}`,
+    nextPath: `/api/external-horses/pedigree-branch/${horseId}`,
+    query: {
+      levels,
+      fatherId,
+      motherId,
+      englishName,
+      arabicName,
+      fatherEnglishName,
+      fatherArabicName,
+      motherEnglishName,
+      motherArabicName,
+    },
   });
 
 export const getHorseFamilyAnalysisTree = async ({

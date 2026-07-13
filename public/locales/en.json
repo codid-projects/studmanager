@@ -539,7 +539,17 @@
     "averageRating": "Average rating",
     "ratingsCount": "Evaluations",
     "ratingNotes": "Judge notes",
-    "saveRating": "Save evaluation"
+    "saveRating": "Save evaluation",
+    "familyTags": "Family tags",
+    "familyTagsHint": "Tags added to an ancestor appear on every horse that has that ancestor in its pedigree.",
+    "addTag": "Add tag",
+    "tagPlaceholder": "Add a tag for this horse",
+    "tagRequired": "Tag name is required.",
+    "tagDuplicate": "This tag already exists for this horse.",
+    "noTags": "No family tags yet.",
+    "directTag": "Direct",
+    "inheritedFrom": "Inherited from",
+    "inheritedTagBlocksAdd": "This horse already inherits a family tag"
   },
   "matingTest": {
     "title": "Pedigree Analysis",

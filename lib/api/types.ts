@@ -367,6 +367,19 @@ export interface HorseListItemDto {
   soldPrice?: string | null;
   deceasedAt?: string | null;
   deceasedReason?: string | null;
+  isTemporarilyAwayFromBox?: boolean;
+  temporaryLeavingReason?: string | null;
+  tags?: HorseTagDto[] | null;
+}
+
+export interface HorseTagDto {
+  id: number;
+  horseId: number;
+  name: string;
+  isInherited: boolean;
+  sourceHorseId: number;
+  sourceHorseEnglishName: string | null;
+  sourceHorseArabicName: string | null;
 }
 
 export interface HorseDeceasedPayload {
@@ -454,12 +467,15 @@ export interface HorseInfoDto extends HorseListItemDto {
   isStrain: boolean;
   isSpecial: boolean;
   box: string | null;
+  isTemporarilyAwayFromBox?: boolean;
+  temporaryLeavingReason?: string | null;
   owner: StudDto | null;
   breeder: StudDto | null;
   ownerEn?: string | null;
   ownerAr?: string | null;
   breederEn?: string | null;
   breederAr?: string | null;
+  tags?: HorseTagDto[] | null;
 }
 
 export interface HousingHorseDto {
@@ -621,6 +637,7 @@ export type HorsePedigreeNode = {
   generationLevel?: number | null;
   isStrain?: boolean | null;
   isSpecial?: boolean | null;
+  tags?: HorseTagDto[] | null;
 };
 
 export type ExternalHorseSummaryItem = {

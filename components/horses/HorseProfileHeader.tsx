@@ -32,6 +32,8 @@ interface HorseProfileHeaderProps {
   averageRating?: number | null;
   ratingsCount?: number;
   box?: string | null;
+  isTemporarilyAwayFromBox?: boolean;
+  temporaryLeavingReason?: string | null;
   onOpenAssignBox?: () => void;
   isActive?: boolean;
   statusLoading?: boolean;
@@ -50,6 +52,8 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
   averageRating,
   ratingsCount = 0,
   box = null,
+  isTemporarilyAwayFromBox = false,
+  temporaryLeavingReason = null,
   onOpenAssignBox,
   isActive = true,
   statusLoading = false,
@@ -190,7 +194,7 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
             {horseName}
           </h1>
           {box && (
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-2 rounded-lg bg-[#3d2a1b]/10 px-3 py-1.5">
                 <Home className="h-4 w-4 text-[#3d2a1b]" />
                 <span className="text-xs font-medium text-[#7a6c63]">
@@ -200,6 +204,12 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
                   {box}
                 </span>
               </div>
+              {isTemporarilyAwayFromBox && (
+                <div className="max-w-full rounded-lg border border-[#e5c59d] bg-[#fff8ed] px-3 py-1.5 text-xs font-semibold text-[#8a5a20]">
+                  {isRTL ? 'خارج مؤقتاً' : 'Temporarily away'}
+                  {temporaryLeavingReason ? `: ${temporaryLeavingReason}` : ''}
+                </div>
+              )}
               {onOpenAssignBox && (
                 <button
                   type="button"

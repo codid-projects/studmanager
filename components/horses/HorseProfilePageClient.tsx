@@ -22,6 +22,7 @@ import {
   AssignBoxModal,
   HorseSaleModal,
   HorseStatusModal,
+  HorseTagsPanel,
 } from '@/components/horses';
 import type { HorseFormData } from '@/components/horses/HorseFormModal';
 import { RelatedHorsesTable } from '@/components/horses/profile/RelatedHorsesTable';
@@ -65,7 +66,7 @@ interface HorseProfilePageClientProps {
 }
 
 function unwrapResult<T>(payload: T | ApiResult<T>): T {
-  if (payload && typeof payload === 'object' && 'data' in payload && 'statusCode' in payload) {
+  if (payload && typeof payload === 'object' && 'data' in payload) {
     return (payload as ApiResult<T>).data as T;
   }
 
@@ -103,6 +104,9 @@ function toHorseInfoFallback(horse: HorseListItemDto): HorseInfoDto {
     isSold: horse.isSold ?? false,
     owner: null,
     breeder: null,
+    isTemporarilyAwayFromBox: horse.isTemporarilyAwayFromBox ?? false,
+    temporaryLeavingReason: horse.temporaryLeavingReason ?? null,
+    tags: horse.tags ?? [],
   };
 }
 
@@ -222,6 +226,7 @@ export function HorseProfilePageClient({
   const [pedigreeParents, setPedigreeParents] = useState({ fatherName: '', motherName: '' });
 
   const profileHorse = horse ? toProfileHorseModel(horse, locale as LocaleCode) : null;
+  const profileLocalId = Number(horse?.localId ?? horse?.id ?? horseId ?? profileHorse?.id);
   const hasVideos = mediaUrls(horse?.videos).length > 0;
 
   const handleTabChange = (tabId: string) => {
@@ -369,7 +374,7 @@ export function HorseProfilePageClient({
       if (result.succeeded === false) throw new Error(result.message || t('common.error'));
 
       setHorse((current) => current
-        ? { ...current, isSold: payload.isSold, soldAt: payload.isSold ? current.soldAt || new Date().toISOString() : null, soldTo: payload.isSold ? payload.soldTo ?? null : null, soldPrice: payload.isSold ? payload.soldPrice ?? null : null }
+        ? { ...current, isSold: payload.isSold, soldAt: payload.isSold ? current.soldAt || new Date().toISOString() : null, soldTo: payload.isSold ? payload.soldTo?.trim() || null : null, soldPrice: payload.isSold ? payload.soldPrice?.trim() || null : null }
         : current);
       if (!payload.isSold) setSaleOpen(false);
     } catch (requestError) {
@@ -438,7 +443,11 @@ export function HorseProfilePageClient({
     }
   };
 
-  const handleAssignBox = async (boxName: string, mapKey = 'mousa') => {
+  const handleAssignBox = async (
+    boxName: string,
+    mapKey = 'mousa',
+    temporaryLeave?: { isTemporarilyAwayFromBox: boolean; temporaryLeavingReason?: string | null },
+  ) => {
     if (!horseId || boxAssignLoading) return;
     setBoxAssignLoading(true);
 
@@ -450,7 +459,7 @@ export function HorseProfilePageClient({
         backendQuery: { box: boxName, mapKey },
         nextQuery: { locale, box: boxName, mapKey },
         locale: locale as LocaleCode,
-        body: {},
+        body: temporaryLeave ?? {},
       });
 
       // Check for 409 Conflict first
@@ -462,7 +471,20 @@ export function HorseProfilePageClient({
       }
 
       if (result.statusCode === 200 || result.succeeded === true) {
-        setHorse((current) => (current ? { ...current, box: boxName } : current));
+        setHorse((current) =>
+          current
+            ? {
+                ...current,
+                box: boxName || current.box,
+                isTemporarilyAwayFromBox: temporaryLeave
+                  ? temporaryLeave.isTemporarilyAwayFromBox
+                  : false,
+                temporaryLeavingReason: temporaryLeave?.isTemporarilyAwayFromBox
+                  ? temporaryLeave.temporaryLeavingReason?.trim() || null
+                  : null,
+              }
+            : current,
+        );
         setIsAssignBoxOpen(false);
       } else {
         throw new Error(result.message || t('common.error'));
@@ -592,7 +614,7 @@ export function HorseProfilePageClient({
   }, [horseId]);
 
   useEffect(() => {
-    const localId = Number(profileHorse?.id);
+    const localId = profileLocalId;
 
     if (!Number.isFinite(localId) || localId <= 0) {
       setPedigreeParents({ fatherName: '', motherName: '' });
@@ -641,7 +663,7 @@ export function HorseProfilePageClient({
     return () => {
       mounted = false;
     };
-  }, [profileHorse?.id, isRTL]);
+  }, [profileLocalId, isRTL]);
 
   useEffect(() => {
     if (activeTab === 'videos' && !hasVideos) {
@@ -755,6 +777,8 @@ export function HorseProfilePageClient({
               averageRating={rating?.averageScore}
               ratingsCount={rating?.ratingsCount}
               box={horse?.box ?? null}
+              isTemporarilyAwayFromBox={horse?.isTemporarilyAwayFromBox ?? false}
+              temporaryLeavingReason={horse?.temporaryLeavingReason ?? null}
               onOpenAssignBox={() => setIsAssignBoxOpen(true)}
               isActive={horse?.isActive ?? true}
               statusLoading={statusSaving}
@@ -769,6 +793,11 @@ export function HorseProfilePageClient({
                 femaleResults: dashboard?.siblings?.female,
               }}
             />
+            <HorseTagsPanel
+              horseId={horseId ?? profileHorse.id}
+              tags={horse?.tags}
+              onChange={(tags) => setHorse((current) => current ? { ...current, tags } : current)}
+            />
             <HorseProfileTabs
               activeTab={activeTab}
               onTabChange={handleTabChange}
@@ -777,11 +806,11 @@ export function HorseProfilePageClient({
 
             {activeTab === 'pedigree' && (
               <>
-                <HorseFamilySearch localId={Number(profileHorse.id)} />
-                <HorsePedigreeTree horse={profileHorse} />
+                <HorseFamilySearch localId={profileLocalId} />
+                <HorsePedigreeTree horse={{ ...profileHorse, localId: profileLocalId }} />
               </>
             )}
-            {activeTab === 'analytics' && <HorseAnalyticsTab localId={profileHorse.id} />}
+            {activeTab === 'analytics' && <HorseAnalyticsTab localId={profileLocalId} />}
             {activeTab === 'info' && <HorseInfoTab horse={profileHorse} />}
             {activeTab === 'photos' && <HorsePhotosTab horse={profileHorse} />}
             {activeTab === 'videos' && <HorseVideosTab horse={profileHorse} />}
@@ -829,6 +858,8 @@ export function HorseProfilePageClient({
               open={isAssignBoxOpen}
               horseId={horseId}
               currentBox={horse?.box ?? null}
+              isTemporarilyAwayFromBox={horse?.isTemporarilyAwayFromBox ?? false}
+              temporaryLeavingReason={horse?.temporaryLeavingReason ?? null}
               onClose={() => setIsAssignBoxOpen(false)}
               onSubmit={handleAssignBox}
             />

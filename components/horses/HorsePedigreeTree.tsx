@@ -3,10 +3,11 @@
 import { FC, useEffect, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { useLocale } from "@/lib/locale-context";
-import { X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import {
   getExternalHorseSummary,
   getHorsePedigree,
+  getHorsePedigreeBranch,
 } from "@/lib/api/external-horses";
 import {
   getLocalizedName,
@@ -19,7 +20,7 @@ import {
   mediaUrl,
   localizeGender,
 } from "@/lib/api/horse-formatters";
-import type { ExternalHorseSummaryItem } from "@/lib/api/types";
+import type { ExternalHorseSummaryItem, HorseTagDto } from "@/lib/api/types";
 
 interface Horse {
   id?: string;
@@ -44,14 +45,23 @@ type PedigreeNode = {
   studbookId: number | null;
   name: string;
   role: ParentRole;
+  generationIndex: number;
+  nodeIndex: number;
   englishName?: string | null;
   arabicName?: string | null;
   gender?: string | null;
   dateofBirth?: string | null;
+  fatherId?: number | null;
+  fatherEnglishName?: string | null;
+  fatherArabicName?: string | null;
   fatherName?: string;
+  motherId?: number | null;
+  motherEnglishName?: string | null;
+  motherArabicName?: string | null;
   motherName?: string;
   isStrain?: boolean | null;
   isSpecial?: boolean | null;
+  tags?: HorseTagDto[];
   duplicateColor?: { background: string; border: string };
 };
 
@@ -60,9 +70,21 @@ type TopMetaItem = {
   value: string;
 };
 
-const NODE_HEIGHT_PX = 32;
+type BranchExpansion = {
+  nodeKey: string;
+  horseId: number;
+  columns: PedigreeNode[][];
+  requestedLevels: number;
+  maxAdditionalLevels: number;
+  endReached: boolean;
+};
+
+const NODE_HEIGHT_PX = 58;
 const CERTIFICATE_ASPECT = 1600 / 1200;
 const MIN_COLUMN_WIDTH_PX = 220;
+const INITIAL_PEDIGREE_LEVELS = 6;
+const MAX_PEDIGREE_LEVELS = 12;
+const PEDIGREE_LEVEL_STEP = 2;
 
 const DUPLICATE_ANCESTOR_COLORS = [
   { background: "#FEE2E2", border: "#DC2626" },
@@ -162,6 +184,18 @@ const mapPedigreeLevels = (
           gender: typeof node.gender === "string" ? node.gender : null,
           dateofBirth:
             typeof node.dateofBirth === "string" ? node.dateofBirth : null,
+          fatherId:
+            typeof node.horseFatherId === "number"
+              ? node.horseFatherId
+              : Number(node.horseFatherId) || null,
+          fatherEnglishName:
+            typeof node.horseFatherEnglishName === "string"
+              ? node.horseFatherEnglishName
+              : null,
+          fatherArabicName:
+            typeof node.horseFatherArabicName === "string"
+              ? node.horseFatherArabicName
+              : null,
           fatherName: getLocalizedName(
             typeof node.horseFatherEnglishName === "string"
               ? node.horseFatherEnglishName
@@ -171,6 +205,18 @@ const mapPedigreeLevels = (
               : null,
             isRTL,
           ),
+          motherId:
+            typeof node.horseMotherId === "number"
+              ? node.horseMotherId
+              : Number(node.horseMotherId) || null,
+          motherEnglishName:
+            typeof node.horseMotherEnglishName === "string"
+              ? node.horseMotherEnglishName
+              : null,
+          motherArabicName:
+            typeof node.horseMotherArabicName === "string"
+              ? node.horseMotherArabicName
+              : null,
           motherName: getLocalizedName(
             typeof node.horseMotherEnglishName === "string"
               ? node.horseMotherEnglishName
@@ -183,6 +229,7 @@ const mapPedigreeLevels = (
           isStrain: typeof node.isStrain === "boolean" ? node.isStrain : null,
           isSpecial:
             typeof node.isSpecial === "boolean" ? node.isSpecial : null,
+          tags: Array.isArray(node.tags) ? (node.tags as HorseTagDto[]) : [],
           role: (
             generationIndex === 0
               ? "Root"
@@ -190,6 +237,8 @@ const mapPedigreeLevels = (
                 ? "Father"
                 : "Mother"
           ) as ParentRole,
+          generationIndex,
+          nodeIndex,
         };
       }),
     )
@@ -419,21 +468,46 @@ const TopMetaRow = ({
 
 const PedigreeBox = ({
   node,
+  nodeKey,
   top,
+  isRTL,
   onClick,
   highlighted,
   onDuplicateHover,
+  canExpand,
+  isExpanding,
+  branch,
+  onExpand,
 }: {
   node: PedigreeNode;
+  nodeKey: string;
   top: number;
+  isRTL: boolean;
   onClick: (node: PedigreeNode) => void;
   highlighted: boolean;
   onDuplicateHover: (id: string | null) => void;
+  canExpand?: boolean;
+  isExpanding?: boolean;
+  branch?: BranchExpansion | null;
+  onExpand?: (node: PedigreeNode, nodeKey: string) => void;
 }) => {
+  const sourceName = (tag: HorseTagDto) => {
+    const en = tag.sourceHorseEnglishName?.trim();
+    const ar = tag.sourceHorseArabicName?.trim();
+    return isRTL ? ar || en || "" : en || ar || "";
+  };
+  const ExpandDirectionIcon = isRTL ? ChevronRight : ChevronLeft;
+  const branchColumns = branch?.columns.slice(1) ?? [];
+  const hasBranch = branchColumns.length > 0;
+  const canLoadMoreBranch =
+    Boolean(branch) &&
+    !branch?.endReached &&
+    branch!.requestedLevels < branch!.maxAdditionalLevels;
+
   return (
     <div
       dir="ltr"
-      className="absolute left-0 right-0 px-[2px]"
+      className="group absolute left-0 right-0 px-[2px]"
       style={{
         top: `calc(${top}% - ${NODE_HEIGHT_PX / 2}px)`,
         height: `${NODE_HEIGHT_PX}px`,
@@ -446,7 +520,7 @@ const PedigreeBox = ({
         onMouseLeave={() => node.duplicateColor && onDuplicateHover(null)}
         onFocus={() => node.duplicateColor && onDuplicateHover(node.id)}
         onBlur={() => node.duplicateColor && onDuplicateHover(null)}
-        className="relative flex h-full w-full items-center justify-center gap-1 rounded-[8px] border border-dashed border-[#bbb3aa] bg-[#f7f3ee]/80 px-2 text-center font-serif text-[13px] leading-none text-[#2c3953] shadow-[0_1px_0_rgba(0,0,0,0.02)] transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#4a2b1a]/30 sm:text-[12px] md:text-[13px] lg:text-[14px] xl:text-[15px]"
+        className="relative flex h-full w-full flex-col items-center justify-center gap-1 rounded-[8px] border border-dashed border-[#bbb3aa] bg-[#f7f3ee]/80 px-2 text-center font-serif text-[13px] leading-none text-[#2c3953] shadow-[0_1px_0_rgba(0,0,0,0.02)] transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#4a2b1a]/30 sm:text-[12px] md:text-[13px] lg:text-[14px] xl:text-[15px]"
         style={
           node.duplicateColor
             ? {
@@ -471,7 +545,111 @@ const PedigreeBox = ({
         <span className="block min-w-0 truncate whitespace-nowrap">
           {node.name}
         </span>
+        {node.tags?.length ? (
+          <span className="flex max-w-full items-center gap-1 overflow-hidden">
+            {node.tags.slice(0, 2).map((tag) => (
+              <span
+                key={`${tag.id}-${tag.sourceHorseId}`}
+                className={`flex max-w-[118px] flex-col rounded-full border px-2 py-0.5 text-[9px] font-bold leading-none shadow-[0_1px_0_rgba(0,0,0,0.04)] ${
+                  tag.isInherited
+                    ? "border-[#a8d3b5] bg-[#e5f5e9] text-[#245338]"
+                    : "border-[#e1c09d] bg-[#fff0dc] text-[#5a3824]"
+                }`}
+                title={
+                  tag.isInherited && sourceName(tag)
+                    ? `${tag.name} - ${isRTL ? "من" : "from"} ${sourceName(tag)}`
+                    : tag.name
+                }
+              >
+                <span className="truncate">{tag.name}</span>
+                {tag.isInherited && sourceName(tag) ? (
+                  <span className="mt-0.5 truncate text-[8px] font-black opacity-75">
+                    {isRTL ? "من" : "from"} {sourceName(tag)}
+                  </span>
+                ) : null}
+              </span>
+            ))}
+            {node.tags.length > 2 ? (
+              <span className="text-[9px] font-bold text-[#6b5f57]">+{node.tags.length - 2}</span>
+            ) : null}
+          </span>
+        ) : null}
       </button>
+
+      {canExpand && onExpand && !hasBranch ? (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onExpand(node, nodeKey);
+          }}
+          disabled={isExpanding}
+          className="absolute bottom-1 right-1 z-30 flex max-w-[calc(100%-8px)] items-center gap-1 rounded-full border border-[#d4b891] bg-[#fffaf1]/95 px-2 py-1 text-[9px] font-black uppercase tracking-[0.02em] text-[#5b321d] opacity-0 shadow-[0_5px_14px_rgba(74,43,26,0.16)] transition duration-150 hover:border-[#b7834f] hover:bg-white focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-[#b7834f]/30 disabled:cursor-wait disabled:opacity-70 group-hover:opacity-100 group-focus-within:opacity-100"
+          title={
+            isRTL
+              ? "عرض أجداد هذا الخيل"
+              : "Show this horse's ancestors"
+          }
+        >
+          {isExpanding ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <ExpandDirectionIcon className="h-3.5 w-3.5" />
+          )}
+          <span className="truncate whitespace-nowrap">
+            {isRTL ? "أجداد أكثر" : "More ancestors"}
+          </span>
+        </button>
+      ) : null}
+
+      {hasBranch ? (
+        <div
+          className="absolute left-full top-1/2 z-40 ml-2 flex max-h-[220px] max-w-[360px] -translate-y-1/2 items-stretch gap-2 overflow-auto rounded-[12px] border border-[#d8c1a4] bg-[#fffaf2]/98 p-2 shadow-[0_18px_45px_rgba(74,43,26,0.20)]"
+          dir="ltr"
+          onMouseEnter={() => node.duplicateColor && onDuplicateHover(node.id)}
+        >
+          {branchColumns.map((column, columnIndex) => (
+            <div
+              key={`${nodeKey}-branch-column-${columnIndex}`}
+              className="grid min-w-[106px] content-center gap-1.5"
+            >
+              {column.map((branchNode) => (
+                <button
+                  key={`${nodeKey}-branch-${columnIndex}-${branchNode.id}-${branchNode.nodeIndex}`}
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onClick(branchNode);
+                  }}
+                  className="h-8 rounded-[7px] border border-[#e3d2bd] bg-white px-2 text-center font-serif text-[10px] font-bold leading-none text-[#2c3953] shadow-[0_1px_0_rgba(0,0,0,0.04)] transition hover:border-[#b7834f] hover:bg-[#fff7e8] focus:outline-none focus:ring-2 focus:ring-[#b7834f]/25"
+                  title={branchNode.name}
+                >
+                  <span className="block truncate">{branchNode.name}</span>
+                </button>
+              ))}
+            </div>
+          ))}
+
+          {canLoadMoreBranch && onExpand ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onExpand(node, nodeKey);
+              }}
+              disabled={isExpanding}
+              className="flex min-w-[68px] flex-col items-center justify-center gap-1 rounded-[9px] border border-dashed border-[#caa77c] bg-[#fff4df] px-2 py-2 text-[9px] font-black uppercase leading-tight text-[#5b321d] transition hover:bg-white disabled:cursor-wait disabled:opacity-70"
+            >
+              {isExpanding ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ExpandDirectionIcon className="h-4 w-4" />
+              )}
+              <span>{isRTL ? "أجداد أكثر" : "More"}</span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -495,6 +673,10 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
   const [isDownloading, setIsDownloading] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [apiColumns, setApiColumns] = useState<PedigreeNode[][]>([]);
+  const [expandedBranch, setExpandedBranch] = useState<BranchExpansion | null>(
+    null,
+  );
+  const [branchLoadingKey, setBranchLoadingKey] = useState<string | null>(null);
   const horseLocalId = horse.localId ?? horse.id;
   const numericLocalId =
     typeof horseLocalId === "number" ? horseLocalId : Number(horseLocalId);
@@ -518,6 +700,11 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
     [apiColumns],
   );
   const hasPedigree = apiColumns.length > 0;
+  const canExpandPedigree =
+    !pedigreeData &&
+    hasLocalId &&
+    hasPedigree &&
+    apiColumns.length < MAX_PEDIGREE_LEVELS;
   const certificateMinWidth = Math.max(
     1550,
     apiColumns.length * MIN_COLUMN_WIDTH_PX,
@@ -532,6 +719,8 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
     if (pedigreeData !== undefined) {
       setTreeError("");
       setIsTreeLoading(loading);
+      setExpandedBranch(null);
+      setBranchLoadingKey(null);
 
       if (!loading) {
         setApiColumns(
@@ -546,6 +735,8 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
       setApiColumns([]);
       setIsTreeLoading(false);
       setTreeError("");
+      setExpandedBranch(null);
+      setBranchLoadingKey(null);
       return;
     }
 
@@ -555,16 +746,19 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
       setIsTreeLoading(true);
       setTreeError("");
       setApiColumns([]);
+      setExpandedBranch(null);
+      setBranchLoadingKey(null);
 
       try {
         const result = await getHorsePedigree({
           localId: numericLocalId,
-          levels: 6,
+          levels: INITIAL_PEDIGREE_LEVELS,
         });
         const levels = normalizePedigreeLevels(result.data);
+        const mappedLevels = mapPedigreeLevels(levels, isRTL);
 
         if (mounted) {
-          setApiColumns(mapPedigreeLevels(levels, isRTL));
+          setApiColumns(mappedLevels);
         }
       } catch (requestError) {
         if (mounted) {
@@ -664,6 +858,73 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
       }
     } catch (error) {
       console.error("Fullscreen error:", error);
+    }
+  };
+
+  const handleExpandBranch = async (node: PedigreeNode, nodeKey: string) => {
+    const horseId = node.studbookId ?? Number(node.id);
+    const maxAdditionalLevels = Math.max(
+      0,
+      MAX_PEDIGREE_LEVELS - node.generationIndex,
+    );
+
+    if (
+      !canExpandPedigree ||
+      !Number.isFinite(horseId) ||
+      horseId <= 0 ||
+      maxAdditionalLevels <= 0 ||
+      branchLoadingKey
+    ) {
+      return;
+    }
+
+    const existing =
+      expandedBranch?.nodeKey === nodeKey ? expandedBranch : null;
+    const requestedLevels = Math.min(
+      maxAdditionalLevels,
+      (existing?.requestedLevels ?? 0) + PEDIGREE_LEVEL_STEP,
+    );
+
+    try {
+      setBranchLoadingKey(nodeKey);
+      setTreeError("");
+
+      const result = await getHorsePedigreeBranch({
+        horseId,
+        levels: requestedLevels,
+        fatherId: node.fatherId,
+        motherId: node.motherId,
+        englishName: node.englishName,
+        arabicName: node.arabicName,
+        fatherEnglishName: node.fatherEnglishName,
+        fatherArabicName: node.fatherArabicName,
+        motherEnglishName: node.motherEnglishName,
+        motherArabicName: node.motherArabicName,
+      });
+      const levels = normalizePedigreeLevels(result.data);
+      const mappedLevels = mapPedigreeLevels(levels, isRTL);
+
+      setExpandedBranch({
+        nodeKey,
+        horseId,
+        columns: mappedLevels,
+        requestedLevels,
+        maxAdditionalLevels,
+        endReached:
+          mappedLevels.length <= (existing?.columns.length ?? 1) ||
+          requestedLevels >= maxAdditionalLevels ||
+          mappedLevels.length <= 1,
+      });
+    } catch (requestError) {
+      setTreeError(
+        requestError instanceof Error
+          ? requestError.message
+          : isRTL
+            ? "تعذر تحميل أجداد هذا الخيل."
+            : "Failed to load this horse's ancestors.",
+      );
+    } finally {
+      setBranchLoadingKey(null);
     }
   };
 
@@ -1020,23 +1281,44 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
                           width: columnWidth,
                         }}
                       >
-                        {column.map((node, nodeIndex) => (
-                          <PedigreeBox
-                            key={`${columnIndex}-${nodeIndex}-${node.id}`}
-                            node={node}
-                            top={getTopPercent(
-                              column.length,
-                              nodeIndex,
-                              maxLeafCount,
-                            )}
-                            onClick={handleNodeClick}
-                            highlighted={Boolean(
-                              node.duplicateColor &&
-                                hoveredDuplicateId === node.id,
-                            )}
-                            onDuplicateHover={setHoveredDuplicateId}
-                          />
-                        ))}
+                        {column.map((node, nodeIndex) => {
+                          const nodeKey = `${columnIndex}-${nodeIndex}-${node.id}`;
+                          const maxAdditionalLevels =
+                            MAX_PEDIGREE_LEVELS - node.generationIndex;
+
+                          return (
+                            <PedigreeBox
+                              key={nodeKey}
+                              nodeKey={nodeKey}
+                              node={node}
+                              isRTL={isRTL}
+                              top={getTopPercent(
+                                column.length,
+                                nodeIndex,
+                                maxLeafCount,
+                              )}
+                              onClick={handleNodeClick}
+                              highlighted={Boolean(
+                                node.duplicateColor &&
+                                  hoveredDuplicateId === node.id,
+                              )}
+                              onDuplicateHover={setHoveredDuplicateId}
+                              canExpand={
+                                canExpandPedigree &&
+                                columnIndex === 0 &&
+                                maxAdditionalLevels > 0 &&
+                                Boolean(node.studbookId)
+                              }
+                              isExpanding={branchLoadingKey === nodeKey}
+                              branch={
+                                expandedBranch?.nodeKey === nodeKey
+                                  ? expandedBranch
+                                  : null
+                              }
+                              onExpand={handleExpandBranch}
+                            />
+                          );
+                        })}
                       </div>
                     );
                   })}

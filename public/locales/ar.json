@@ -539,7 +539,17 @@
     "averageRating": "متوسط التقييم",
     "ratingsCount": "عدد التقييمات",
     "ratingNotes": "ملاحظات الحكم",
-    "saveRating": "حفظ التقييم"
+    "saveRating": "حفظ التقييم",
+    "familyTags": "وسوم العائلة",
+    "familyTagsHint": "الوسم المضاف لأحد الأجداد يظهر على كل خيل يحمل هذا الجد في شهادة النسب.",
+    "addTag": "إضافة وسم",
+    "tagPlaceholder": "أضف وسمًا لهذا الخيل",
+    "tagRequired": "اسم الوسم مطلوب.",
+    "tagDuplicate": "هذا الوسم مضاف لهذا الخيل بالفعل.",
+    "noTags": "لا توجد وسوم عائلية بعد.",
+    "directTag": "مباشر",
+    "inheritedFrom": "موروث من",
+    "inheritedTagBlocksAdd": "هذا الخيل يرث وسمًا عائليًا بالفعل"
   },
   "matingTest": {
     "title": "تحليل الرسن",

@@ -18,7 +18,19 @@ export async function POST(request: NextRequest, { params }: RouteProps) {
   const entityId = request.nextUrl.searchParams.get('entityId') ?? undefined;
 
   try {
-    const result = await assignHorseToHousing(id, box, { mapKey, entityType, entityId });
+    const body = await request.json().catch(() => ({}));
+    const result = await assignHorseToHousing(
+      id,
+      box,
+      { mapKey, entityType, entityId },
+      {
+        isTemporarilyAwayFromBox: Boolean(body.isTemporarilyAwayFromBox),
+        temporaryLeavingReason:
+          typeof body.temporaryLeavingReason === 'string'
+            ? body.temporaryLeavingReason
+            : null,
+      },
+    );
     return NextResponse.json(result, { status: result.statusCode ?? 200 });
   } catch (error) {
     const status = error instanceof ApiError ? error.status : 500;

@@ -18,3 +18,4 @@ export { HorseAnalyticsTab } from './HorseAnalyticsTab';
 export { HorseRatingModal } from './HorseRatingModal';
 export { AssignBoxModal } from './AssignBoxModal';
 export { HorseSaleModal } from './HorseSaleModal';
+export { HorseTagsPanel } from './HorseTagsPanel';

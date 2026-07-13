@@ -27,8 +27,17 @@ interface AssignBoxModalProps {
   open: boolean;
   horseId?: string;
   currentBox: string | null;
+  isTemporarilyAwayFromBox?: boolean;
+  temporaryLeavingReason?: string | null;
   onClose: () => void;
-  onSubmit: (boxName: string, mapKey: string) => Promise<void>;
+  onSubmit: (
+    boxName: string,
+    mapKey: string,
+    temporaryLeave?: {
+      isTemporarilyAwayFromBox: boolean;
+      temporaryLeavingReason?: string | null;
+    },
+  ) => Promise<void>;
 }
 
 type AvailabilityFilter = 'all' | 'available' | 'occupied' | 'full';
@@ -92,6 +101,8 @@ export const AssignBoxModal = ({
   open,
   horseId,
   currentBox,
+  isTemporarilyAwayFromBox = false,
+  temporaryLeavingReason = null,
   onClose,
   onSubmit,
 }: AssignBoxModalProps) => {
@@ -106,7 +117,9 @@ export const AssignBoxModal = ({
   const [mapData, setMapData] = useState<HousingMapDto | null>(null);
   const [loadingMap, setLoadingMap] = useState(false);
   const [capacitySavingCode, setCapacitySavingCode] = useState<string | null>(null);
+  const [leaveReason, setLeaveReason] = useState('');
   const [loading, setLoading] = useState(false);
+  const [leaveSaving, setLeaveSaving] = useState(false);
   const [error, setError] = useState('');
   const isRTL = direction === 'rtl';
   const activeBranch = HOUSING_BRANCHES.find((branch) => branch.key === selectedBranch) ?? HOUSING_BRANCHES[0];
@@ -127,8 +140,9 @@ export const AssignBoxModal = ({
     setManualSearch('');
     setTypePage(1);
     setAvailability('all');
+    setLeaveReason(temporaryLeavingReason ?? '');
     setError('');
-  }, [open, currentBox]);
+  }, [open, currentBox, temporaryLeavingReason]);
 
   useEffect(() => {
     if (!open) return;
@@ -464,6 +478,34 @@ export const AssignBoxModal = ({
     }
   };
 
+  const handleTemporaryLeave = async (away: boolean) => {
+    if (!horseId || !currentBox) {
+      setError(locale === 'ar' ? 'يجب تعيين مكان إيواء أولاً' : 'Assign housing first');
+      return;
+    }
+
+    setLeaveSaving(true);
+    setError('');
+
+    try {
+      await onSubmit('', selectedBranch, {
+        isTemporarilyAwayFromBox: away,
+        temporaryLeavingReason: away ? leaveReason.trim() || null : null,
+      });
+      onClose();
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : locale === 'ar'
+            ? 'فشل حفظ حالة الخروج المؤقت'
+            : 'Failed to save temporary leave',
+      );
+    } finally {
+      setLeaveSaving(false);
+    }
+  };
+
   if (!open) return null;
 
   const isEditing = Boolean(currentBox);
@@ -540,6 +582,66 @@ export const AssignBoxModal = ({
               ))}
             </div>
           </div>
+          {currentBox && (
+            <div className="mt-4 grid gap-3 rounded-[16px] border border-[#e8d9cd] bg-white p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+              <label className="block text-sm font-bold text-[#4a382e]">
+                {locale === 'ar' ? 'سبب الخروج المؤقت من المكان' : 'Temporary leave reason'}
+                <input
+                  value={leaveReason}
+                  maxLength={500}
+                  onChange={(event) => setLeaveReason(event.target.value)}
+                  placeholder={
+                    locale === 'ar'
+                      ? 'مثال: خرج للحلاق (اختياري)'
+                      : 'Example: left for barber (optional)'
+                  }
+                  className="mt-2 h-11 w-full rounded-[12px] border border-[#d9cec6] px-3 text-sm outline-none focus:border-[#4b2d1c]"
+                />
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {isTemporarilyAwayFromBox && (
+                  <button
+                    type="button"
+                    disabled={leaveSaving || loading}
+                    onClick={() => handleTemporaryLeave(false)}
+                    className="h-11 rounded-[12px] border border-[#b9d0ad] px-4 text-sm font-bold text-[#45683a] hover:bg-[#f2f8ee] disabled:opacity-50"
+                  >
+                    {leaveSaving
+                      ? locale === 'ar'
+                        ? 'جارٍ الحفظ...'
+                        : 'Saving...'
+                      : locale === 'ar'
+                        ? 'عاد للمكان'
+                        : 'Back in box'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={leaveSaving || loading}
+                  onClick={() => handleTemporaryLeave(true)}
+                  className="h-11 rounded-[12px] bg-[#5d3b25] px-4 text-sm font-bold text-white hover:bg-[#472c1b] disabled:opacity-50"
+                >
+                  {leaveSaving
+                    ? locale === 'ar'
+                      ? 'جارٍ الحفظ...'
+                      : 'Saving...'
+                    : isTemporarilyAwayFromBox
+                      ? locale === 'ar'
+                        ? 'تحديث الخروج المؤقت'
+                        : 'Update temporary leave'
+                      : locale === 'ar'
+                        ? 'خروج مؤقت'
+                        : 'Temporary leave'}
+                </button>
+              </div>
+              {isTemporarilyAwayFromBox && (
+                <p className="text-xs font-semibold text-[#8a6c55] md:col-span-2">
+                  {locale === 'ar' ? 'الحالة الحالية: خارج مكان الإيواء مؤقتاً' : 'Current status: temporarily away from housing'}
+                  {temporaryLeavingReason ? ` - ${temporaryLeavingReason}` : ''}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">

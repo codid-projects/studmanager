@@ -9,6 +9,7 @@ import type {
   HorseRatingPayload,
   HorseRatingResponse,
   HorseSiblingsDto,
+  HorseTagDto,
   ImportHorseDto,
   PagedResponse,
   RelatedHorseDto,
@@ -17,7 +18,7 @@ import type {
 import { buildCreateHorseFormData } from './create-horse-form-data';
 
 function unwrapResult<T>(payload: T | ApiResult<T>): T {
-  if (payload && typeof payload === 'object' && 'data' in payload && 'statusCode' in payload) {
+  if (payload && typeof payload === 'object' && 'data' in payload) {
     return (payload as ApiResult<T>).data as T;
   }
 
@@ -88,6 +89,7 @@ function toHorseInfoFallback(horse: HorseListItemDto): HorseInfoDto {
     owner: null,
     breeder: null,
     box: null,
+    tags: horse.tags ?? [],
   };
 }
 
@@ -169,6 +171,34 @@ export async function setHorseDeceasedStatus(localId: string | number, payload: 
   });
 }
 
+export async function getHorseTags(localId: string | number) {
+  const payload = await apiFetch<ApiResult<HorseTagDto[]>>(`/api/Horses/${localId}/tags`);
+  return unwrapResult(payload) ?? [];
+}
+
+export async function addHorseTag(localId: string | number, name: string) {
+  const payload = await apiFetch<ApiResult<HorseTagDto[]>>(`/api/Horses/${localId}/tags`, {
+    method: 'POST',
+    body: { name },
+  });
+  return unwrapResult(payload) ?? [];
+}
+
+export async function updateHorseTag(localId: string | number, tagId: number, name: string) {
+  const payload = await apiFetch<ApiResult<HorseTagDto[]>>(`/api/Horses/${localId}/tags/${tagId}`, {
+    method: 'PUT',
+    body: { name },
+  });
+  return unwrapResult(payload) ?? [];
+}
+
+export async function deleteHorseTag(localId: string | number, tagId: number) {
+  const payload = await apiFetch<ApiResult<HorseTagDto[]>>(`/api/Horses/${localId}/tags/${tagId}`, {
+    method: 'DELETE',
+  });
+  return unwrapResult(payload) ?? [];
+}
+
 export async function getHorseRating(localId: string | number) {
   const payload = await apiFetch<ApiResult<HorseRatingResponse>>(
     `/api/Horses/${localId}/rating`,
@@ -203,11 +233,15 @@ export async function assignHorseToHousing(
     entityType?: string | null;
     entityId?: string | number | null;
   },
+  body?: {
+    isTemporarilyAwayFromBox?: boolean;
+    temporaryLeavingReason?: string | null;
+  },
 ) {
   return apiFetch<ApiResult<never>>(`/api/Horses/${localId}/assign-box`, {
     method: 'POST',
     query: { box, ...query },
-    body: {},
+    body: body ?? {},
   });
 }
 
