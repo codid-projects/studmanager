@@ -1,11 +1,12 @@
 'use client';
 
 import { FC, useEffect, useMemo, useRef, useState } from 'react';
-import { Search, X } from 'lucide-react';
+import { Plus, Save, Search, Tag, X } from 'lucide-react';
+import { clientApiFetch } from '@/lib/api/client';
 import { getHorseFamilyAnalysisTree, normalizePagedList } from '@/lib/api/external-horses';
 import { getLocalizedName } from '@/lib/api/localization';
 import { useLocale } from '@/lib/locale-context';
-import type { HorseFamilyTreeItem } from '@/lib/api/types';
+import type { ApiResult, HorseFamilyTreeItem, HorseTagDto } from '@/lib/api/types';
 
 const SEARCH_LEVELS = 12;
 const MIN_QUERY_LENGTH = 2;
@@ -89,6 +90,11 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+  const [taggingHorseId, setTaggingHorseId] = useState<number | null>(null);
+  const [tagName, setTagName] = useState('');
+  const [tagSavingId, setTagSavingId] = useState<number | null>(null);
+  const [tagSavedHorseId, setTagSavedHorseId] = useState<number | null>(null);
+  const [tagMessage, setTagMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const trimmedQuery = query.trim();
@@ -168,6 +174,59 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
   const showIdle = !loading && !error && trimmedQuery.length < MIN_QUERY_LENGTH;
   const showEmpty = !loading && !error && matches !== null && matches.length === 0;
   const visibleMatches = matches?.slice(0, MAX_RENDERED_RESULTS) ?? [];
+
+  async function saveSearchResultTag(item: HorseFamilyTreeItem) {
+    const cleaned = tagName.trim();
+    if (!cleaned) {
+      setTagMessage({
+        type: 'error',
+        text: isRTL ? 'اسم الوسم مطلوب.' : 'Tag name is required.',
+      });
+      return;
+    }
+
+    setTagSavingId(item.id);
+    setTagSavedHorseId(null);
+    setTagMessage(null);
+
+    try {
+      const result = await clientApiFetch<ApiResult<HorseTagDto[]>>({
+        method: 'POST',
+        backendPath: `/api/Horses/${item.id}/tags`,
+        nextPath: `/api/horses/${item.id}/tags`,
+        query: { idType: 'studbook' },
+        body: {
+          name: cleaned,
+          englishName: item.englishName,
+          arabicName: item.arabicName,
+        },
+      });
+
+      if (result.succeeded === false) {
+        throw new Error(result.message || (isRTL ? 'تعذر حفظ الوسم.' : 'Failed to save tag.'));
+      }
+
+      setTagMessage({
+        type: 'success',
+        text: isRTL ? 'تم حفظ الوسم.' : 'Tag saved.',
+      });
+      setTagSavedHorseId(item.id);
+      setTagName('');
+      setTaggingHorseId(null);
+    } catch (requestError) {
+      setTagMessage({
+        type: 'error',
+        text:
+          requestError instanceof Error
+            ? requestError.message
+            : isRTL
+              ? 'تعذر حفظ الوسم.'
+              : 'Failed to save tag.',
+      });
+    } finally {
+      setTagSavingId(null);
+    }
+  }
 
   return (
     <>
@@ -399,6 +458,86 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
                               ) : null}
                             </div>
                           ) : null}
+
+                          <div className="mt-3 border-t border-[#eadfd4] pt-3">
+                            {taggingHorseId === item.id ? (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="relative min-w-0 flex-1">
+                                    <Tag
+                                      className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-[#b3a698] ${
+                                        isRTL ? 'right-3' : 'left-3'
+                                      }`}
+                                    />
+                                    <input
+                                      type="text"
+                                      value={tagName}
+                                      onChange={(event) => setTagName(event.target.value)}
+                                      placeholder={isRTL ? 'اسم الوسم' : 'Tag name'}
+                                      className={`h-10 w-full rounded-xl border border-[#e6ddd4] bg-white text-sm text-[#2b1a12] outline-none transition placeholder:text-[#b3a698] focus:border-[#c9a76a] ${
+                                        isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'
+                                      }`}
+                                      onKeyDown={(event) => {
+                                        if (event.key === 'Enter') saveSearchResultTag(item);
+                                      }}
+                                    />
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => saveSearchResultTag(item)}
+                                    disabled={tagSavingId === item.id}
+                                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#4a2b1a] text-white transition hover:bg-[#3b2115] disabled:cursor-not-allowed disabled:opacity-60"
+                                    aria-label={isRTL ? 'حفظ الوسم' : 'Save tag'}
+                                  >
+                                    <Save className="h-4 w-4" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setTaggingHorseId(null);
+                                      setTagName('');
+                                      setTagSavedHorseId(null);
+                                      setTagMessage(null);
+                                    }}
+                                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f2ece5] text-[#4f4037] transition hover:bg-[#e9ded2]"
+                                    aria-label={isRTL ? 'إلغاء' : 'Cancel'}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+
+                                {tagMessage && taggingHorseId === item.id ? (
+                                  <p
+                                    className={`text-xs font-semibold ${
+                                      tagMessage.type === 'success' ? 'text-[#2f7d4a]' : 'text-[#b04444]'
+                                    }`}
+                                  >
+                                    {tagMessage.text}
+                                  </p>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTaggingHorseId(item.id);
+                                  setTagName('');
+                                  setTagSavedHorseId(null);
+                                  setTagMessage(null);
+                                }}
+                                className="inline-flex h-9 items-center gap-2 rounded-xl bg-white px-3 text-xs font-bold text-[#4a2b1a] shadow-sm ring-1 ring-[#eadfd4] transition hover:bg-[#f7f1eb]"
+                              >
+                                <Plus className="h-4 w-4" />
+                                {isRTL ? 'إضافة وسم لهذا الخيل' : 'Add tag to this horse'}
+                              </button>
+                            )}
+
+                            {tagMessage && tagMessage.type === 'success' && tagSavedHorseId === item.id ? (
+                              <p className="mt-2 text-xs font-semibold text-[#2f7d4a]">{tagMessage.text}</p>
+                            ) : null}
+                          </div>
                         </div>
                       );
                     })}
