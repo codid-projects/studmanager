@@ -179,6 +179,31 @@ export function HorsesPageClient({
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const requestSeqRef = useRef(0);
   const appendInFlightRef = useRef(false);
+  const birthYearPickerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isBirthYearPickerOpen) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (target && birthYearPickerRef.current?.contains(target)) return;
+      setIsBirthYearPickerOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsBirthYearPickerOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isBirthYearPickerOpen]);
 
   const uiText = useMemo(
     () => ({
@@ -934,27 +959,61 @@ export function HorsesPageClient({
               </span>
             </div>
 
-            <div className="relative min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-3">
+            <div
+              ref={birthYearPickerRef}
+              className="relative min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-3"
+            >
               <button
                 type="button"
                 onClick={() => setIsBirthYearPickerOpen((open) => !open)}
                 aria-label={t('horses.birthYearFilterLabel')}
                 aria-expanded={isBirthYearPickerOpen}
-                className={`flex h-14 w-full items-center justify-between rounded-2xl border border-[#eadfd7] bg-[#fffdfb] px-4 pt-4 text-sm font-semibold text-[#2c2330] outline-none transition focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 ${
-                  isRTL ? 'flex-row-reverse text-right' : 'text-left'
-                }`}
+                aria-haspopup="dialog"
+                className={`flex h-14 w-full items-center justify-between gap-3 rounded-2xl border px-4 pt-4 text-sm font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.78),0_8px_24px_rgba(72,45,28,0.06)] outline-none transition hover:border-[#dac9bd] hover:bg-[#fffaf5] focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 ${
+                  isBirthYearPickerOpen
+                    ? 'border-[#5a3b25] bg-white ring-2 ring-[#5a3b25]/10'
+                    : 'border-[#e2d3c8] bg-[#fbf5ef]'
+                } ${isRTL ? 'flex-row-reverse text-right' : 'text-left'}`}
               >
-                <span className={birthYearFilter ? 'text-[#2c2330]' : 'text-[#b9ada4]'}>
+                <span
+                  className={`tabular-nums tracking-wide ${
+                    birthYearFilter ? 'text-[#2c2330]' : 'text-[#b9ada4]'
+                  }`}
+                >
                   {birthYearFilter || t('horses.birthYearFilterPlaceholder')}
                 </span>
-                <CalendarDays className="h-4 w-4 shrink-0 text-[#6a5548]" />
+                <span
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center text-[#6a5548] transition ${
+                    isBirthYearPickerOpen ? 'text-[#311C11]' : ''
+                  } ${birthYearFilter ? (isRTL ? 'ml-7' : 'mr-7') : ''}`}
+                >
+                  <CalendarDays className="h-4 w-4" />
+                </span>
               </button>
               <span className={`pointer-events-none absolute top-2 text-[11px] font-semibold text-[#927b6c] ${isRTL ? 'right-4' : 'left-4'}`}>
                 {t('horses.birthYearFilterLabel')}
               </span>
 
+              {birthYearFilter ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setBirthYearFilter('');
+                  }}
+                  aria-label={isRTL ? 'مسح سنة الميلاد' : 'Clear birth year'}
+                  className={`absolute top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-[#927b6c] transition hover:bg-[#f4ece5] hover:text-[#3b2314] ${
+                    isRTL ? 'left-3' : 'right-3'
+                  }`}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+
               {isBirthYearPickerOpen ? (
                 <div
+                  role="dialog"
+                  aria-label={t('horses.birthYearFilterLabel')}
                   className={`absolute top-[calc(100%+8px)] z-[9999] w-72 rounded-2xl border border-[#eadfd7] bg-white p-3 shadow-[0_18px_45px_rgba(49,28,17,0.16)] ${
                     isRTL ? 'right-0' : 'left-0'
                   }`}
@@ -968,7 +1027,7 @@ export function HorsesPageClient({
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
-                    <div className="text-sm font-bold text-[#3b2314]">
+                    <div className="text-sm font-bold tabular-nums text-[#3b2314]">
                       {birthYearPickerStart} - {birthYearPickerStart + 11}
                     </div>
                     <button
@@ -984,6 +1043,7 @@ export function HorsesPageClient({
                   <div className="grid grid-cols-3 gap-2">
                     {birthYearPickerYears.map((year) => {
                       const selected = birthYearFilter === String(year);
+                      const isCurrentYear = year === new Date().getFullYear();
 
                       return (
                         <button
@@ -993,10 +1053,12 @@ export function HorsesPageClient({
                             setBirthYearFilter(String(year));
                             setIsBirthYearPickerOpen(false);
                           }}
-                          className={`h-10 rounded-xl border text-sm font-bold transition ${
+                          className={`h-10 rounded-xl border text-sm font-bold tabular-nums transition ${
                             selected
                               ? 'border-[#311C11] bg-[#311C11] text-primary-light'
-                              : 'border-[#eadfd7] bg-[#fffdfb] text-[#3b2314] hover:border-[#d1b6a5] hover:bg-[#fbf8f4]'
+                              : isCurrentYear
+                                ? 'border-[#d1b6a5] bg-[#fbf8f4] text-[#3b2314] hover:border-[#b99a84]'
+                                : 'border-[#eadfd7] bg-[#fffdfb] text-[#3b2314] hover:border-[#d1b6a5] hover:bg-[#fbf8f4]'
                           }`}
                         >
                           {year}
@@ -1005,18 +1067,26 @@ export function HorsesPageClient({
                     })}
                   </div>
 
-                  {birthYearFilter ? (
+                  <div className={`mt-3 flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                     <button
                       type="button"
+                      disabled={!birthYearFilter}
                       onClick={() => {
                         setBirthYearFilter('');
                         setIsBirthYearPickerOpen(false);
                       }}
-                      className="mt-3 h-9 w-full rounded-xl border border-[#eadfd7] bg-white text-xs font-bold text-[#6a5548] transition hover:bg-[#fbf8f4]"
+                      className="h-9 flex-1 rounded-xl border border-[#eadfd7] bg-white text-xs font-bold text-[#6a5548] transition enabled:hover:bg-[#fbf8f4] disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      {isRTL ? 'مسح سنة الميلاد' : 'Clear birth year'}
+                      {isRTL ? 'مسح' : 'Clear'}
                     </button>
-                  ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setIsBirthYearPickerOpen(false)}
+                      className="h-9 flex-1 rounded-xl border border-[#311C11] bg-[#311C11] text-xs font-bold text-white transition hover:bg-[#4a2f1d]"
+                    >
+                      {isRTL ? 'إغلاق' : 'Close'}
+                    </button>
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -1077,9 +1147,8 @@ export function HorsesPageClient({
               {activeFilterBadges.map((badge) => (
                 <span
                   key={badge.key}
-                  className={`inline-flex max-w-full items-center gap-1.5 rounded-full border border-[#eadfd7] bg-[#fffdfb] px-3 py-1.5 text-xs font-semibold text-[#3b2314] ${
-                    isRTL ? 'flex-row-reverse' : ''
-                  }`}
+                  dir={isRTL ? 'rtl' : 'ltr'}
+                  className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[#eadfd7] bg-[#fffdfb] px-3 py-1.5 text-xs font-semibold text-[#3b2314]"
                 >
                   <span className="text-[#8b776a]">{badge.label}:</span>
                   <span className="max-w-[160px] truncate">{badge.value}</span>
