@@ -93,7 +93,9 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
   const [taggingHorseId, setTaggingHorseId] = useState<number | null>(null);
   const [tagName, setTagName] = useState('');
   const [tagSavingId, setTagSavingId] = useState<number | null>(null);
+  const [tagLoadingId, setTagLoadingId] = useState<number | null>(null);
   const [tagSavedHorseId, setTagSavedHorseId] = useState<number | null>(null);
+  const [directTagsByHorseId, setDirectTagsByHorseId] = useState<Record<number, HorseTagDto | null>>({});
   const [tagMessage, setTagMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -175,6 +177,46 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
   const showEmpty = !loading && !error && matches !== null && matches.length === 0;
   const visibleMatches = matches?.slice(0, MAX_RENDERED_RESULTS) ?? [];
 
+  async function loadDirectTag(item: HorseFamilyTreeItem) {
+    setTagLoadingId(item.id);
+    setTagMessage(null);
+
+    try {
+      const result = await clientApiFetch<ApiResult<HorseTagDto[]>>({
+        backendPath: `/api/Horses/${item.id}/tags`,
+        nextPath: `/api/horses/${item.id}/tags`,
+        query: { idType: 'studbook' },
+      });
+
+      const directTag = (result.data ?? []).find((tag) => !tag.isInherited) ?? null;
+      setDirectTagsByHorseId((current) => ({ ...current, [item.id]: directTag }));
+      setTagName(directTag?.name ?? '');
+    } catch (requestError) {
+      setDirectTagsByHorseId((current) => ({ ...current, [item.id]: null }));
+      setTagName('');
+      setTagMessage({
+        type: 'error',
+        text:
+          requestError instanceof Error
+            ? requestError.message
+            : isRTL
+              ? 'تعذر تحميل الوسم.'
+              : 'Failed to load tag.',
+      });
+    } finally {
+      setTagLoadingId(null);
+    }
+  }
+
+  function openTagEditor(item: HorseFamilyTreeItem) {
+    const existingTag = directTagsByHorseId[item.id];
+    setTaggingHorseId(item.id);
+    setTagName(existingTag?.name ?? '');
+    setTagSavedHorseId(null);
+    setTagMessage(null);
+    loadDirectTag(item);
+  }
+
   async function saveSearchResultTag(item: HorseFamilyTreeItem) {
     const cleaned = tagName.trim();
     if (!cleaned) {
@@ -190,10 +232,15 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
     setTagMessage(null);
 
     try {
+      const existingTag = directTagsByHorseId[item.id] ?? null;
       const result = await clientApiFetch<ApiResult<HorseTagDto[]>>({
-        method: 'POST',
-        backendPath: `/api/Horses/${item.id}/tags`,
-        nextPath: `/api/horses/${item.id}/tags`,
+        method: existingTag ? 'PUT' : 'POST',
+        backendPath: existingTag
+          ? `/api/Horses/${item.id}/tags/${existingTag.id}`
+          : `/api/Horses/${item.id}/tags`,
+        nextPath: existingTag
+          ? `/api/horses/${item.id}/tags/${existingTag.id}`
+          : `/api/horses/${item.id}/tags`,
         query: { idType: 'studbook' },
         body: {
           name: cleaned,
@@ -206,19 +253,35 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
         throw new Error(result.message || (isRTL ? 'تعذر حفظ الوسم.' : 'Failed to save tag.'));
       }
 
+      const directTag = (result.data ?? []).find((tag) => !tag.isInherited) ?? null;
+      setDirectTagsByHorseId((current) => ({ ...current, [item.id]: directTag }));
       setTagMessage({
         type: 'success',
-        text: isRTL ? 'تم حفظ الوسم.' : 'Tag saved.',
+        text: existingTag
+          ? isRTL ? 'تم تحديث الوسم.' : 'Tag updated.'
+          : isRTL ? 'تم حفظ الوسم.' : 'Tag saved.',
       });
       setTagSavedHorseId(item.id);
       setTagName('');
       setTaggingHorseId(null);
     } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : '';
+      if (message.includes('already has a tag')) {
+        await loadDirectTag(item);
+        setTagMessage({
+          type: 'error',
+          text: isRTL
+            ? 'هذا الخيل لديه وسم بالفعل. عدّل الوسم الموجود هنا.'
+            : 'This horse already has a tag. Edit the existing tag here.',
+        });
+        return;
+      }
+
       setTagMessage({
         type: 'error',
         text:
-          requestError instanceof Error
-            ? requestError.message
+          message
+            ? message
             : isRTL
               ? 'تعذر حفظ الوسم.'
               : 'Failed to save tag.',
@@ -473,7 +536,12 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
                                       type="text"
                                       value={tagName}
                                       onChange={(event) => setTagName(event.target.value)}
-                                      placeholder={isRTL ? 'اسم الوسم' : 'Tag name'}
+                                      placeholder={
+                                        tagLoadingId === item.id
+                                          ? isRTL ? 'تحميل الوسم...' : 'Loading tag...'
+                                          : isRTL ? 'اسم الوسم' : 'Tag name'
+                                      }
+                                      disabled={tagLoadingId === item.id}
                                       className={`h-10 w-full rounded-xl border border-[#e6ddd4] bg-white text-sm text-[#2b1a12] outline-none transition placeholder:text-[#b3a698] focus:border-[#c9a76a] ${
                                         isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'
                                       }`}
@@ -486,9 +554,13 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
                                   <button
                                     type="button"
                                     onClick={() => saveSearchResultTag(item)}
-                                    disabled={tagSavingId === item.id}
+                                    disabled={tagSavingId === item.id || tagLoadingId === item.id}
                                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#4a2b1a] text-white transition hover:bg-[#3b2115] disabled:cursor-not-allowed disabled:opacity-60"
-                                    aria-label={isRTL ? 'حفظ الوسم' : 'Save tag'}
+                                    aria-label={
+                                      directTagsByHorseId[item.id]
+                                        ? isRTL ? 'تحديث الوسم' : 'Update tag'
+                                        : isRTL ? 'حفظ الوسم' : 'Save tag'
+                                    }
                                   >
                                     <Save className="h-4 w-4" />
                                   </button>
@@ -521,12 +593,7 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
                             ) : (
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setTaggingHorseId(item.id);
-                                  setTagName('');
-                                  setTagSavedHorseId(null);
-                                  setTagMessage(null);
-                                }}
+                                onClick={() => openTagEditor(item)}
                                 className="inline-flex h-9 items-center gap-2 rounded-xl bg-white px-3 text-xs font-bold text-[#4a2b1a] shadow-sm ring-1 ring-[#eadfd4] transition hover:bg-[#f7f1eb]"
                               >
                                 <Plus className="h-4 w-4" />
