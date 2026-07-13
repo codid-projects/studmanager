@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { HorseCard } from '@/components/horses/HorseCard';
 import {
@@ -144,6 +145,12 @@ export function HorsesPageClient({
   const [lineFilter, setLineFilter] = useState('');
   const [microshipFilter, setMicroshipFilter] = useState('');
   const [tagFilter, setTagFilter] = useState('');
+  const [birthYearFilter, setBirthYearFilter] = useState('');
+  const [isBirthYearPickerOpen, setIsBirthYearPickerOpen] = useState(false);
+  const [birthYearPickerStart, setBirthYearPickerStart] = useState(() => {
+    const year = new Date().getFullYear();
+    return year - (year % 12);
+  });
   const [isActiveFilter, setIsActiveFilter] = useState<'' | 'true' | 'false'>('');
 
   const [strains, setStrains] = useState<LineageNameDto[]>([]);
@@ -185,6 +192,7 @@ export function HorsesPageClient({
       line: isRTL ? 'الخط' : 'Line',
       microship: t('horses.microshipFilterLabel'),
       tag: isRTL ? 'الوسم' : 'Tag',
+      birthYear: t('horses.birthYearFilterLabel'),
       status: t('horses.statusFilterLabel'),
     }),
     [isRTL, pageInfo.totalCount, t],
@@ -257,6 +265,7 @@ export function HorsesPageClient({
     const line = lineFilter || undefined;
     const microship = microshipFilter.trim() || undefined;
     const tag = tagFilter.trim() || undefined;
+    const birthYear = birthYearFilter ? Number(birthYearFilter) : undefined;
     const isActive =
       isActiveFilter === '' ? undefined : isActiveFilter === 'true';
 
@@ -267,9 +276,11 @@ export function HorsesPageClient({
       line,
       microship,
       tag,
+      birthYear: Number.isFinite(birthYear) ? birthYear : undefined,
       isActive,
     };
   }, [
+    birthYearFilter,
     debouncedSearchQuery,
     genderFilter,
     isActiveFilter,
@@ -286,6 +297,7 @@ export function HorsesPageClient({
       lineFilter ||
       microshipFilter.trim() ||
       tagFilter.trim() ||
+      birthYearFilter ||
       isActiveFilter,
   );
 
@@ -354,6 +366,15 @@ export function HorsesPageClient({
       });
     }
 
+    if (birthYearFilter) {
+      badges.push({
+        key: 'birthYear',
+        label: uiText.birthYear,
+        value: birthYearFilter,
+        onClear: () => setBirthYearFilter(''),
+      });
+    }
+
     if (isActiveFilter) {
       badges.push({
         key: 'isActive',
@@ -368,6 +389,7 @@ export function HorsesPageClient({
 
     return badges;
   }, [
+    birthYearFilter,
     debouncedSearchQuery,
     genderFilter,
     isActiveFilter,
@@ -386,6 +408,7 @@ export function HorsesPageClient({
     uiText.status,
     uiText.strain,
     uiText.tag,
+    uiText.birthYear,
   ]);
 
   const clearFilters = () => {
@@ -396,8 +419,15 @@ export function HorsesPageClient({
     setLineFilter('');
     setMicroshipFilter('');
     setTagFilter('');
+    setBirthYearFilter('');
+    setIsBirthYearPickerOpen(false);
     setIsActiveFilter('');
   };
+
+  const birthYearPickerYears = useMemo(
+    () => Array.from({ length: 12 }, (_, index) => birthYearPickerStart + index),
+    [birthYearPickerStart],
+  );
 
   const loadHorsesPage = useCallback(
     async (pageNumber: number, append = false) => {
@@ -428,6 +458,7 @@ export function HorsesPageClient({
             line: filtersQuery.line,
             microship: filtersQuery.microship,
             tag: filtersQuery.tag,
+            birthYear: filtersQuery.birthYear,
             isActive: filtersQuery.isActive,
           },
           nextQuery: {
@@ -439,6 +470,7 @@ export function HorsesPageClient({
             line: filtersQuery.line,
             microship: filtersQuery.microship,
             tag: filtersQuery.tag,
+            birthYear: filtersQuery.birthYear,
             isActive: filtersQuery.isActive,
             locale,
           },
@@ -798,10 +830,13 @@ export function HorsesPageClient({
                 value={mainSearchQuery}
                 onChange={(event) => setMainSearchQuery(event.target.value)}
                 placeholder={t('common.search')}
-                className={`h-14 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] text-sm text-[#2c2330] outline-none transition placeholder:text-[#b9ada4] focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 ${
+                className={`h-14 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] pt-4 text-sm font-semibold text-[#2c2330] outline-none transition placeholder:text-transparent focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 ${
                   isRTL ? 'pr-11 text-right' : 'pl-11 text-left'
                 }`}
               />
+              <span className={`pointer-events-none absolute top-2 text-[11px] font-semibold text-[#927b6c] ${isRTL ? 'right-11' : 'left-11'}`}>
+                {uiText.search}
+              </span>
               <span
                 className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 text-[#6a5548] ${
                   isRTL ? 'right-4' : 'left-4'
@@ -823,18 +858,23 @@ export function HorsesPageClient({
               </span>
             </div>
 
-            <select
-              value={genderFilter}
-              onChange={(event) => setGenderFilter(event.target.value)}
-              aria-label={t('horses.gender')}
-              className={`h-14 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] px-4 text-sm font-medium text-[#2c2330] outline-none transition focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 xl:col-span-2 ${
-                isRTL ? 'text-right' : 'text-left'
-              }`}
-            >
-              <option value="">{t('common.all')}</option>
-              <option value="Male">{t('horses.male')}</option>
-              <option value="Female">{t('horses.female')}</option>
-            </select>
+            <div className="relative min-w-0 xl:col-span-2">
+              <select
+                value={genderFilter}
+                onChange={(event) => setGenderFilter(event.target.value)}
+                aria-label={t('horses.gender')}
+                className={`h-14 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] px-4 pt-4 text-sm font-semibold text-[#2c2330] outline-none transition focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 ${
+                  isRTL ? 'text-right' : 'text-left'
+                }`}
+              >
+                <option value="">{t('common.all')}</option>
+                <option value="Male">{t('horses.male')}</option>
+                <option value="Female">{t('horses.female')}</option>
+              </select>
+              <span className={`pointer-events-none absolute top-2 text-[11px] font-semibold text-[#927b6c] ${isRTL ? 'right-4' : 'left-4'}`}>
+                {uiText.gender}
+              </span>
+            </div>
 
             <div className="xl:col-span-3">
               <LineageFilterPicker
@@ -881,36 +921,128 @@ export function HorsesPageClient({
                 type="search"
                 value={tagFilter}
                 onChange={(event) => setTagFilter(event.target.value)}
-                placeholder={isRTL ? 'بحث بالوسم' : 'Search by tag'}
-                aria-label={isRTL ? 'بحث بالوسم' : 'Search by tag'}
+                placeholder={t('horses.tagFilter')}
+                aria-label={t('horses.tagFilterLabel')}
                 className={`h-14 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] px-4 pt-4 text-sm font-semibold text-[#2c2330] outline-none transition placeholder:text-transparent focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 ${
                   isRTL ? 'text-right' : 'text-left'
                 }`}
               />
               <span className={`pointer-events-none absolute top-2 text-[11px] font-semibold text-[#927b6c] ${isRTL ? 'right-4' : 'left-4'}`}>
-                {isRTL ? 'بحث بالوسم' : 'Search by tag'}
+                {t('horses.tagFilterLabel')}
               </span>
             </div>
 
-            <select
-              value={isActiveFilter}
-              onChange={(event) =>
-                setIsActiveFilter(event.target.value as '' | 'true' | 'false')
-              }
-              aria-label={t('horses.statusFilterLabel')}
-              className={`h-14 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] px-4 text-sm font-medium text-[#2c2330] outline-none transition focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 xl:col-span-3 ${
-                isRTL ? 'text-right' : 'text-left'
-              }`}
-            >
-              <option value="">{t('horses.allStatuses')}</option>
-              <option value="true">{t('horses.activeHorses')}</option>
-              <option value="false">{t('horses.inactiveHorses')}</option>
-            </select>
+            <div className="relative min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-3">
+              <button
+                type="button"
+                onClick={() => setIsBirthYearPickerOpen((open) => !open)}
+                aria-label={t('horses.birthYearFilterLabel')}
+                aria-expanded={isBirthYearPickerOpen}
+                className={`flex h-14 w-full items-center justify-between rounded-2xl border border-[#eadfd7] bg-[#fffdfb] px-4 pt-4 text-sm font-semibold text-[#2c2330] outline-none transition focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 ${
+                  isRTL ? 'flex-row-reverse text-right' : 'text-left'
+                }`}
+              >
+                <span className={birthYearFilter ? 'text-[#2c2330]' : 'text-[#b9ada4]'}>
+                  {birthYearFilter || t('horses.birthYearFilterPlaceholder')}
+                </span>
+                <CalendarDays className="h-4 w-4 shrink-0 text-[#6a5548]" />
+              </button>
+              <span className={`pointer-events-none absolute top-2 text-[11px] font-semibold text-[#927b6c] ${isRTL ? 'right-4' : 'left-4'}`}>
+                {t('horses.birthYearFilterLabel')}
+              </span>
+
+              {isBirthYearPickerOpen ? (
+                <div
+                  className={`absolute top-[calc(100%+8px)] z-[9999] w-72 rounded-2xl border border-[#eadfd7] bg-white p-3 shadow-[0_18px_45px_rgba(49,28,17,0.16)] ${
+                    isRTL ? 'right-0' : 'left-0'
+                  }`}
+                >
+                  <div className={`mb-3 flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <button
+                      type="button"
+                      onClick={() => setBirthYearPickerStart((start) => start - 12)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-[#eadfd7] text-[#6a5548] transition hover:bg-[#fbf8f4]"
+                      aria-label={isRTL ? 'السنوات السابقة' : 'Previous years'}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <div className="text-sm font-bold text-[#3b2314]">
+                      {birthYearPickerStart} - {birthYearPickerStart + 11}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setBirthYearPickerStart((start) => start + 12)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-[#eadfd7] text-[#6a5548] transition hover:bg-[#fbf8f4]"
+                      aria-label={isRTL ? 'السنوات التالية' : 'Next years'}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {birthYearPickerYears.map((year) => {
+                      const selected = birthYearFilter === String(year);
+
+                      return (
+                        <button
+                          key={year}
+                          type="button"
+                          onClick={() => {
+                            setBirthYearFilter(String(year));
+                            setIsBirthYearPickerOpen(false);
+                          }}
+                          className={`h-10 rounded-xl border text-sm font-bold transition ${
+                            selected
+                              ? 'border-[#311C11] bg-[#311C11] text-primary-light'
+                              : 'border-[#eadfd7] bg-[#fffdfb] text-[#3b2314] hover:border-[#d1b6a5] hover:bg-[#fbf8f4]'
+                          }`}
+                        >
+                          {year}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {birthYearFilter ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBirthYearFilter('');
+                        setIsBirthYearPickerOpen(false);
+                      }}
+                      className="mt-3 h-9 w-full rounded-xl border border-[#eadfd7] bg-white text-xs font-bold text-[#6a5548] transition hover:bg-[#fbf8f4]"
+                    >
+                      {isRTL ? 'مسح سنة الميلاد' : 'Clear birth year'}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="relative min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-3">
+              <select
+                value={isActiveFilter}
+                onChange={(event) =>
+                  setIsActiveFilter(event.target.value as '' | 'true' | 'false')
+                }
+                aria-label={t('horses.statusFilterLabel')}
+                className={`h-14 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] px-4 pt-4 text-sm font-semibold text-[#2c2330] outline-none transition focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 ${
+                  isRTL ? 'text-right' : 'text-left'
+                }`}
+              >
+                <option value="">{t('horses.allStatuses')}</option>
+                <option value="true">{t('horses.activeHorses')}</option>
+                <option value="false">{t('horses.inactiveHorses')}</option>
+              </select>
+              <span className={`pointer-events-none absolute top-2 text-[11px] font-semibold text-[#927b6c] ${isRTL ? 'right-4' : 'left-4'}`}>
+                {uiText.status}
+              </span>
+            </div>
 
             <button
               type="button"
               onClick={() => setIsStudbookOpen(true)}
-              className="flex h-14 w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-[#311C11] px-5 text-sm font-semibold text-primary-light shadow-[0_10px_22px_rgba(49,28,17,0.18)] transition hover:bg-[#442819] sm:col-span-2 lg:col-span-1 xl:col-span-2"
+              className="flex h-14 w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-[#311C11] px-5 text-sm font-semibold text-primary-light shadow-[0_10px_22px_rgba(49,28,17,0.18)] transition hover:bg-[#442819] sm:col-span-2 lg:col-span-2 xl:col-span-2"
             >
               + {t('horses.addNew')}
             </button>

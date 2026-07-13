@@ -17,6 +17,10 @@ export async function GET(request: NextRequest) {
       line: searchParams.get('line') ?? undefined,
       microship: searchParams.get('microship') ?? undefined,
       tag: searchParams.get('tag') ?? undefined,
+      birthYear:
+        searchParams.get('birthYear') === null
+          ? undefined
+          : Number(searchParams.get('birthYear')),
       isActive:
         searchParams.get('isActive') === null
           ? undefined

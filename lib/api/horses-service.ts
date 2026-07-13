@@ -38,6 +38,7 @@ export async function getHorses(params: {
   line?: string;
   microship?: string;
   tag?: string;
+  birthYear?: number;
   isActive?: boolean;
 } = {}) {
   return apiFetch<PagedResponse<HorseListItemDto>>('/api/Horses', {
@@ -50,6 +51,7 @@ export async function getHorses(params: {
       line: params.line,
       microship: params.microship,
       tag: params.tag,
+      birthYear: params.birthYear,
       isActive: params.isActive,
     },
   });
