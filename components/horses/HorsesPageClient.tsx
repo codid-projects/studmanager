@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CalendarDays, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Search, Tags, X } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { HorseCard } from '@/components/horses/HorseCard';
 import {
@@ -25,6 +25,7 @@ import type {
   ApiResult,
   HorseInfoDto,
   HorseListItemDto,
+  HorseTagSuggestionDto,
   LineageNameDto,
   LocaleCode,
   PagedResponse,
@@ -47,6 +48,7 @@ type FilterBadge = {
 };
 
 const HORSES_PAGE_SIZE = 24;
+const TAG_SUGGESTIONS_PAGE_SIZE = 8;
 
 function unwrapApiResult<T>(payload: T | ApiResult<T>): T | undefined {
   if (payload && typeof payload === 'object' && 'statusCode' in payload) {
@@ -147,6 +149,20 @@ export function HorsesPageClient({
   const [lineFilter, setLineFilter] = useState('');
   const [microshipFilter, setMicroshipFilter] = useState('');
   const [tagFilter, setTagFilter] = useState('');
+  const [isTagPickerOpen, setIsTagPickerOpen] = useState(false);
+  const [tagPickerSearch, setTagPickerSearch] = useState('');
+  const [debouncedTagPickerSearch, setDebouncedTagPickerSearch] = useState('');
+  const [tagPickerPage, setTagPickerPage] = useState(1);
+  const [tagSuggestions, setTagSuggestions] = useState<HorseTagSuggestionDto[]>([]);
+  const [tagSuggestionsLoading, setTagSuggestionsLoading] = useState(false);
+  const [tagSuggestionsError, setTagSuggestionsError] = useState('');
+  const [tagSuggestionsPageInfo, setTagSuggestionsPageInfo] = useState({
+    currentPage: 1,
+    totalPages: 0,
+    totalCount: 0,
+    hasPreviousPage: false,
+    hasNextPage: false,
+  });
   const [birthYearFilter, setBirthYearFilter] = useState('');
   const [isBirthYearPickerOpen, setIsBirthYearPickerOpen] = useState(false);
   const [birthYearPickerStart, setBirthYearPickerStart] = useState(() => {
@@ -180,6 +196,7 @@ export function HorsesPageClient({
   const requestSeqRef = useRef(0);
   const appendInFlightRef = useRef(false);
   const birthYearPickerRef = useRef<HTMLDivElement | null>(null);
+  const tagPickerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!isBirthYearPickerOpen) return;
@@ -204,6 +221,96 @@ export function HorsesPageClient({
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isBirthYearPickerOpen]);
+
+  useEffect(() => {
+    if (!isTagPickerOpen) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (target && tagPickerRef.current?.contains(target)) return;
+      setIsTagPickerOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsTagPickerOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isTagPickerOpen]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedTagPickerSearch(tagPickerSearch.trim());
+      setTagPickerPage(1);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [tagPickerSearch]);
+
+  useEffect(() => {
+    if (!isTagPickerOpen) return;
+
+    let active = true;
+    setTagSuggestionsLoading(true);
+    setTagSuggestionsError('');
+
+    clientApiFetch<PagedResponse<HorseTagSuggestionDto>>({
+      backendPath: '/api/Horses/tags',
+      nextPath: '/api/horses/tags',
+      query: {
+        search: debouncedTagPickerSearch || undefined,
+        pageNumber: tagPickerPage,
+        pageSize: TAG_SUGGESTIONS_PAGE_SIZE,
+        locale,
+      },
+    })
+      .then((result) => {
+        if (!active) return;
+
+        setTagSuggestions(result.data ?? []);
+        setTagSuggestionsPageInfo({
+          currentPage: result.currentPage || tagPickerPage,
+          totalPages: result.totalPages || 0,
+          totalCount: result.totalCount || 0,
+          hasPreviousPage: Boolean(result.hasPreviousPage),
+          hasNextPage: Boolean(result.hasNextPage),
+        });
+      })
+      .catch((error) => {
+        if (!active) return;
+
+        setTagSuggestions([]);
+        setTagSuggestionsPageInfo({
+          currentPage: 1,
+          totalPages: 0,
+          totalCount: 0,
+          hasPreviousPage: false,
+          hasNextPage: false,
+        });
+        setTagSuggestionsError(
+          error instanceof Error
+            ? error.message
+            : isRTL
+              ? 'تعذر تحميل الوسوم.'
+              : 'Failed to load tags.',
+        );
+      })
+      .finally(() => {
+        if (active) setTagSuggestionsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [debouncedTagPickerSearch, isRTL, isTagPickerOpen, locale, tagPickerPage]);
 
   const uiText = useMemo(
     () => ({
@@ -446,6 +553,9 @@ export function HorsesPageClient({
     setLineFilter('');
     setMicroshipFilter('');
     setTagFilter('');
+    setIsTagPickerOpen(false);
+    setTagPickerSearch('');
+    setTagPickerPage(1);
     setBirthYearFilter('');
     setIsBirthYearPickerOpen(false);
     setIsActiveFilter('');
@@ -830,24 +940,6 @@ export function HorsesPageClient({
             <h1 className="shrink-0 text-lg font-semibold text-text-dark sm:text-2xl">
               {t('horses.title')}
             </h1>
-
-            {hasActiveFilters ? (
-              <div
-                className={`flex w-fit items-center gap-2 rounded-full border border-[#d9c8bd] bg-[#fbf8f4] px-3 py-1.5 text-xs font-bold text-[#3b2314] ${
-                  isRTL ? 'flex-row-reverse' : ''
-                }`}
-              >
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    loading ? 'animate-pulse bg-amber-500' : 'bg-emerald-500'
-                  }`}
-                />
-                <span>{loading ? uiText.applyingSearch : uiText.searchApplied}</span>
-                <span className="rounded-full bg-white px-2 py-0.5 text-[#6a5548]">
-                  {uiText.results}
-                </span>
-              </div>
-            ) : null}
           </div>
 
           <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-12">
@@ -943,20 +1035,149 @@ export function HorsesPageClient({
               </span>
             </div>
 
-            <div className="relative min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-3">
+            <div
+              ref={tagPickerRef}
+              className="relative min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-3"
+            >
               <input
                 type="search"
                 value={tagFilter}
                 onChange={(event) => setTagFilter(event.target.value)}
                 placeholder={t('horses.tagFilter')}
                 aria-label={t('horses.tagFilterLabel')}
+                onFocus={() => {
+                  if (!tagPickerSearch) setTagPickerSearch(tagFilter.trim());
+                }}
                 className={`h-14 w-full rounded-2xl border border-[#eadfd7] bg-[#fffdfb] px-4 pt-4 text-sm font-semibold text-[#2c2330] outline-none transition placeholder:text-transparent focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 ${
                   isRTL ? 'text-right' : 'text-left'
-                }`}
+                } ${isRTL ? 'pl-12' : 'pr-12'}`}
               />
               <span className={`pointer-events-none absolute top-2 text-[11px] font-semibold text-[#927b6c] ${isRTL ? 'right-4' : 'left-4'}`}>
                 {t('horses.tagFilterLabel')}
               </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setTagPickerSearch(tagFilter.trim());
+                  setTagPickerPage(1);
+                  setIsTagPickerOpen((open) => !open);
+                }}
+                aria-label={isRTL ? 'اختيار وسم' : 'Choose tag'}
+                aria-expanded={isTagPickerOpen}
+                aria-haspopup="dialog"
+                className={`absolute top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-[#6a5548] transition hover:bg-[#f4ece5] hover:text-[#311C11] ${
+                  isTagPickerOpen ? 'bg-[#f4ece5] text-[#311C11]' : ''
+                } ${isRTL ? 'left-3' : 'right-3'}`}
+              >
+                <Tags className="h-4 w-4" />
+              </button>
+
+              {isTagPickerOpen ? (
+                <div
+                  role="dialog"
+                  aria-label={isRTL ? 'اختيار وسم' : 'Choose tag'}
+                  className={`absolute top-[calc(100%+8px)] z-[9999] w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-[#eadfd7] bg-white p-3 shadow-[0_18px_45px_rgba(49,28,17,0.16)] ${
+                    isRTL ? 'right-0' : 'left-0'
+                  }`}
+                >
+                  <div className={`mb-3 flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <div className="relative min-w-0 flex-1">
+                      <Search className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-[#9b8a7a] ${isRTL ? 'right-3' : 'left-3'}`} />
+                      <input
+                        type="search"
+                        value={tagPickerSearch}
+                        onChange={(event) => setTagPickerSearch(event.target.value)}
+                        placeholder={isRTL ? 'ابحث في الوسوم' : 'Search tags'}
+                        className={`h-10 w-full rounded-xl border border-[#eadfd7] bg-[#fffdfb] px-3 text-sm font-semibold text-[#2c2330] outline-none transition placeholder:text-[#b9ada4] focus:border-[#5a3b25] focus:bg-white focus:ring-2 focus:ring-[#5a3b25]/10 ${
+                          isRTL ? 'pr-9 text-right' : 'pl-9 text-left'
+                        }`}
+                      />
+                    </div>
+                    {tagFilter.trim() ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTagFilter('');
+                          setTagPickerSearch('');
+                          setTagPickerPage(1);
+                        }}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#eadfd7] bg-white text-[#6a5548] transition hover:bg-[#fbf8f4] hover:text-[#311C11]"
+                        aria-label={isRTL ? 'مسح الوسم' : 'Clear tag'}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto pe-1">
+                    {tagSuggestionsLoading ? (
+                      <div className="flex h-28 items-center justify-center text-sm font-bold text-[#8b776a]">
+                        {isRTL ? 'جاري تحميل الوسوم...' : 'Loading tags...'}
+                      </div>
+                    ) : tagSuggestionsError ? (
+                      <div className="rounded-xl border border-[#f0d2ce] bg-[#fff8f7] p-3 text-sm font-bold text-[#a6423a]">
+                        {tagSuggestionsError}
+                      </div>
+                    ) : tagSuggestions.length ? (
+                      <div className="space-y-2">
+                        {tagSuggestions.map((tag) => (
+                          <button
+                            key={tag.name}
+                            type="button"
+                            onClick={() => {
+                              setTagFilter(tag.name);
+                              setTagPickerSearch(tag.name);
+                              setIsTagPickerOpen(false);
+                            }}
+                            className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-sm transition ${
+                              tagFilter.trim() === tag.name
+                                ? 'border-[#311C11] bg-[#fbf4ee] text-[#311C11]'
+                                : 'border-[#eadfd7] bg-[#fffdfb] text-[#3b2314] hover:border-[#d1b6a5] hover:bg-[#fbf8f4]'
+                            } ${isRTL ? 'flex-row-reverse text-right' : 'text-left'}`}
+                          >
+                            <span className="min-w-0 flex-1 truncate font-black">{tag.name}</span>
+                            <span className="shrink-0 rounded-full bg-[#f1e8e0] px-2 py-0.5 text-[11px] font-bold text-[#7b6658]">
+                              {tag.count}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex h-28 items-center justify-center rounded-xl border border-dashed border-[#eadfd7] bg-[#fffdfb] px-4 text-center text-sm font-bold text-[#8b776a]">
+                        {isRTL ? 'لا توجد وسوم مطابقة' : 'No matching tags'}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={`mt-3 flex items-center justify-between gap-2 border-t border-[#f1e8e0] pt-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <button
+                      type="button"
+                      onClick={() => setTagPickerPage((page) => Math.max(1, page - 1))}
+                      disabled={!tagSuggestionsPageInfo.hasPreviousPage || tagSuggestionsLoading}
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#eadfd7] bg-white text-[#6a5548] transition enabled:hover:bg-[#fbf8f4] disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label={isRTL ? 'الصفحة السابقة' : 'Previous page'}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <div className="min-w-0 flex-1 text-center text-xs font-bold text-[#8b776a]">
+                      {tagSuggestionsPageInfo.totalCount
+                        ? isRTL
+                          ? `${tagSuggestionsPageInfo.currentPage} / ${tagSuggestionsPageInfo.totalPages} - ${tagSuggestionsPageInfo.totalCount} وسم`
+                          : `${tagSuggestionsPageInfo.currentPage} / ${tagSuggestionsPageInfo.totalPages} - ${tagSuggestionsPageInfo.totalCount} tags`
+                        : isRTL ? 'لا توجد وسوم' : 'No tags'}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTagPickerPage((page) => page + 1)}
+                      disabled={!tagSuggestionsPageInfo.hasNextPage || tagSuggestionsLoading}
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#eadfd7] bg-white text-[#6a5548] transition enabled:hover:bg-[#fbf8f4] disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label={isRTL ? 'الصفحة التالية' : 'Next page'}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div
@@ -1140,36 +1361,58 @@ export function HorsesPageClient({
 
           {hasActiveFilters ? (
             <div
-              className={`flex flex-wrap items-center gap-2 ${
-                isRTL ? 'justify-end' : 'justify-start'
+              className={`flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between ${
+                isRTL ? 'sm:flex-row-reverse' : ''
               }`}
             >
-              {activeFilterBadges.map((badge) => (
-                <span
-                  key={badge.key}
-                  dir={isRTL ? 'rtl' : 'ltr'}
-                  className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[#eadfd7] bg-[#fffdfb] px-3 py-1.5 text-xs font-semibold text-[#3b2314]"
-                >
-                  <span className="text-[#8b776a]">{badge.label}:</span>
-                  <span className="max-w-[160px] truncate">{badge.value}</span>
-                  <button
-                    type="button"
-                    onClick={badge.onClear}
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#f3ebe5] text-[#6a5548] transition hover:bg-[#eadfd7]"
-                    aria-label={`${isRTL ? 'مسح' : 'Clear'} ${badge.label}`}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="rounded-full border border-[#eadfd7] bg-white px-3 py-1.5 text-xs font-bold text-[#6a5548] transition hover:bg-[#fbf8f4] hover:text-[#3b2314]"
+              <div
+                className={`flex w-fit items-center gap-2 rounded-full border border-[#d9c8bd] bg-[#fbf8f4] px-3 py-1.5 text-xs font-bold text-[#3b2314] ${
+                  isRTL ? 'flex-row-reverse self-end' : 'self-start'
+                }`}
               >
-                {uiText.clearAll}
-              </button>
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    loading ? 'animate-pulse bg-amber-500' : 'bg-emerald-500'
+                  }`}
+                />
+                <span>{loading ? uiText.applyingSearch : uiText.searchApplied}</span>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[#6a5548]">
+                  {uiText.results}
+                </span>
+              </div>
+
+              <div
+                className={`flex flex-wrap items-center gap-2 ${
+                  isRTL ? 'justify-end sm:justify-start' : 'justify-start sm:justify-end'
+                }`}
+              >
+                {activeFilterBadges.map((badge) => (
+                  <span
+                    key={badge.key}
+                    dir={isRTL ? 'rtl' : 'ltr'}
+                    className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[#eadfd7] bg-[#fffdfb] px-3 py-1.5 text-xs font-semibold text-[#3b2314]"
+                  >
+                    <span className="text-[#8b776a]">{badge.label}:</span>
+                    <span className="max-w-[160px] truncate">{badge.value}</span>
+                    <button
+                      type="button"
+                      onClick={badge.onClear}
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#f3ebe5] text-[#6a5548] transition hover:bg-[#eadfd7]"
+                      aria-label={`${isRTL ? 'مسح' : 'Clear'} ${badge.label}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="rounded-full border border-[#eadfd7] bg-white px-3 py-1.5 text-xs font-bold text-[#6a5548] transition hover:bg-[#fbf8f4] hover:text-[#3b2314]"
+                >
+                  {uiText.clearAll}
+                </button>
+              </div>
             </div>
           ) : null}
         </div>

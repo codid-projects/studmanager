@@ -384,6 +384,11 @@ export interface HorseTagDto {
   sourceLine?: string | null;
 }
 
+export interface HorseTagSuggestionDto {
+  name: string;
+  count: number;
+}
+
 export interface HorseDeceasedPayload {
   isDeceased: boolean;
   deceasedAt?: string | null;
