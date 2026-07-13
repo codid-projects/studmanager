@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { HorseCard } from '@/components/horses/HorseCard';
 import {
@@ -1052,9 +1052,19 @@ export function HorsesPageClient({
             <button
               type="button"
               onClick={() => setIsExternalSearchOpen(true)}
-              className="flex h-14 w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-[#311C11] bg-white px-5 text-sm font-semibold text-[#311C11] transition hover:bg-[#fbf8f4] sm:col-span-2 lg:col-span-2 xl:col-span-2"
+              className={`group flex h-14 w-full shrink-0 items-center justify-center gap-3 whitespace-nowrap rounded-2xl border border-[#d8c4b5] bg-[#fffaf4] px-4 text-sm font-black text-[#311C11] shadow-[0_8px_18px_rgba(49,28,17,0.08)] transition hover:border-[#311C11] hover:bg-white hover:shadow-[0_12px_24px_rgba(49,28,17,0.12)] sm:col-span-2 lg:col-span-2 xl:col-span-2 ${
+                isRTL ? 'flex-row-reverse' : ''
+              }`}
             >
-              {isRTL ? 'البحث في كل الخيول' : 'Search all horses'}
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#311C11] text-primary-light transition group-hover:bg-[#4a2f1d]">
+                <Search className="h-4 w-4" />
+              </span>
+              <span className="flex min-w-0 flex-col leading-tight">
+                <span className="truncate">{isRTL ? 'البحث في كل الخيول' : 'Search all horses'}</span>
+                <span className="truncate text-[11px] font-bold text-[#8b776a]">
+                  {isRTL ? 'Studbook خارجي' : 'External studbook'}
+                </span>
+              </span>
             </button>
           </div>
 

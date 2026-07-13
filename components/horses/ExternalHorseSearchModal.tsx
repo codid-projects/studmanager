@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Save, Search, Tag, X } from 'lucide-react';
 import { useBodyScrollLock } from '@/components/common/useBodyScrollLock';
 import { clientApiFetch } from '@/lib/api/client';
@@ -45,6 +45,7 @@ export function ExternalHorseSearchModal({ onClose }: ExternalHorseSearchModalPr
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [savingTag, setSavingTag] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const resultsScrollerRef = useRef<HTMLDivElement | null>(null);
 
   useBodyScrollLock(true);
 
@@ -76,7 +77,10 @@ export function ExternalHorseSearchModal({ onClose }: ExternalHorseSearchModalPr
           locale: localeCode,
         });
 
-        if (active) setResults(payload);
+        if (active) {
+          setResults(payload);
+          resultsScrollerRef.current?.scrollTo({ top: 0 });
+        }
       } catch (error) {
         if (!active) return;
         setMessage({
@@ -196,6 +200,17 @@ export function ExternalHorseSearchModal({ onClose }: ExternalHorseSearchModalPr
   }, [isRTL, selected]);
 
   const totalPages = Math.max(1, results?.totalPages || 1);
+  const canGoPrevious = page > 1 && !loading;
+  const canGoNext = page < totalPages && !loading;
+  const visiblePages = useMemo(() => {
+    const start = Math.max(1, Math.min(page - 1, totalPages - 2));
+    const end = Math.min(totalPages, start + 2);
+    return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+  }, [page, totalPages]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   return (
     <div
@@ -206,30 +221,32 @@ export function ExternalHorseSearchModal({ onClose }: ExternalHorseSearchModalPr
     >
       <div
         dir={direction}
-        className="grid max-h-[90vh] w-full max-w-6xl grid-cols-1 overflow-hidden rounded-[22px] bg-white shadow-xl lg:grid-cols-[minmax(0,1fr)_390px]"
+        className="grid h-[90vh] max-h-[860px] w-full max-w-6xl grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(260px,38vh)] overflow-hidden rounded-[22px] bg-white shadow-xl lg:grid-cols-[minmax(0,1fr)_390px] lg:grid-rows-1"
       >
-        <div className="flex min-h-0 flex-col border-[#eadfd7] lg:border-e">
-          <div className="flex items-center justify-between gap-3 border-b border-[#eadfd7] px-5 py-4">
-            <div>
-              <h2 className="text-lg font-black text-[#2b1a12]">
-                {isRTL ? 'البحث في كل خيول Studbook' : 'Search All External Horses'}
-              </h2>
-              <p className="text-xs text-[#7a6c63]">
-                {isRTL ? 'اختر خيلاً لعرض تفاصيله وإدارة الوسم' : 'Select a horse to preview details and manage its tag'}
-              </p>
-            </div>
+        <div className="flex min-h-0 flex-col overflow-hidden border-[#eadfd7] lg:border-e">
+          <div className="shrink-0 border-b border-[#eadfd7] px-5 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black text-[#2b1a12]">
+                  {isRTL ? 'البحث في كل خيول Studbook' : 'Search All External Horses'}
+                </h2>
+                <p className="text-xs text-[#7a6c63]">
+                  {isRTL ? 'اختر خيلاً لعرض تفاصيله وإدارة الوسم' : 'Select a horse to preview details and manage its tag'}
+                </p>
+              </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f7f1eb] text-[#3b2b20] transition hover:bg-[#efe5da]"
-              aria-label={isRTL ? 'إغلاق' : 'Close'}
-            >
-              <X className="h-5 w-5" />
-            </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f7f1eb] text-[#3b2b20] transition hover:bg-[#efe5da]"
+                aria-label={isRTL ? 'إغلاق' : 'Close'}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
           </div>
 
-          <div className="border-b border-[#eadfd7] p-4">
+          <div className="shrink-0 border-b border-[#eadfd7] p-4">
             <div className="relative">
               <Search className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-[#9b8a7a] ${isRTL ? 'right-4' : 'left-4'}`} />
               <input
@@ -243,7 +260,7 @@ export function ExternalHorseSearchModal({ onClose }: ExternalHorseSearchModalPr
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div ref={resultsScrollerRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
             {loading ? (
               <div className="rounded-2xl bg-[#fbf8f4] p-6 text-center text-sm text-[#7a6c63]">
                 {t('common.loading')}
@@ -289,30 +306,54 @@ export function ExternalHorseSearchModal({ onClose }: ExternalHorseSearchModalPr
             )}
           </div>
 
-          <div className="flex items-center justify-between border-t border-[#eadfd7] px-4 py-3 text-xs font-bold text-[#6a5548]">
+          <div className="shrink-0 border-t border-[#eadfd7] bg-white px-4 py-3 text-xs font-bold text-[#6a5548]">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span>
+                {isRTL ? 'الصفحة' : 'Page'} {page} / {totalPages}
+              </span>
+              <span>
+                {results?.totalCount ?? 0} {isRTL ? 'نتيجة' : 'results'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={() => setPage((value) => Math.max(1, value - 1))}
-              disabled={page <= 1 || loading}
-              className="rounded-xl border border-[#eadfd7] px-3 py-2 disabled:opacity-40"
+              disabled={!canGoPrevious}
+              className="h-9 rounded-xl border border-[#eadfd7] px-3 transition enabled:hover:bg-[#fbf8f4] disabled:opacity-40"
             >
               {isRTL ? 'السابق' : 'Previous'}
             </button>
-            <span>
-              {page} / {totalPages}
-            </span>
+            <div className="flex min-w-0 items-center justify-center gap-1">
+              {visiblePages.map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  onClick={() => setPage(pageNumber)}
+                  disabled={loading}
+                  className={`h-9 min-w-9 rounded-xl border px-2 transition ${
+                    pageNumber === page
+                      ? 'border-[#311C11] bg-[#311C11] text-white'
+                      : 'border-[#eadfd7] bg-white hover:bg-[#fbf8f4]'
+                  } disabled:opacity-50`}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-              disabled={page >= totalPages || loading}
-              className="rounded-xl border border-[#eadfd7] px-3 py-2 disabled:opacity-40"
+              disabled={!canGoNext}
+              className="h-9 rounded-xl border border-[#eadfd7] px-3 transition enabled:hover:bg-[#fbf8f4] disabled:opacity-40"
             >
               {isRTL ? 'التالي' : 'Next'}
             </button>
+            </div>
           </div>
         </div>
 
-        <aside className="min-h-0 overflow-y-auto bg-[#fbf8f4] p-5">
+        <aside className="min-h-0 overflow-y-auto overscroll-contain bg-[#fbf8f4] p-5">
           {!selected ? (
             <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-dashed border-[#d9c8bd] bg-white p-6 text-center text-sm text-[#7a6c63]">
               {isRTL ? 'اختر خيلاً لعرض التفاصيل والوسم.' : 'Select a horse to preview details and tags.'}
