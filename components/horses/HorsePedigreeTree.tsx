@@ -91,8 +91,8 @@ type BranchExpansion = {
 };
 
 const CERTIFICATE_ASPECT = 1600 / 1340;
-const MIN_COLUMN_WIDTH_PX = 205;
-const CERTIFICATE_BASE_WIDTH_PX = 1320;
+const MIN_COLUMN_WIDTH_PX = 225;
+const CERTIFICATE_BASE_WIDTH_PX = 1480;
 const INITIAL_PEDIGREE_LEVELS = 6;
 const MAX_PEDIGREE_LEVELS = 12;
 const PEDIGREE_LEVEL_STEP = 3;
@@ -402,6 +402,8 @@ const getTopMetaItems = (horse: Horse, isRTL: boolean): TopMetaItem[] => {
     getNestedName(raw.breeder, isRTL) || pickText(raw.breederEn, raw.breederAr);
   const owner =
     getNestedName(raw.owner, isRTL) || pickText(raw.ownerEn, raw.ownerAr);
+  const microchip =
+    typeof raw.microchipID === "string" ? raw.microchipID.trim() : "";
   if (isRTL) {
     return [
       {
@@ -415,6 +417,10 @@ const getTopMetaItems = (horse: Horse, isRTL: boolean): TopMetaItem[] => {
       {
         label: "الرسن",
         value: String(strain || "-"),
+      },
+      {
+        label: "رقم الشريحة",
+        value: microchip || "-",
       },
       {
         label: "المنتج",
@@ -439,6 +445,10 @@ const getTopMetaItems = (horse: Horse, isRTL: boolean): TopMetaItem[] => {
     {
       label: isRTL ? "تاريخ الميلاد" : "Birth Date",
       value: birth,
+    },
+    {
+      label: isRTL ? "رقم الشريحة" : "Microchip",
+      value: microchip || "-",
     },
     {
       label: isRTL ? "المربي" : "Breeder",
@@ -505,7 +515,7 @@ const TopMetaRow = ({
           : "'SF Pro AR', serif",
       }}
     >
-      <div className="flex max-w-full flex-nowrap items-center justify-between gap-4 overflow-hidden whitespace-nowrap text-[18px] md:text-[24px] xl:text-[30px]">
+      <div className="flex max-w-full flex-nowrap items-center justify-between gap-3 overflow-hidden whitespace-nowrap text-[15px] md:text-[20px] xl:text-[26px]">
         {items.map((item, index) => (
           <div
             key={`${item.label}-${index}`}
@@ -724,7 +734,11 @@ const PedigreeBox = ({
       >
         <ParentIcon role={node.role} />
         <span
-          className="block min-w-0 max-w-full overflow-visible whitespace-nowrap py-2 transition-colors duration-150 drop-shadow-[0_1px_0_rgba(255,255,255,0.45)] group-hover:font-semibold group-hover:text-[#005f38] group-hover:[text-shadow:0_0_1px_rgba(0,95,56,0.45),0_1px_0_rgba(255,255,255,0.65)] group-focus-visible:font-semibold group-focus-visible:text-[#005f38]"
+          className={`block min-w-0 max-w-full overflow-visible py-2 transition-colors duration-150 drop-shadow-[0_1px_0_rgba(255,255,255,0.45)] group-hover:font-semibold group-hover:text-[#005f38] group-hover:[text-shadow:0_0_1px_rgba(0,95,56,0.45),0_1px_0_rgba(255,255,255,0.65)] group-focus-visible:font-semibold group-focus-visible:text-[#005f38] ${
+            node.role === "Root"
+              ? "whitespace-normal break-words leading-tight"
+              : "whitespace-nowrap"
+          }`}
           style={{
             color:
               highlighted && node.duplicateColor
@@ -1821,6 +1835,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
                   { label: isRTL ? "النوع" : "Gender", value: "..." },
                   { label: isRTL ? "تاريخ الميلاد" : "Birth Date", value: "..." },
                   { label: isRTL ? "الرسن" : "Strain", value: "..." },
+                  { label: isRTL ? "رقم الشريحة" : "Microchip", value: "..." },
                   { label: isRTL ? "المنتج" : "Breeder", value: "..." },
                   { label: isRTL ? "المربي" : "Owner", value: "..." },
                 ]}
