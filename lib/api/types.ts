@@ -370,6 +370,10 @@ export interface HorseListItemDto {
   isTemporarilyAwayFromBox?: boolean;
   temporaryLeavingReason?: string | null;
   tags?: HorseTagDto[] | null;
+  horseFatherEnglishName?: string | null;
+  horseFatherArabicName?: string | null;
+  horseMotherEnglishName?: string | null;
+  horseMotherArabicName?: string | null;
 }
 
 export interface HorseTagDto {
@@ -384,10 +388,6 @@ export interface HorseTagDto {
   sourceLine?: string | null;
 }
 
-export interface HorseTagSuggestionDto {
-  name: string;
-  count: number;
-}
 
 export interface HorseDeceasedPayload {
   isDeceased: boolean;

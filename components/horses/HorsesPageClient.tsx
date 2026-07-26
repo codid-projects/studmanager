@@ -2,7 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CalendarDays, ChevronLeft, ChevronRight, Search, Tags, X } from 'lucide-react';
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  FileSpreadsheet,
+  FileText,
+  Search,
+  Tags,
+  X,
+} from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { HorseCard } from '@/components/horses/HorseCard';
 import {
@@ -21,11 +30,15 @@ import { localizeApiMessage } from '@/lib/api/errors';
 import { buildChangedHorsePayload } from '@/lib/api/horse-update-payload';
 import { fetchSpecialLines, fetchStrains } from '@/lib/api/lineage-client';
 import { isDirectApiMode } from '@/lib/api/transport';
+import {
+  exportHorsesToExcel,
+  exportHorsesToPdf,
+  type HorsesExportContext,
+} from '@/lib/export/horses-export';
 import type {
   ApiResult,
   HorseInfoDto,
   HorseListItemDto,
-  HorseTagSuggestionDto,
   LineageNameDto,
   LocaleCode,
   PagedResponse,
@@ -153,16 +166,10 @@ export function HorsesPageClient({
   const [tagPickerSearch, setTagPickerSearch] = useState('');
   const [debouncedTagPickerSearch, setDebouncedTagPickerSearch] = useState('');
   const [tagPickerPage, setTagPickerPage] = useState(1);
-  const [tagSuggestions, setTagSuggestions] = useState<HorseTagSuggestionDto[]>([]);
+  const [allTagNames, setAllTagNames] = useState<string[]>([]);
+  const [tagNamesLoaded, setTagNamesLoaded] = useState(false);
   const [tagSuggestionsLoading, setTagSuggestionsLoading] = useState(false);
   const [tagSuggestionsError, setTagSuggestionsError] = useState('');
-  const [tagSuggestionsPageInfo, setTagSuggestionsPageInfo] = useState({
-    currentPage: 1,
-    totalPages: 0,
-    totalCount: 0,
-    hasPreviousPage: false,
-    hasNextPage: false,
-  });
   const [birthYearFilter, setBirthYearFilter] = useState('');
   const [isBirthYearPickerOpen, setIsBirthYearPickerOpen] = useState(false);
   const [birthYearPickerStart, setBirthYearPickerStart] = useState(() => {
@@ -191,6 +198,7 @@ export function HorsesPageClient({
 
   const [horseIdToDelete, setHorseIdToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [exporting, setExporting] = useState<'' | 'excel' | 'pdf'>('');
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const requestSeqRef = useRef(0);
@@ -255,46 +263,32 @@ export function HorsesPageClient({
     return () => window.clearTimeout(timeoutId);
   }, [tagPickerSearch]);
 
+  // The backend now returns the full list of distinct tag names from
+  // GET /api/Horses/tags (Result<List<string>>), so search and paging for the
+  // picker are done client-side over that list.
   useEffect(() => {
-    if (!isTagPickerOpen) return;
+    if (!isTagPickerOpen || tagNamesLoaded) return;
 
     let active = true;
     setTagSuggestionsLoading(true);
     setTagSuggestionsError('');
 
-    clientApiFetch<PagedResponse<HorseTagSuggestionDto>>({
+    clientApiFetch<ApiResult<string[]> | string[]>({
       backendPath: '/api/Horses/tags',
       nextPath: '/api/horses/tags',
-      query: {
-        search: debouncedTagPickerSearch || undefined,
-        pageNumber: tagPickerPage,
-        pageSize: TAG_SUGGESTIONS_PAGE_SIZE,
-        locale,
-      },
+      nextQuery: { locale },
     })
       .then((result) => {
         if (!active) return;
 
-        setTagSuggestions(result.data ?? []);
-        setTagSuggestionsPageInfo({
-          currentPage: result.currentPage || tagPickerPage,
-          totalPages: result.totalPages || 0,
-          totalCount: result.totalCount || 0,
-          hasPreviousPage: Boolean(result.hasPreviousPage),
-          hasNextPage: Boolean(result.hasNextPage),
-        });
+        const names = Array.isArray(result) ? result : result?.data ?? [];
+        setAllTagNames(names.filter((name): name is string => Boolean(name?.trim())));
+        setTagNamesLoaded(true);
       })
       .catch((error) => {
         if (!active) return;
 
-        setTagSuggestions([]);
-        setTagSuggestionsPageInfo({
-          currentPage: 1,
-          totalPages: 0,
-          totalCount: 0,
-          hasPreviousPage: false,
-          hasNextPage: false,
-        });
+        setAllTagNames([]);
         setTagSuggestionsError(
           error instanceof Error
             ? error.message
@@ -310,7 +304,35 @@ export function HorsesPageClient({
     return () => {
       active = false;
     };
-  }, [debouncedTagPickerSearch, isRTL, isTagPickerOpen, locale, tagPickerPage]);
+  }, [isRTL, isTagPickerOpen, locale, tagNamesLoaded]);
+
+  const filteredTagNames = useMemo(() => {
+    const query = debouncedTagPickerSearch.trim().toLowerCase();
+
+    if (!query) return allTagNames;
+
+    return allTagNames.filter((name) => name.toLowerCase().includes(query));
+  }, [allTagNames, debouncedTagPickerSearch]);
+
+  const tagSuggestionsPageInfo = useMemo(() => {
+    const totalCount = filteredTagNames.length;
+    const totalPages = Math.ceil(totalCount / TAG_SUGGESTIONS_PAGE_SIZE);
+    const currentPage = Math.min(Math.max(1, tagPickerPage), Math.max(1, totalPages));
+
+    return {
+      currentPage,
+      totalPages,
+      totalCount,
+      hasPreviousPage: currentPage > 1,
+      hasNextPage: currentPage < totalPages,
+    };
+  }, [filteredTagNames, tagPickerPage]);
+
+  const tagSuggestions = useMemo(() => {
+    const start = (tagSuggestionsPageInfo.currentPage - 1) * TAG_SUGGESTIONS_PAGE_SIZE;
+
+    return filteredTagNames.slice(start, start + TAG_SUGGESTIONS_PAGE_SIZE);
+  }, [filteredTagNames, tagSuggestionsPageInfo.currentPage]);
 
   const uiText = useMemo(
     () => ({
@@ -736,6 +758,71 @@ export function HorsesPageClient({
     window.location.reload();
   };
 
+  const fetchAllFilteredHorses = useCallback(async () => {
+    const pageSize = 200;
+    const maxPages = 50;
+    const rows: HorseListItemDto[] = [];
+
+    for (let pageNumber = 1; pageNumber <= maxPages; pageNumber += 1) {
+      const query = {
+        pageNumber,
+        pageSize,
+        search: filtersQuery.search,
+        gender: filtersQuery.gender,
+        strain: filtersQuery.strain,
+        line: filtersQuery.line,
+        microship: filtersQuery.microship,
+        tag: filtersQuery.tag,
+        birthYear: filtersQuery.birthYear,
+        isActive: filtersQuery.isActive,
+      };
+
+      const payload = await clientApiFetch<PagedResponse<HorseListItemDto>>({
+        backendPath: '/api/Horses',
+        nextPath: '/api/horses',
+        backendQuery: query,
+        nextQuery: { ...query, locale },
+        locale: localeCode,
+      });
+
+      rows.push(...(payload.data ?? []));
+
+      if (!payload.hasNextPage || !(payload.data ?? []).length) break;
+    }
+
+    return rows;
+  }, [filtersQuery, locale, localeCode]);
+
+  const handleExport = async (kind: 'excel' | 'pdf') => {
+    if (exporting) return;
+
+    setExporting(kind);
+    setError('');
+
+    try {
+      const rows = await fetchAllFilteredHorses();
+      const context: HorsesExportContext = {
+        horses: rows,
+        filters: activeFilterBadges.map(({ label, value }) => ({ label, value })),
+        locale: localeCode,
+      };
+
+      if (kind === 'excel') {
+        await exportHorsesToExcel(context);
+      } else {
+        await exportHorsesToPdf(context);
+      }
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? localizeApiMessage(requestError.message, localeCode)
+          : t('common.error'),
+      );
+    } finally {
+      setExporting('');
+    }
+  };
+
   const handleDeleteHorse = async () => {
     if (!horseIdToDelete || isDeleting) return;
 
@@ -940,6 +1027,31 @@ export function HorsesPageClient({
             <h1 className="shrink-0 text-lg font-semibold text-text-dark sm:text-2xl">
               {t('horses.title')}
             </h1>
+
+            <div className={`flex flex-wrap items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <button
+                type="button"
+                onClick={() => handleExport('excel')}
+                disabled={Boolean(exporting) || loading}
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#cfe3d4] bg-[#eef8f1] px-4 text-xs font-black text-[#1d6b40] transition hover:border-[#9dccaa] hover:bg-[#e2f3e8] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                {exporting === 'excel'
+                  ? isRTL ? 'جاري التصدير...' : 'Exporting...'
+                  : isRTL ? 'تصدير Excel' : 'Export Excel'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleExport('pdf')}
+                disabled={Boolean(exporting) || loading}
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#f0d2ce] bg-[#fff5f4] px-4 text-xs font-black text-[#a6423a] transition hover:border-[#e2aca5] hover:bg-[#ffecea] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FileText className="h-4 w-4" />
+                {exporting === 'pdf'
+                  ? isRTL ? 'جاري التصدير...' : 'Exporting...'
+                  : isRTL ? 'تصدير PDF' : 'Export PDF'}
+              </button>
+            </div>
           </div>
 
           <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-12">
@@ -1120,25 +1232,23 @@ export function HorsesPageClient({
                       </div>
                     ) : tagSuggestions.length ? (
                       <div className="space-y-2">
-                        {tagSuggestions.map((tag) => (
+                        {tagSuggestions.map((tagName) => (
                           <button
-                            key={tag.name}
+                            key={tagName}
                             type="button"
                             onClick={() => {
-                              setTagFilter(tag.name);
-                              setTagPickerSearch(tag.name);
+                              setTagFilter(tagName);
+                              setTagPickerSearch(tagName);
                               setIsTagPickerOpen(false);
                             }}
                             className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-sm transition ${
-                              tagFilter.trim() === tag.name
+                              tagFilter.trim() === tagName
                                 ? 'border-[#311C11] bg-[#fbf4ee] text-[#311C11]'
                                 : 'border-[#eadfd7] bg-[#fffdfb] text-[#3b2314] hover:border-[#d1b6a5] hover:bg-[#fbf8f4]'
                             } ${isRTL ? 'flex-row-reverse text-right' : 'text-left'}`}
                           >
-                            <span className="min-w-0 flex-1 truncate font-black">{tag.name}</span>
-                            <span className="shrink-0 rounded-full bg-[#f1e8e0] px-2 py-0.5 text-[11px] font-bold text-[#7b6658]">
-                              {tag.count}
-                            </span>
+                            <span className="min-w-0 flex-1 truncate font-black">{tagName}</span>
+                            <Tags className="h-4 w-4 shrink-0 text-[#b09a8a]" />
                           </button>
                         ))}
                       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Baby, CalendarDays, Dna, HeartPulse } from "lucide-react";
+import { Baby, CalendarDays, Dna, HeartPulse, Mars } from "lucide-react";
 import type { MareDashboard } from "@/lib/api/mare-breeding-client";
 
 export function MareOverview({
@@ -22,6 +22,11 @@ export function MareOverview({
       ar ? "عدد حالات الحمل الناجحة" : "Successful pregnancies",
       dashboard.totalPregnanciesCount,
       HeartPulse,
+    ],
+    [
+      ar ? "فحل آخر حمل" : "Current stallion",
+      dashboard.currentStallionName,
+      Mars,
     ],
     [
       ar ? "عدد الأجنة الحالية" : "Current embryos",

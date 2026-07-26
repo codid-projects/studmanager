@@ -3,8 +3,7 @@
 import { Suspense, use } from "react";
 import { useSearchParams } from "next/navigation";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { HealthCategoryTable } from "@/components/health/HealthCategoryTable";
-import { InjuryCategoryTable } from "@/components/health/InjuryCategoryTable";
+import { HealthRecordsTable } from "@/components/health/HealthRecordsTable";
 import { CategoryTabs } from "@/components/common/CategoryTabs";
 import { HEALTH_CATEGORIES } from "@/lib/section-categories";
 import Link from "next/link";
@@ -23,7 +22,6 @@ function HealthCategoryContent({ category }: { category: string }) {
   const { direction, locale } = useLocale();
   const { t } = useTranslation();
   const isRTL = direction === "rtl";
-  const isInjuries = category === "injuries";
   const horseIdParam = Number(searchParams.get("horseId"));
   const horseId = Number.isFinite(horseIdParam) && horseIdParam > 0 ? horseIdParam : undefined;
   const horseName = searchParams.get("horseName") ?? undefined;
@@ -50,11 +48,7 @@ function HealthCategoryContent({ category }: { category: string }) {
 
       <CategoryTabs section="health" categories={HEALTH_CATEGORIES} activeId={category} />
 
-      {isInjuries ? (
-        <InjuryCategoryTable horseId={horseId} horseName={horseName} />
-      ) : (
-        <HealthCategoryTable categoryId={category} />
-      )}
+      <HealthRecordsTable categoryId={category} horseId={horseId} horseName={horseName} />
     </div>
   );
 }

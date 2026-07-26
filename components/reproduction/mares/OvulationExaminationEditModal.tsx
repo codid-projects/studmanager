@@ -2,12 +2,13 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { CalendarDays, X } from "lucide-react";
-import type { LocaleCode } from "@/lib/api/types";
+import type { HorseListItemDto, LocaleCode } from "@/lib/api/types";
 import {
   type MareExaminationDetail,
   updateExamination,
 } from "@/lib/api/mare-breeding-client";
 import { fieldClass, FormField } from "../shared/FormPrimitives";
+import { HorsePickerField } from "../shared/HorsePickerField";
 
 export function OvulationExaminationEditModal({
   locale,
@@ -24,6 +25,8 @@ export function OvulationExaminationEditModal({
   const [result, setResult] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [stallion, setStallion] = useState<HorseListItemDto | null>(null);
+  const [stallionNameText, setStallionNameText] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -31,6 +34,19 @@ export function OvulationExaminationEditModal({
     setResult(record?.clinicalResult == null ? "" : String(record.clinicalResult));
     setStart(record?.expectedFoalingStartDate?.slice(0, 10) ?? "");
     setEnd(record?.expectedFoalingEndDate?.slice(0, 10) ?? "");
+    // A linked local stallion arrives as id + resolved name; only the name is
+    // needed to display it in the picker again.
+    setStallion(
+      record?.stallionId
+        ? ({
+            id: record.stallionId,
+            localId: record.stallionId,
+            englishName: record.stallionName ?? null,
+            arabicName: record.stallionName ?? null,
+          } as HorseListItemDto)
+        : null,
+    );
+    setStallionNameText(record?.stallionId ? "" : record?.stallionName ?? "");
     setError("");
   }, [record]);
 
@@ -52,6 +68,13 @@ export function OvulationExaminationEditModal({
       if (pregnant) {
         data.set("ExpectedFoalingStartDate", start);
         data.set("ExpectedFoalingEndDate", end);
+      }
+      if (stallion) {
+        data.set("StallionId", String(stallion.localId ?? stallion.id));
+      } else {
+        // Sending StallionName without StallionId unlinks any local stallion;
+        // an empty value clears the stallion entirely.
+        data.set("StallionName", stallionNameText.trim());
       }
       // Preserve existing attachments and billed services. The backend deletes
       // anything not listed in these keep-lists, so we echo back every id since
@@ -88,6 +111,29 @@ export function OvulationExaminationEditModal({
                 {ar ? arabic : en}
               </button>
             ))}
+          </div>
+          <div className="mt-4 space-y-2">
+            <FormField label={ar ? "الفحل (اختياري)" : "Stallion (optional)"}>
+              <HorsePickerField
+                locale={locale}
+                gender="Male"
+                name="StallionIdDisplay"
+                selected={stallion}
+                onSelect={setStallion}
+              />
+            </FormField>
+            {!stallion ? (
+              <input
+                value={stallionNameText}
+                onChange={(event) => setStallionNameText(event.target.value)}
+                placeholder={
+                  ar
+                    ? "أو اكتب اسم فحل من خارج الإسطبل"
+                    : "Or type an external stallion name"
+                }
+                className={fieldClass}
+              />
+            ) : null}
           </div>
           {pregnant ? (
             <div className="mt-4 rounded-xl border border-[#d7dfc3] bg-[#f7f9f1] p-4">

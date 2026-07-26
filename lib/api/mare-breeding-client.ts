@@ -24,6 +24,7 @@ export type MareDashboard = {
   surrogateStatsDisplay: string;
   totalEmbryosCount: number;
   totalPregnanciesCount: number;
+  currentStallionName?: string | null;
   totalCycles: number;
 };
 
@@ -37,6 +38,8 @@ export type ExaminationSummary = {
   attachmentCount: number;
   totalCost: number;
   hasFollowUp: boolean;
+  // Populated only for ovulation examinations.
+  stallionName?: string | null;
 };
 
 export type MareExaminationDetail = {
@@ -50,6 +53,8 @@ export type MareExaminationDetail = {
   clinicalResultAr: string | null;
   expectedFoalingStartDate: string | null;
   expectedFoalingEndDate: string | null;
+  stallionId?: number | null;
+  stallionName?: string | null;
   // Existing related records returned by the detail endpoint. They must be
   // echoed back as keep-lists on update, otherwise the backend deletes them.
   attachments?: Array<{ id: number; fileUrl: string }>;

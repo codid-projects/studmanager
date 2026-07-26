@@ -10,7 +10,6 @@ import type {
   HorseRatingResponse,
   HorseSiblingsDto,
   HorseTagDto,
-  HorseTagSuggestionDto,
   ImportHorseDto,
   PagedResponse,
   RelatedHorseDto,
@@ -58,18 +57,9 @@ export async function getHorses(params: {
   });
 }
 
-export async function getHorseTagSuggestions(params: {
-  pageNumber?: number;
-  pageSize?: number;
-  search?: string;
-} = {}) {
-  return apiFetch<PagedResponse<HorseTagSuggestionDto>>('/api/Horses/tags', {
-    query: {
-      pageNumber: params.pageNumber ?? 1,
-      pageSize: params.pageSize ?? 12,
-      search: params.search,
-    },
-  });
+export async function getAllHorseTagNames() {
+  const payload = await apiFetch<ApiResult<string[]>>('/api/Horses/tags');
+  return unwrapResult(payload) ?? [];
 }
 
 export async function getHorse(localId: string | number) {

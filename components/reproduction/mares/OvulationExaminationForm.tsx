@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { CalendarDays, FlaskConical, HeartPulse } from "lucide-react";
-import type { LocaleCode } from "@/lib/api/types";
+import type { HorseListItemDto, LocaleCode } from "@/lib/api/types";
 import {
   createExamination,
   type BreedingProfile,
@@ -13,6 +13,7 @@ import {
   FormField,
   FormSection,
 } from "../shared/FormPrimitives";
+import { HorsePickerField } from "../shared/HorsePickerField";
 import {
   appendBilledService,
   BilledServiceFields,
@@ -33,6 +34,7 @@ export function OvulationExaminationForm({
   const [clinicalResult, setClinicalResult] = useState("");
   const [expectedStartDate, setExpectedStartDate] = useState("");
   const [expectedEndDate, setExpectedEndDate] = useState("");
+  const [stallion, setStallion] = useState<HorseListItemDto | null>(null);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -53,6 +55,11 @@ export function OvulationExaminationForm({
         data.set("ExpectedFoalingStartDate", expectedStartDate);
         data.set("ExpectedFoalingEndDate", expectedEndDate);
       }
+      // The backend links a local stallion by StallionId (and resolves the
+      // name itself); StallionName is only for stallions outside the stable.
+      if (!String(data.get("StallionId") ?? "").trim()) data.delete("StallionId");
+      else data.delete("StallionName");
+      if (!String(data.get("StallionName") ?? "").trim()) data.delete("StallionName");
       appendBilledService(data, "Ovulation examination");
       data.set(
         "RecordDate",
@@ -63,6 +70,7 @@ export function OvulationExaminationForm({
       setClinicalResult("");
       setExpectedStartDate("");
       setExpectedEndDate("");
+      setStallion(null);
       onSaved();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Failed");
@@ -236,6 +244,26 @@ export function OvulationExaminationForm({
                   className={fieldClass}
                 />
               </FormField>
+              <FormField label={ar ? "الفحل (اختياري)" : "Stallion (optional)"}>
+                <HorsePickerField
+                  locale={locale}
+                  gender="Male"
+                  name="StallionId"
+                  selected={stallion}
+                  onSelect={setStallion}
+                />
+              </FormField>
+              {!stallion ? (
+                <input
+                  name="StallionName"
+                  placeholder={
+                    ar
+                      ? "أو اكتب اسم فحل من خارج الإسطبل"
+                      : "Or type an external stallion name"
+                  }
+                  className={fieldClass}
+                />
+              ) : null}
             </div>
           </FormSection>
           <FormSection

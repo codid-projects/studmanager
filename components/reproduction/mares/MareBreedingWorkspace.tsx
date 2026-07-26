@@ -116,17 +116,24 @@ export default function MareBreedingWorkspace({
     },
   ];
   const makeExamColumns = (rows: ExaminationSummary[]): TableColumn<ExaminationSummary>[] => {
-    const hasFollowUps = rows.some((r) => r.hasFollowUp);
-    if (!hasFollowUps) return examColumnsBase;
-    return [
-      ...examColumnsBase,
-      {
+    const columns = [...examColumnsBase];
+    // Only ovulation examinations carry a stallion.
+    if (rows.some((r) => r.stallionName)) {
+      columns.splice(1, 0, {
+        key: "stallion",
+        label: ar ? "الفحل" : "Stallion",
+        render: (row) => row.stallionName || "—",
+      });
+    }
+    if (rows.some((r) => r.hasFollowUp)) {
+      columns.push({
         key: "follow",
         label: ar ? "متابعة" : "Follow-up",
         render: (row) =>
           row.hasFollowUp ? (ar ? "نعم" : "Yes") : ar ? "لا" : "No",
-      },
-    ];
+      });
+    }
+    return columns;
   };
   const foalColumns: TableColumn<FoalRegistration>[] = [
     {

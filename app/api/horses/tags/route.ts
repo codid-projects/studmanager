@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiError, localizeApiMessage } from '@/lib/api/errors';
-import { getHorseTagSuggestions } from '@/lib/api/horses-service';
+import { getAllHorseTagNames } from '@/lib/api/horses-service';
 import type { LocaleCode } from '@/lib/api/types';
 
 export async function GET(request: NextRequest) {
@@ -8,13 +8,9 @@ export async function GET(request: NextRequest) {
   const locale = (searchParams.get('locale') === 'en' ? 'en' : 'ar') as LocaleCode;
 
   try {
-    const result = await getHorseTagSuggestions({
-      pageNumber: Number(searchParams.get('pageNumber') ?? 1),
-      pageSize: Number(searchParams.get('pageSize') ?? 12),
-      search: searchParams.get('search') ?? undefined,
-    });
+    const names = await getAllHorseTagNames();
 
-    return NextResponse.json(result);
+    return NextResponse.json({ succeeded: true, data: names });
   } catch (error) {
     const status = error instanceof ApiError ? error.status : 500;
     const message = error instanceof Error ? error.message : null;
