@@ -9,6 +9,8 @@ import type {
   ContactPayload,
   LocaleCode,
   PagedResponse,
+  SettingRecordDto,
+  SettingRecordPayload,
   SupplementDto,
   SupplementPayload,
 } from './types';
@@ -106,6 +108,42 @@ export function removeSupplement(locale: LocaleCode, id: number) {
     method: 'DELETE',
     backendPath: `/api/Settings/supplements/${id}`,
     nextPath: `/api/settings/supplements/${id}`,
+    nextQuery: { locale },
+    locale,
+  });
+}
+
+export function fetchSettingRecords(
+  locale: LocaleCode,
+  category: number,
+  pageNumber = 1,
+  pageSize = 100,
+) {
+  return clientApiFetch<PagedResponse<SettingRecordDto>>({
+    backendPath: '/api/Settings/records',
+    nextPath: '/api/settings/records',
+    backendQuery: { category, pageNumber, pageSize },
+    nextQuery: { category, pageNumber, pageSize, locale },
+    locale,
+  });
+}
+
+export function saveSettingRecord(locale: LocaleCode, payload: SettingRecordPayload, id?: number) {
+  return clientApiFetch<ApiMessageResult>({
+    method: id ? 'PUT' : 'POST',
+    backendPath: id ? `/api/Settings/records/${id}` : '/api/Settings/records',
+    nextPath: id ? `/api/settings/records/${id}` : '/api/settings/records',
+    nextQuery: { locale },
+    body: id ? { id, ...payload } : payload,
+    locale,
+  });
+}
+
+export function removeSettingRecord(locale: LocaleCode, id: number) {
+  return clientApiFetch<ApiMessageResult>({
+    method: 'DELETE',
+    backendPath: `/api/Settings/records/${id}`,
+    nextPath: `/api/settings/records/${id}`,
     nextQuery: { locale },
     locale,
   });

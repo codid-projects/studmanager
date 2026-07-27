@@ -4,26 +4,29 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Edit2, Plus, Search, Trash2 } from "lucide-react";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { SettingsForm } from "@/components/settings/SettingsForm";
-import { SettingsTable } from "@/components/settings/SettingsTable";
 import {
-  isIntegratedSetting,
+  getSettingRecordCategory,
   SettingsTabs,
   type SettingCategory,
 } from "@/components/settings/SettingsTabs";
 import { isClientApiNotFound } from "@/lib/api/client";
 import {
   fetchContactGroups,
+  fetchSettingRecords,
   fetchSupplements,
   removeContactGroup,
+  removeSettingRecord,
   removeSupplement,
   saveContactGroup,
+  saveSettingRecord,
   saveSupplement,
 } from "@/lib/api/management-client";
 import type {
   ContactGroupDto,
   ContactGroupPayload,
   LocaleCode,
+  SettingRecordDto,
+  SettingRecordPayload,
   SupplementDto,
   SupplementPayload,
 } from "@/lib/api/types";
@@ -41,6 +44,13 @@ const emptySupplement: SupplementPayload = {
   type: 1,
 };
 
+const emptyRecord: SettingRecordPayload = {
+  englishName: "",
+  arabicName: "",
+  description: "",
+  category: 1,
+};
+
 export default function SettingsPage() {
   const { locale, direction } = useLocale();
   const { t } = useTranslation();
@@ -49,12 +59,15 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingCategory>("contactGroups");
   const [groups, setGroups] = useState<ContactGroupDto[]>([]);
   const [supplements, setSupplements] = useState<SupplementDto[]>([]);
+  const [settingRecords, setSettingRecords] = useState<SettingRecordDto[]>([]);
   const [groupForm, setGroupForm] = useState<ContactGroupPayload>(emptyGroup);
   const [supplementForm, setSupplementForm] = useState<SupplementPayload>(emptySupplement);
+  const [recordForm, setRecordForm] = useState<SettingRecordPayload>(emptyRecord);
   const [editingGroup, setEditingGroup] = useState<ContactGroupDto | null>(null);
   const [editingSupplement, setEditingSupplement] = useState<SupplementDto | null>(null);
+  const [editingRecord, setEditingRecord] = useState<SettingRecordDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
-    kind: "contactGroups" | "supplements";
+    kind: "contactGroups" | "supplements" | "records";
     id: number;
     name: string;
   } | null>(null);
@@ -64,11 +77,6 @@ export default function SettingsPage() {
   const [error, setError] = useState("");
 
   const loadActiveTab = useCallback(async () => {
-    if (!isIntegratedSetting(activeTab)) {
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     setError("");
 
@@ -76,16 +84,26 @@ export default function SettingsPage() {
       if (activeTab === "contactGroups") {
         const result = await fetchContactGroups(localeCode);
         setGroups(result.data ?? []);
-      } else {
+      } else if (activeTab === "supplements") {
         const result = await fetchSupplements(localeCode, 1, 100);
         setSupplements(result.data ?? []);
+      } else {
+        const category = getSettingRecordCategory(activeTab);
+        if (!category) {
+          setSettingRecords([]);
+          return;
+        }
+        const result = await fetchSettingRecords(localeCode, category, 1, 100);
+        setSettingRecords(result.data ?? []);
       }
     } catch (requestError) {
       if (isClientApiNotFound(requestError)) {
         if (activeTab === "contactGroups") {
           setGroups([]);
-        } else {
+        } else if (activeTab === "supplements") {
           setSupplements([]);
+        } else {
+          setSettingRecords([]);
         }
         return;
       }
@@ -100,18 +118,23 @@ export default function SettingsPage() {
     loadActiveTab();
   }, [loadActiveTab]);
 
-  function resetForms() {
+  function resetForms(tab = activeTab) {
     setEditingGroup(null);
     setEditingSupplement(null);
+    setEditingRecord(null);
     setGroupForm(emptyGroup);
     setSupplementForm(emptySupplement);
+    setRecordForm({
+      ...emptyRecord,
+      category: getSettingRecordCategory(tab) ?? 1,
+    });
   }
 
   function changeTab(tab: SettingCategory) {
     setActiveTab(tab);
     setSearch("");
     setError("");
-    resetForms();
+    resetForms(tab);
   }
 
   async function submitGroup(event: React.FormEvent) {
@@ -150,6 +173,27 @@ export default function SettingsPage() {
     }
   }
 
+  async function submitSettingRecord(event: React.FormEvent) {
+    event.preventDefault();
+    if (!recordForm.englishName.trim() || !recordForm.arabicName.trim()) return;
+
+    const category = getSettingRecordCategory(activeTab);
+    if (!category) return;
+
+    setSaving(true);
+    setError("");
+
+    try {
+      await saveSettingRecord(localeCode, { ...recordForm, category }, editingRecord?.id);
+      resetForms();
+      await loadActiveTab();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : t("common.error"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function confirmDelete() {
     if (!deleteTarget) return;
 
@@ -159,8 +203,10 @@ export default function SettingsPage() {
     try {
       if (deleteTarget.kind === "contactGroups") {
         await removeContactGroup(localeCode, deleteTarget.id);
-      } else {
+      } else if (deleteTarget.kind === "supplements") {
         await removeSupplement(localeCode, deleteTarget.id);
+      } else {
+        await removeSettingRecord(localeCode, deleteTarget.id);
       }
 
       setDeleteTarget(null);
@@ -194,8 +240,17 @@ export default function SettingsPage() {
       ),
     [supplements, normalizedSearch],
   );
+  const filteredSettingRecords = useMemo(
+    () =>
+      settingRecords.filter((record) =>
+        [record.englishName, record.arabicName, record.description].some((value) =>
+          String(value ?? "").toLowerCase().includes(normalizedSearch),
+        ),
+      ),
+    [settingRecords, normalizedSearch],
+  );
 
-  const integrated = isIntegratedSetting(activeTab);
+  const recordCategory = getSettingRecordCategory(activeTab);
 
   return (
     <MainLayout>
@@ -279,14 +334,47 @@ export default function SettingsPage() {
                 </form>
               )}
 
-              {!integrated && (
-                <SettingsForm activeTab={activeTab} />
+              {recordCategory && (
+                <form onSubmit={submitSettingRecord} className="grid gap-4 p-6 md:grid-cols-2">
+                  <SettingsInput
+                    value={recordForm.englishName}
+                    onChange={(value) =>
+                      setRecordForm({ ...recordForm, englishName: value, category: recordCategory })
+                    }
+                    placeholder={t("settings.englishName")}
+                  />
+                  <SettingsInput
+                    value={recordForm.arabicName}
+                    onChange={(value) =>
+                      setRecordForm({ ...recordForm, arabicName: value, category: recordCategory })
+                    }
+                    placeholder={t("settings.arabicName")}
+                  />
+                  <textarea
+                    value={recordForm.description ?? ""}
+                    onChange={(event) =>
+                      setRecordForm({
+                        ...recordForm,
+                        description: event.target.value,
+                        category: recordCategory,
+                      })
+                    }
+                    placeholder={t("settings.description")}
+                    className="rounded-xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-[#4B2F1A] md:col-span-2"
+                  />
+                  <FormActions
+                    saving={saving}
+                    editing={Boolean(editingRecord)}
+                    onCancel={resetForms}
+                  />
+                </form>
               )}
+
             </div>
           </div>
         </div>
 
-        {error && integrated && (
+        {error && (
           <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
@@ -380,7 +468,41 @@ export default function SettingsPage() {
             />
           )}
 
-          {!integrated && <SettingsTable activeTab={activeTab} />}
+          {recordCategory && (
+            <SettingsDataTable
+              headers={[
+                t("settings.englishName"),
+                t("settings.arabicName"),
+                t("settings.description"),
+              ]}
+              loading={loading}
+              emptyText={t("common.noRecordsFound")}
+              rows={filteredSettingRecords.map((record) => ({
+                id: record.id,
+                cells: [
+                  record.englishName,
+                  record.arabicName,
+                  record.description || "-",
+                ],
+                onEdit: () => {
+                  setEditingRecord(record);
+                  setRecordForm({
+                    englishName: record.englishName,
+                    arabicName: record.arabicName,
+                    description: record.description ?? "",
+                    category: recordCategory,
+                  });
+                },
+                onDelete: () =>
+                  setDeleteTarget({
+                    kind: "records",
+                    id: record.id,
+                    name: isRTL ? record.arabicName : record.englishName,
+                  }),
+              }))}
+            />
+          )}
+
         </div>
       </div>
 

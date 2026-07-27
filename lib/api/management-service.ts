@@ -6,6 +6,8 @@ import type {
   ContactGroupPayload,
   ContactPayload,
   PagedResponse,
+  SettingRecordDto,
+  SettingRecordPayload,
   SupplementDto,
   SupplementPayload,
 } from './types';
@@ -84,4 +86,28 @@ export function updateSupplement(id: number, payload: SupplementPayload) {
 
 export function deleteSupplement(id: number) {
   return apiFetch<ApiMessageResult>(`/api/Settings/supplements/${id}`, { method: 'DELETE' });
+}
+
+export function getSettingRecords(category: number, pageNumber = 1, pageSize = 100) {
+  return apiFetch<PagedResponse<SettingRecordDto>>('/api/Settings/records', {
+    query: { category, pageNumber, pageSize },
+  });
+}
+
+export function createSettingRecord(payload: SettingRecordPayload) {
+  return apiFetch<ApiMessageResult>('/api/Settings/records', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export function updateSettingRecord(id: number, payload: SettingRecordPayload) {
+  return apiFetch<ApiMessageResult>(`/api/Settings/records/${id}`, {
+    method: 'PUT',
+    body: { id, ...payload },
+  });
+}
+
+export function deleteSettingRecord(id: number) {
+  return apiFetch<ApiMessageResult>(`/api/Settings/records/${id}`, { method: 'DELETE' });
 }

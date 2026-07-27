@@ -1,0 +1,38 @@
+{
+  "items": [
+    { "id": "contactGroups", "labelKey": "contactGroups" },
+    { "id": "supplements", "labelKey": "supplements" },
+    { "id": "bloodTest", "labelKey": "bloodTest", "icon": "/settings/تحليل الدم.svg" },
+    { "id": "wormDose", "labelKey": "wormDose", "icon": "/settings/جرعة الديدان.svg" },
+    { "id": "hoofLegCare", "labelKey": "hoofLegCare", "icon": "/settings/العناية بالحافر  و الساق.svg" },
+    { "id": "shoeing", "labelKey": "shoeing" },
+    { "id": "injuries", "labelKey": "injuries", "icon": "/settings/الإصابات.svg" },
+    { "id": "medicalCare", "labelKey": "medicalCare", "icon": "/settings/الرعاية الطبية.svg" },
+    { "id": "medications", "labelKey": "medications" },
+    { "id": "medicationReasons", "labelKey": "medicationReasons" },
+    { "id": "xRay", "labelKey": "xRay" },
+    { "id": "vaccinations", "labelKey": "vaccinations" },
+    { "id": "vaccinationReasons", "labelKey": "vaccinationReasons" },
+    { "id": "growth", "labelKey": "growth" },
+    { "id": "trainings", "labelKey": "trainings" },
+    { "id": "competitions", "labelKey": "competitions" },
+    { "id": "haircuts", "labelKey": "haircuts" }
+  ],
+  "recordCategories": {
+    "bloodTest": 1,
+    "wormDose": 2,
+    "injuries": 3,
+    "medicalCare": 4,
+    "medications": 5,
+    "medicationReasons": 6,
+    "xRay": 7,
+    "vaccinations": 8,
+    "vaccinationReasons": 9,
+    "shoeing": 10,
+    "hoofLegCare": 11,
+    "trainings": 12,
+    "competitions": 13,
+    "haircuts": 14,
+    "growth": 15
+  }
+}

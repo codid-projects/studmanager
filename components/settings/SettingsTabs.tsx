@@ -1,42 +1,30 @@
 'use client';
 
-import { Tablets, UsersRound } from 'lucide-react';
+import { ClipboardList, Tablets, UsersRound } from 'lucide-react';
 import { useLocale, useTranslation } from '@/lib/locale-context';
+import {
+  SETTINGS_CATEGORY_ITEMS,
+  getSettingRecordCategory,
+  isIntegratedSetting,
+  SETTING_RECORD_CATEGORY,
+  type BackendSettingCategory,
+  type IntegratedSettingCategory,
+  type SettingCategory,
+} from '@/lib/settings-record-categories';
 
-export type IntegratedSettingCategory = 'contactGroups' | 'supplements';
-export type PendingSettingCategory =
-  | 'housing'
-  | 'bloodTest'
-  | 'wormDose'
-  | 'hoofLegCare'
-  | 'injuries'
-  | 'medicalCare';
-export type SettingCategory = IntegratedSettingCategory | PendingSettingCategory;
+export {
+  SETTINGS_CATEGORY_ITEMS,
+  SETTING_RECORD_CATEGORY,
+  getSettingRecordCategory,
+  isIntegratedSetting,
+  type BackendSettingCategory,
+  type IntegratedSettingCategory,
+  type SettingCategory,
+};
 
 interface SettingsTabsProps {
   activeTab: SettingCategory;
   onTabChange: (tab: SettingCategory) => void;
-}
-
-type SettingsCategoryItem = {
-  id: SettingCategory;
-  labelKey: string;
-  icon?: string;
-};
-
-const categories: SettingsCategoryItem[] = [
-  { id: 'contactGroups', labelKey: 'contactGroups' },
-  { id: 'supplements', labelKey: 'supplements' },
-  { id: 'housing', labelKey: 'housing', icon: '/settings/الإيواء.svg' },
-  { id: 'bloodTest', labelKey: 'bloodTest', icon: '/settings/تحليل الدم.svg' },
-  { id: 'wormDose', labelKey: 'wormDose', icon: '/settings/جرعة الديدان.svg' },
-  { id: 'hoofLegCare', labelKey: 'hoofLegCare', icon: '/settings/العناية بالحافر  و الساق.svg' },
-  { id: 'injuries', labelKey: 'injuries', icon: '/settings/الإصابات.svg' },
-  { id: 'medicalCare', labelKey: 'medicalCare', icon: '/settings/الرعاية الطبية.svg' },
-];
-
-export function isIntegratedSetting(tab: SettingCategory): tab is IntegratedSettingCategory {
-  return tab === 'contactGroups' || tab === 'supplements';
 }
 
 export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
@@ -47,7 +35,7 @@ export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
   return (
     <div className={`flex flex-col gap-1 w-full sm:w-64 bg-white transition-all duration-300 ${isRTL ? 'border-l border-gray-100' : 'border-r border-gray-100'
       }`}>
-      {categories.map((cat) => (
+      {SETTINGS_CATEGORY_ITEMS.map((cat) => (
         <button
           key={cat.id}
           type="button"
@@ -62,8 +50,10 @@ export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
             <UsersRound className="h-6 w-6 shrink-0" />
           ) : cat.id === 'supplements' ? (
             <Tablets className="h-6 w-6 shrink-0" />
-          ) : (
+          ) : cat.icon ? (
             <img src={cat.icon} alt="" className="w-6 h-6 object-contain" />
+          ) : (
+            <ClipboardList className="h-6 w-6 shrink-0" />
           )}
           <span className="min-w-0 flex-1 text-start">{t(`settings.${cat.labelKey}`)}</span>
         </button>

@@ -165,6 +165,21 @@ export interface SupplementPayload {
   type: number;
 }
 
+export interface SettingRecordDto {
+  id: number;
+  englishName: string;
+  arabicName: string;
+  description: string;
+  category: string;
+}
+
+export interface SettingRecordPayload {
+  englishName: string;
+  arabicName: string;
+  description?: string | null;
+  category: number;
+}
+
 export interface LineageNameDto {
   englishName: string;
   arabicName: string;

@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "node --test tests/*.test.mjs",
     "lint": "next lint",
     "api:direct": "node scripts/set-api-mode.mjs direct",
     "api:server": "node scripts/set-api-mode.mjs server"
