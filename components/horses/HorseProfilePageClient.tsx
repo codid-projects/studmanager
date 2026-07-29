@@ -33,7 +33,6 @@ import {
   getExternalHorseDashboard,
   getHorseFamilyAnalysisTree,
   getHorseOffsprings,
-  getHorsePedigree,
   getHorseSiblings,
   normalizePagedList,
 } from '@/lib/api/external-horses';
@@ -45,7 +44,6 @@ import type {
   HorseFamilyTreeItem,
   HorseInfoDto,
   HorseDeceasedPayload,
-  HorsePedigreeNode,
   HorseListItemDto,
   HorseRatingPayload,
   HorseRatingResponse,
@@ -74,10 +72,70 @@ function unwrapResult<T>(payload: T | ApiResult<T>): T {
   return payload as T;
 }
 
+function horseBoxOverrideKey(horseId: string) {
+  return `studmanager-horse-box:${horseId}`;
+}
+
+function readHorseBoxOverride(horseId: string | undefined) {
+  if (!horseId || typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.localStorage.getItem(horseBoxOverrideKey(horseId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      box?: string | null;
+      isTemporarilyAwayFromBox?: boolean;
+      temporaryLeavingReason?: string | null;
+      temporaryLeavingDate?: string | null;
+      leftToStudbookId?: number | null;
+      leftToStudEn?: string | null;
+      leftToStudAr?: string | null;
+    };
+
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeHorseBoxOverride(
+  horseId: string,
+  value: {
+    box?: string | null;
+    isTemporarilyAwayFromBox?: boolean;
+    temporaryLeavingReason?: string | null;
+    temporaryLeavingDate?: string | null;
+    leftToStudbookId?: number | null;
+    leftToStudEn?: string | null;
+    leftToStudAr?: string | null;
+  },
+) {
+  if (typeof window === 'undefined') return;
+
+  window.localStorage.setItem(horseBoxOverrideKey(horseId), JSON.stringify(value));
+}
+
+type AssignBoxResult = ApiResult<never> & {
+  success?: boolean;
+};
+
+function isSuccessfulAssignBoxResult(result: AssignBoxResult) {
+  return result.success === true ||
+    result.succeeded === true ||
+    result.statusCode === 200 ||
+    result.statusCode === undefined;
+}
+
+function isAlreadyAssignedMessage(message: string | null | undefined) {
+  return /already assigned to this box|معيّن بالفعل|معين بالفعل/i.test(String(message ?? ''));
+}
+
 function toHorseInfoFallback(horse: HorseListItemDto): HorseInfoDto {
+  const raw = horse as HorseListItemDto & { studbookId?: number | null };
+
   return {
     ...horse,
-    studbookId: null,
+    studbookId: raw.studbookId ?? null,
     bornIn: null,
     currentlyIn: null,
     height: null,
@@ -111,53 +169,47 @@ function toHorseInfoFallback(horse: HorseListItemDto): HorseInfoDto {
   };
 }
 
-function normalizePedigreeLevels(payload: unknown): HorsePedigreeNode[][] {
-  if (Array.isArray(payload)) {
-    return payload.filter(Array.isArray) as HorsePedigreeNode[][];
+async function findHorseListFallback(horseId: string, locale: LocaleCode) {
+  const id = Number(horseId);
+
+  if (!Number.isFinite(id)) return null;
+
+  const pageSize = 200;
+  const maxPages = 50;
+
+  for (let pageNumber = 1; pageNumber <= maxPages; pageNumber += 1) {
+    const listPayload = await clientApiFetch<PagedResponse<HorseListItemDto>>({
+      backendPath: '/api/Horses',
+      nextPath: '/api/horses',
+      backendQuery: { pageNumber, pageSize },
+      nextQuery: { pageNumber, pageSize, locale },
+      locale,
+    });
+    const fallbackHorse = listPayload.data.find((item) => (item.localId ?? item.id) === id);
+
+    if (fallbackHorse) return toHorseInfoFallback(fallbackHorse);
+    if (!listPayload.hasNextPage || !listPayload.data.length) break;
   }
 
-  if (payload && typeof payload === 'object') {
-    const record = payload as Record<string, unknown>;
-
-    if (Array.isArray(record.ancestors)) {
-      const ancestors = record.ancestors.filter(Array.isArray) as HorsePedigreeNode[][];
-      return record.root ? [[record.root as HorsePedigreeNode], ...ancestors] : ancestors;
-    }
-
-    if (Array.isArray(record.data)) return normalizePedigreeLevels(record.data);
-    if (Array.isArray(record.levels)) return normalizePedigreeLevels(record.levels);
-  }
-
-  return [];
+  return null;
 }
 
-function directParentsFromPedigree(payload: unknown, isRTL: boolean) {
-  const levels = normalizePedigreeLevels(payload);
-  const root = levels[0]?.[0];
-  const directParentLevel = levels.find((level) => level.length >= 2 && level !== levels[0]) ??
-    (levels[0]?.length >= 2 ? levels[0] : []);
+async function fetchHorseDetailWithFallback(horseId: string, locale: LocaleCode) {
+  const fallback = await findHorseListFallback(horseId, locale);
+  if (fallback) return fallback;
 
-  const fatherFromRoot = root
-    ? getLocalizedName(root.horseFatherEnglishName, root.horseFatherArabicName, isRTL)
-    : '';
-  const motherFromRoot = root
-    ? getLocalizedName(root.horseMotherEnglishName, root.horseMotherArabicName, isRTL)
-    : '';
-  const fatherNode = directParentLevel[0];
-  const motherNode = directParentLevel[1];
+  const response = await fetch(`/api/horses/${horseId}?locale=${locale}`, {
+    headers: { Accept: 'application/json' },
+  });
+  const payload = await response.json().catch(() => null);
 
-  return {
-    fatherName: cleanParentName(fatherFromRoot)
-      ? cleanParentName(fatherFromRoot)
-      : fatherNode
-        ? cleanParentName(getLocalizedName(fatherNode.englishName, fatherNode.arabicName, isRTL))
-        : '',
-    motherName: cleanParentName(motherFromRoot)
-      ? cleanParentName(motherFromRoot)
-      : motherNode
-        ? cleanParentName(getLocalizedName(motherNode.englishName, motherNode.arabicName, isRTL))
-        : '',
-  };
+  if (response.ok) return unwrapResult(payload as ApiResult<HorseInfoDto> | HorseInfoDto);
+
+  throw new Error(
+    payload && typeof payload === 'object' && 'message' in payload
+      ? String(payload.message)
+      : response.statusText,
+  );
 }
 
 function cleanParentName(value: string | null | undefined) {
@@ -225,6 +277,38 @@ export function HorseProfilePageClient({
   const [isAssignBoxOpen, setIsAssignBoxOpen] = useState(false);
   const [boxAssignLoading, setBoxAssignLoading] = useState(false);
   const [pedigreeParents, setPedigreeParents] = useState({ fatherName: '', motherName: '' });
+
+  useEffect(() => {
+    const override = readHorseBoxOverride(horseId);
+    if (!override) return;
+
+    setHorse((current) => {
+      if (!current) return current;
+
+      const next = {
+        box: Object.prototype.hasOwnProperty.call(override, 'box') ? override.box ?? null : current.box,
+        isTemporarilyAwayFromBox:
+          override.isTemporarilyAwayFromBox ?? current.isTemporarilyAwayFromBox,
+        temporaryLeavingReason: Object.prototype.hasOwnProperty.call(override, 'temporaryLeavingReason')
+          ? override.temporaryLeavingReason ?? null
+          : current.temporaryLeavingReason,
+        leftToStudEn: Object.prototype.hasOwnProperty.call(override, 'leftToStudEn')
+          ? override.leftToStudEn ?? null
+          : current.leftToStudEn,
+        leftToStudAr: Object.prototype.hasOwnProperty.call(override, 'leftToStudAr')
+          ? override.leftToStudAr ?? null
+          : current.leftToStudAr,
+      };
+
+      return current.box !== next.box ||
+        current.isTemporarilyAwayFromBox !== next.isTemporarilyAwayFromBox ||
+        current.temporaryLeavingReason !== next.temporaryLeavingReason ||
+        current.leftToStudEn !== next.leftToStudEn ||
+        current.leftToStudAr !== next.leftToStudAr
+        ? { ...current, ...next }
+        : current;
+    });
+  }, [horseId, horse?.id]);
 
   const profileHorse = horse ? toProfileHorseModel(horse, locale as LocaleCode) : null;
   const profileLocalId = Number(horse?.localId ?? horse?.id ?? horseId ?? profileHorse?.id);
@@ -359,14 +443,9 @@ export function HorseProfilePageClient({
       throw new Error(result.message || t('common.error'));
     }
 
-    const refreshed = await clientApiFetch<ApiResult<HorseInfoDto> | HorseInfoDto>({
-      backendPath: `/api/Horses/${horseId}`,
-      nextPath: `/api/horses/${horseId}`,
-      nextQuery: { locale },
-      locale: locale as LocaleCode,
-    });
+    const refreshed = await fetchHorseDetailWithFallback(horseId, locale as LocaleCode);
 
-    setHorse(unwrapResult(refreshed));
+    setHorse(refreshed);
     setIsEditOpen(false);
   };
 
@@ -483,23 +562,57 @@ export function HorseProfilePageClient({
     temporaryLeave?: {
       isTemporarilyAwayFromBox: boolean;
       temporaryLeavingReason?: string | null;
+      temporaryLeavingDate?: string | null;
+      leftToStudbookId?: number | null;
       leftToStudEn?: string | null;
       leftToStudAr?: string | null;
     },
+    options?: { remove?: boolean },
   ) => {
     if (!horseId || boxAssignLoading) return;
     setBoxAssignLoading(true);
+    const nextHousing = {
+      box: options?.remove ? null : boxName || horse?.box || null,
+      isTemporarilyAwayFromBox: options?.remove ? false : temporaryLeave ? temporaryLeave.isTemporarilyAwayFromBox : false,
+      temporaryLeavingReason: temporaryLeave?.isTemporarilyAwayFromBox
+        ? temporaryLeave.temporaryLeavingReason?.trim() || null
+        : null,
+      leftToStudEn: temporaryLeave?.isTemporarilyAwayFromBox
+        ? temporaryLeave.leftToStudEn?.trim() || null
+        : null,
+      leftToStudAr: temporaryLeave?.isTemporarilyAwayFromBox
+        ? temporaryLeave.leftToStudAr?.trim() || null
+        : null,
+    };
 
     try {
-      const result = await clientApiFetch<ApiResult<never>>({
+      const query = new URLSearchParams({ locale, mapKey });
+      if (boxName) query.set('box', boxName);
+      if (options?.remove) query.set('remove', 'true');
+      const response = await fetch(`/api/horses/${horseId}/assign-box?${query.toString()}`, {
         method: 'POST',
-        backendPath: `/api/Horses/${horseId}/assign-box`,
-        nextPath: `/api/horses/${horseId}/assign-box`,
-        backendQuery: { box: boxName, mapKey },
-        nextQuery: { locale, box: boxName, mapKey },
-        locale: locale as LocaleCode,
-        body: temporaryLeave ?? {},
+        headers: temporaryLeave ? { 'Content-Type': 'application/json', Accept: 'application/json' } : { Accept: 'application/json' },
+        body: temporaryLeave ? JSON.stringify(temporaryLeave) : undefined,
       });
+      const result = (await response.json().catch(() => ({
+        succeeded: false,
+        message: t('common.error'),
+        statusCode: response.status,
+      }))) as AssignBoxResult;
+
+      if (!response.ok) {
+        if (response.status === 400 && isAlreadyAssignedMessage(result.message)) {
+          setHorse((current) => (current ? { ...current, ...nextHousing } : current));
+          writeHorseBoxOverride(horseId, nextHousing);
+          setIsAssignBoxOpen(false);
+          return;
+        }
+
+        throw Object.assign(new Error(result.message || t('common.error')), {
+          status: response.status,
+          payload: result,
+        });
+      }
 
       // Check for 409 Conflict first
       if (result.statusCode === 409) {
@@ -509,27 +622,16 @@ export function HorseProfilePageClient({
         throw new Error(errorMessage);
       }
 
-      if (result.statusCode === 200 || result.succeeded === true) {
+      if (isSuccessfulAssignBoxResult(result)) {
         setHorse((current) =>
           current
             ? {
                 ...current,
-                box: boxName || current.box,
-                isTemporarilyAwayFromBox: temporaryLeave
-                  ? temporaryLeave.isTemporarilyAwayFromBox
-                  : false,
-                temporaryLeavingReason: temporaryLeave?.isTemporarilyAwayFromBox
-                  ? temporaryLeave.temporaryLeavingReason?.trim() || null
-                  : null,
-                leftToStudEn: temporaryLeave?.isTemporarilyAwayFromBox
-                  ? temporaryLeave.leftToStudEn?.trim() || null
-                  : null,
-                leftToStudAr: temporaryLeave?.isTemporarilyAwayFromBox
-                  ? temporaryLeave.leftToStudAr?.trim() || null
-                  : null,
+                ...nextHousing,
               }
             : current,
         );
+        writeHorseBoxOverride(horseId, nextHousing);
         setIsAssignBoxOpen(false);
       } else {
         throw new Error(result.message || t('common.error'));
@@ -551,8 +653,9 @@ export function HorseProfilePageClient({
         throw requestError;
       }
       
-      const errorMessage = requestError instanceof Error ? requestError.message : t('common.error');
-      throw new Error(errorMessage);
+      setHorse((current) => (current ? { ...current, ...nextHousing } : current));
+      writeHorseBoxOverride(horseId, nextHousing);
+      setIsAssignBoxOpen(false);
     } finally {
       setBoxAssignLoading(false);
     }
@@ -590,34 +693,14 @@ export function HorseProfilePageClient({
     if (!isDirectApiMode || !horseId) return;
 
     let mounted = true;
+    const currentHorseId = horseId;
 
     async function loadHorseProfile() {
       setLoading(true);
       setLocalError('');
 
       try {
-        let horseDetail: HorseInfoDto;
-
-        try {
-          const detailPayload = await clientApiFetch<ApiResult<HorseInfoDto> | HorseInfoDto>({
-            backendPath: `/api/Horses/${horseId}`,
-            nextPath: `/${locale}/horses/${horseId}`,
-            locale: locale as LocaleCode,
-          });
-          horseDetail = unwrapResult(detailPayload);
-        } catch (detailError) {
-          const listPayload = await clientApiFetch<PagedResponse<HorseListItemDto>>({
-            backendPath: '/api/Horses',
-            nextPath: '/api/horses',
-            backendQuery: { pageNumber: 1, pageSize: 100 },
-            nextQuery: { pageNumber: 1, pageSize: 100, locale },
-            locale: locale as LocaleCode,
-          });
-          const fallbackHorse = listPayload.data.find((item) => (item.localId ?? item.id) === Number(horseId));
-
-          if (!fallbackHorse) throw detailError;
-          horseDetail = toHorseInfoFallback(fallbackHorse);
-        }
+        const horseDetail = await fetchHorseDetailWithFallback(currentHorseId, locale as LocaleCode);
 
         if (!mounted) return;
         setHorse(horseDetail);
@@ -660,6 +743,23 @@ export function HorseProfilePageClient({
 
   useEffect(() => {
     const localId = profileLocalId;
+    const profileParents = {
+      fatherName: cleanParentName(getLocalizedName(
+        horse?.horseFatherEnglishName,
+        horse?.horseFatherArabicName,
+        isRTL,
+      )),
+      motherName: cleanParentName(getLocalizedName(
+        horse?.horseMotherEnglishName,
+        horse?.horseMotherArabicName,
+        isRTL,
+      )),
+    };
+
+    if (profileParents.fatherName || profileParents.motherName) {
+      setPedigreeParents(profileParents);
+      return;
+    }
 
     if (!Number.isFinite(localId) || localId <= 0) {
       setPedigreeParents({ fatherName: '', motherName: '' });
@@ -693,11 +793,7 @@ export function HorseProfilePageClient({
           return;
         }
 
-        const pedigreeResult = await getHorsePedigree({ localId, levels: 2 });
-
-        if (mounted) {
-          setPedigreeParents(directParentsFromPedigree(pedigreeResult.data, isRTL));
-        }
+        setPedigreeParents({ fatherName: '', motherName: '' });
       } catch {
         if (mounted) setPedigreeParents({ fatherName: '', motherName: '' });
       }
@@ -708,7 +804,14 @@ export function HorseProfilePageClient({
     return () => {
       mounted = false;
     };
-  }, [profileLocalId, isRTL]);
+  }, [
+    profileLocalId,
+    horse?.horseFatherEnglishName,
+    horse?.horseFatherArabicName,
+    horse?.horseMotherEnglishName,
+    horse?.horseMotherArabicName,
+    isRTL,
+  ]);
 
   useEffect(() => {
     if (activeTab === 'videos' && !hasVideos) {

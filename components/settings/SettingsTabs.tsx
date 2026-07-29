@@ -1,7 +1,27 @@
 'use client';
 
-import { ClipboardList, Tablets, UsersRound } from 'lucide-react';
-import { useLocale, useTranslation } from '@/lib/locale-context';
+import {
+  Activity,
+  Award,
+  Bone,
+  BriefcaseMedical,
+  BugOff,
+  ClipboardCheck,
+  ClipboardList,
+  ContactRound,
+  Dumbbell,
+  Footprints,
+  HeartPulse,
+  Pill,
+  Scissors,
+  ShieldPlus,
+  Syringe,
+  Tablets,
+  TestTube2,
+  UsersRound,
+  Weight,
+} from 'lucide-react';
+import { useTranslation } from '@/lib/locale-context';
 import {
   SETTINGS_CATEGORY_ITEMS,
   getSettingRecordCategory,
@@ -27,37 +47,59 @@ interface SettingsTabsProps {
   onTabChange: (tab: SettingCategory) => void;
 }
 
+const TAB_ICONS = {
+  contactGroups: UsersRound,
+  supplements: Tablets,
+  bloodTest: TestTube2,
+  wormDose: BugOff,
+  hoofLegCare: Footprints,
+  shoeing: Bone,
+  injuries: BriefcaseMedical,
+  medicalCare: HeartPulse,
+  medications: Pill,
+  medicationReasons: ClipboardCheck,
+  xRay: Activity,
+  vaccinations: Syringe,
+  vaccinationReasons: ShieldPlus,
+  growth: Weight,
+  trainings: Dumbbell,
+  competitions: Award,
+  haircuts: Scissors,
+} satisfies Partial<Record<SettingCategory, typeof ClipboardList>>;
+
 export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
-  const { direction } = useLocale();
   const { t } = useTranslation();
-  const isRTL = direction === 'rtl';
 
   return (
-    <div className={`flex flex-col gap-1 w-full sm:w-64 bg-white transition-all duration-300 ${isRTL ? 'border-l border-gray-100' : 'border-r border-gray-100'
-      }`}>
-      {SETTINGS_CATEGORY_ITEMS.map((cat) => (
-        <button
-          key={cat.id}
-          type="button"
-          onClick={() => onTabChange(cat.id)}
-          className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 ${
-            activeTab === cat.id
-              ? `bg-[#F2EADA] text-[#4B2F1A] ${isRTL ? 'border-l-4' : 'border-r-4'} border-[#4B2F1A]`
-              : 'text-gray-600 hover:bg-gray-50'
-          } ${isRTL ? '' : 'flex-row justify-start'}`}
-        >
-          {cat.id === 'contactGroups' ? (
-            <UsersRound className="h-6 w-6 shrink-0" />
-          ) : cat.id === 'supplements' ? (
-            <Tablets className="h-6 w-6 shrink-0" />
-          ) : cat.icon ? (
-            <img src={cat.icon} alt="" className="w-6 h-6 object-contain" />
-          ) : (
-            <ClipboardList className="h-6 w-6 shrink-0" />
-          )}
-          <span className="min-w-0 flex-1 text-start">{t(`settings.${cat.labelKey}`)}</span>
-        </button>
-      ))}
+    <div className="border-b border-[#efe7df] bg-[#fffdfb] px-3 py-3">
+      <div className="flex w-full gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
+        {SETTINGS_CATEGORY_ITEMS.map((cat) => {
+          const Icon = TAB_ICONS[cat.id] ?? ContactRound;
+          const active = activeTab === cat.id;
+
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => onTabChange(cat.id)}
+              className={`group flex min-h-[48px] shrink-0 items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-bold transition-all duration-200 ${
+                active
+                  ? 'border-[#4B2F1A] bg-[#3b2b20] text-white shadow-[0_10px_22px_rgba(59,43,32,0.18)]'
+                  : 'border-[#eadfd6] bg-white text-[#5f5147] hover:border-[#cdb9a8] hover:bg-[#fbf7f2]'
+              }`}
+            >
+              <span
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition ${
+                  active ? 'bg-white/15 text-white' : 'bg-[#f4ede6] text-[#6f5b4d] group-hover:bg-[#eee2d8]'
+                }`}
+              >
+                <Icon className="h-[18px] w-[18px]" />
+              </span>
+              <span className="whitespace-nowrap">{t(`settings.${cat.labelKey}`)}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

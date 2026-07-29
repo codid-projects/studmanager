@@ -1,6 +1,7 @@
 import type { HorseListItemDto, LocaleCode } from '@/lib/api/types';
 import { formatDate, localizeGender } from '@/lib/api/horse-formatters';
 import { localizeColor } from '@/lib/api/localization';
+import { PDF_FONT_NAME, registerPdfFont } from './pdf-font';
 
 export interface HorsesExportFilter {
   label: string;
@@ -12,11 +13,6 @@ export interface HorsesExportContext {
   filters: HorsesExportFilter[];
   locale: LocaleCode;
 }
-
-// Amiri is used instead of the app's SFProAR font because SFProAR is missing
-// the Arabic isolated presentation forms, which makes jsPDF drop letters.
-const PDF_FONT_URL = '/fonts/Amiri-Regular.ttf';
-const PDF_FONT_NAME = 'Amiri';
 
 function exportTitle(locale: LocaleCode) {
   return locale === 'ar' ? 'قائمة الخيول' : 'Horses List';
@@ -86,6 +82,31 @@ function exportHeaders(locale: LocaleCode) {
         'Microchip',
         'Tags',
       ];
+}
+
+const HORSES_PDF_COLUMN_WIDTHS = [
+  26,
+  82,
+  96,
+  48,
+  70,
+  58,
+  72,
+  72,
+  82,
+  88,
+  50,
+  110,
+  160,
+];
+
+function horsePdfColumnStyles(isRTL: boolean) {
+  const widths = isRTL ? [...HORSES_PDF_COLUMN_WIDTHS].reverse() : HORSES_PDF_COLUMN_WIDTHS;
+
+  return widths.reduce<Record<number, { cellWidth: number }>>((styles, width, index) => {
+    styles[index] = { cellWidth: width };
+    return styles;
+  }, {});
 }
 
 function parentName(
@@ -165,18 +186,6 @@ export async function exportHorsesToExcel({ horses, filters, locale }: HorsesExp
   XLSX.writeFile(workbook, exportFileName('xlsx'));
 }
 
-function toBase64(buffer: ArrayBuffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  const chunkSize = 0x8000;
-
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
-  }
-
-  return btoa(binary);
-}
-
 export async function exportHorsesToPdf({ horses, filters, locale }: HorsesExportContext) {
   const [{ jsPDF }, autoTableModule] = await Promise.all([
     import('jspdf'),
@@ -184,17 +193,10 @@ export async function exportHorsesToPdf({ horses, filters, locale }: HorsesExpor
   ]);
   const autoTable = autoTableModule.default;
 
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' });
 
   // The bundled PDF fonts have no Arabic glyphs, so embed the app's Arabic-capable font.
-  const fontResponse = await fetch(PDF_FONT_URL);
-  if (!fontResponse.ok) throw new Error('Failed to load PDF font.');
-  doc.addFileToVFS(`${PDF_FONT_NAME}.ttf`, toBase64(await fontResponse.arrayBuffer()));
-  doc.addFont(`${PDF_FONT_NAME}.ttf`, PDF_FONT_NAME, 'normal');
-  // autotable renders headers in bold by default; map bold to the same file so
-  // it never falls back to a font without Arabic glyphs.
-  doc.addFont(`${PDF_FONT_NAME}.ttf`, PDF_FONT_NAME, 'bold');
-  doc.setFont(PDF_FONT_NAME);
+  await registerPdfFont(doc);
 
   const isRTL = locale === 'ar';
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -230,6 +232,8 @@ export async function exportHorsesToPdf({ horses, filters, locale }: HorsesExpor
       fontSize: 8,
       halign: isRTL ? 'right' : 'left',
       cellPadding: 4,
+      overflow: 'linebreak',
+      minCellHeight: 18,
     },
     headStyles: {
       font: PDF_FONT_NAME,
@@ -237,6 +241,7 @@ export async function exportHorsesToPdf({ horses, filters, locale }: HorsesExpor
       textColor: [255, 250, 244],
       halign: isRTL ? 'right' : 'left',
     },
+    columnStyles: horsePdfColumnStyles(isRTL),
     alternateRowStyles: { fillColor: [251, 246, 239] },
   });
 

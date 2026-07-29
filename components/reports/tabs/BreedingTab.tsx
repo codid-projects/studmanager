@@ -30,7 +30,7 @@ import {
 
 export function useClinicalResults(breeding: BreedingReport | null, isRTL: boolean) {
   return useMemo(() => {
-    const distribution = breeding?.mareSoundnessSummary.clinicalResultDistribution;
+    const distribution = breeding?.mareSoundnessSummary?.clinicalResultDistribution;
     if (!distribution) return [];
     return [
       { name: isRTL ? "حامل" : "Pregnant", value: distribution.pregnant },
@@ -72,40 +72,44 @@ interface BreedingTabProps {
 export function BreedingTab({ breeding, dashboardBreeding }: BreedingTabProps) {
   const { locale } = useLocale();
   const isRTL = locale === "ar";
+  const mareSoundness = breeding.mareSoundnessSummary;
+  const pregnancyOutcome = breeding.pregnancyOutcomeSummary;
+  const breedingEvents = breeding.breedingEventSummary;
+  const foalReport = breeding.foalReport;
+  const cycleSummary = breeding.cycleSummary;
 
   const clinicalBars = useClinicalResults(breeding, isRTL);
 
   const stallionPregnancies = useMemo(
     () =>
-      breeding.mareSoundnessSummary.pregnanciesByStallion.map((item) => ({
+      (mareSoundness?.pregnanciesByStallion ?? []).map((item) => ({
         name: localName(item, isRTL),
         value: item.count,
       })),
-    [breeding, isRTL],
+    [mareSoundness, isRTL],
   );
 
   const foalsByYear = useMemo(
-    () => breeding.foalReport.byYear.slice().sort((a, b) => a.year - b.year).slice(-10),
-    [breeding],
+    () => (foalReport?.byYear ?? []).slice().sort((a, b) => a.year - b.year).slice(-10),
+    [foalReport],
   );
 
   const eventMix = useMemo(() => {
-    const events = breeding.breedingEventSummary;
     return [
-      { name: isRTL ? "تلقيح طبيعي" : "Natural cover", value: events.naturalCovers },
-      { name: isRTL ? "سائل طازج" : "Fresh semen", value: events.freshSemenInseminations },
-      { name: isRTL ? "سائل مجمد" : "Frozen semen", value: events.frozenSemenInseminations },
-      { name: isRTL ? "نقل أجنة" : "Embryo transfer", value: events.embryoTransfers },
+      { name: isRTL ? "تلقيح طبيعي" : "Natural cover", value: breedingEvents?.naturalCovers ?? 0 },
+      { name: isRTL ? "سائل طازج" : "Fresh semen", value: breedingEvents?.freshSemenInseminations ?? 0 },
+      { name: isRTL ? "سائل مجمد" : "Frozen semen", value: breedingEvents?.frozenSemenInseminations ?? 0 },
+      { name: isRTL ? "نقل أجنة" : "Embryo transfer", value: breedingEvents?.embryoTransfers ?? 0 },
     ].filter((item) => item.value > 0);
-  }, [breeding, isRTL]);
+  }, [breedingEvents, isRTL]);
 
   const cycleTrend = useMemo(
     () =>
-      breeding.cycleSummary.monthlyTrend.map((item) => ({
+      (cycleSummary?.monthlyTrend ?? []).map((item) => ({
         name: monthLabel(item.year, item.month, locale),
         value: item.count,
       })),
-    [breeding, locale],
+    [cycleSummary, locale],
   );
   const expectedBirthMonths = breeding.expectedBirthReport?.months ?? [];
   const incompleteMares = breeding.expectedBirthReport?.incompleteMares ?? [];
@@ -123,7 +127,7 @@ export function BreedingTab({ breeding, dashboardBreeding }: BreedingTabProps) {
       <StatGrid>
         <StatTile
           label={isRTL ? "فحوصات التبويض" : "Ovulation exams"}
-          value={breeding.mareSoundnessSummary.totalOvulationExaminations}
+          value={mareSoundness?.totalOvulationExaminations}
         />
         <StatTile
           label={isRTL ? "أفراس حوامل" : "Pregnant mares"}
@@ -133,31 +137,31 @@ export function BreedingTab({ breeding, dashboardBreeding }: BreedingTabProps) {
         <StatTile label={isRTL ? "أفراس غير حوامل" : "Non-pregnant mares"} value={dashboardBreeding?.nonPregnantMares} />
         <StatTile
           label={isRTL ? "معدل الولادات الحية" : "Live birth rate"}
-          value={`${Math.round(breeding.pregnancyOutcomeSummary.liveBirthRate)}%`}
+          value={pregnancyOutcome ? `${Math.round(pregnancyOutcome.liveBirthRate)}%` : undefined}
           accent={SERIES[1]}
         />
         <StatTile
           label={isRTL ? "إجمالي عمليات التلقيح" : "Breeding events"}
-          value={breeding.breedingEventSummary.totalBreedingEvents}
+          value={breedingEvents?.totalBreedingEvents}
         />
-        <StatTile label={isRTL ? "أفراس ملقحة" : "Mares bred"} value={breeding.breedingEventSummary.uniqueMaresBred} />
+        <StatTile label={isRTL ? "أفراس ملقحة" : "Mares bred"} value={breedingEvents?.uniqueMaresBred} />
         <StatTile
           label={isRTL ? "إجمالي حالات الحمل" : "Total pregnancies"}
-          value={breeding.pregnancyOutcomeSummary.totalPregnancies}
+          value={pregnancyOutcome?.totalPregnancies}
         />
         <StatTile
           label={isRTL ? "حوامل حالياً" : "Currently pregnant"}
-          value={breeding.expectedBirthReport?.currentlyPregnantMares ?? breeding.pregnancyOutcomeSummary.currentlyPregnant}
+          value={breeding.expectedBirthReport?.currentlyPregnantMares ?? pregnancyOutcome?.currentlyPregnant}
           accent={SERIES[1]}
         />
         <StatTile
           label={isRTL ? "ولادات متوقعة هذا الشهر" : "Expected this month"}
-          value={breeding.pregnancyOutcomeSummary.expectedFoalingThisMonth}
+          value={pregnancyOutcome?.expectedFoalingThisMonth}
           accent={SERIES[2]}
         />
         <StatTile
           label={isRTL ? "ولادات حية" : "Live births"}
-          value={breeding.pregnancyOutcomeSummary.liveBirths}
+          value={pregnancyOutcome?.liveBirths}
         />
       </StatGrid>
 
@@ -289,8 +293,8 @@ export function BreedingTab({ breeding, dashboardBreeding }: BreedingTabProps) {
           isEmpty={cycleTrend.length < 2}
           action={
             <span className="shrink-0 text-[11px] font-semibold text-[#8a7a6d]">
-              {isRTL ? "مفتوحة" : "Open"} {breeding.cycleSummary.openCycles} · {isRTL ? "مغلقة" : "Closed"}{" "}
-              {breeding.cycleSummary.closedCycles}
+              {isRTL ? "مفتوحة" : "Open"} {cycleSummary?.openCycles ?? 0} · {isRTL ? "مغلقة" : "Closed"}{" "}
+              {cycleSummary?.closedCycles ?? 0}
             </span>
           }
         >
@@ -315,12 +319,12 @@ export function BreedingTab({ breeding, dashboardBreeding }: BreedingTabProps) {
       </div>
 
       <StatGrid>
-        <StatTile label={isRTL ? "تسجيلات المواليد" : "Foal registrations"} value={breeding.foalReport.totalFoalRegistrations} />
-        <StatTile label={isRTL ? "مفطوم" : "Weaned"} value={breeding.foalReport.weaned} />
-        <StatTile label={isRTL ? "غير مفطوم" : "Not weaned"} value={breeding.foalReport.nonWeaned} />
+        <StatTile label={isRTL ? "تسجيلات المواليد" : "Foal registrations"} value={foalReport?.totalFoalRegistrations} />
+        <StatTile label={isRTL ? "مفطوم" : "Weaned"} value={foalReport?.weaned} />
+        <StatTile label={isRTL ? "غير مفطوم" : "Not weaned"} value={foalReport?.nonWeaned} />
         <StatTile
           label={isRTL ? "متوسط مدة الدورة" : "Avg cycle length"}
-          value={`${Math.round(breeding.cycleSummary.averageDurationDays)} ${isRTL ? "يوم" : "d"}`}
+          value={cycleSummary ? `${Math.round(cycleSummary.averageDurationDays)} ${isRTL ? "يوم" : "d"}` : undefined}
         />
       </StatGrid>
     </div>

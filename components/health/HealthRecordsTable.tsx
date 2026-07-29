@@ -5,7 +5,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit,
+  LoaderCircle,
   Paperclip,
+  Plus,
   Search,
   Trash2,
   X,
@@ -25,7 +27,9 @@ import {
   type HealthRecordSummary,
   type SettingRecord,
 } from "@/lib/api/health-care-client";
-import type { LocaleCode, SummarizedContactDto } from "@/lib/api/types";
+import { API_BASE_URL } from "@/lib/api/transport";
+import { AUTH_TOKEN_COOKIE } from "@/lib/auth";
+import type { ApiMessageResult, LocaleCode, SummarizedContactDto } from "@/lib/api/types";
 import { useLocale, useTranslation } from "@/lib/locale-context";
 
 const PAGE_SIZE = 10;
@@ -170,6 +174,48 @@ function formatDate(value: string | null | undefined, locale: string) {
 const inputClass =
   "w-full h-11 rounded-xl border border-[#e4d9cf] bg-[#fdfbf9] px-3 text-sm text-[#2f261f] outline-none transition focus:border-[#4b2f1a] focus:bg-white";
 
+function getCookie(name: string) {
+  if (typeof document === "undefined") return undefined;
+  return document.cookie
+    .split("; ")
+    .find((cookie) => cookie.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+}
+
+async function createSettingRecordDirect(
+  locale: LocaleCode,
+  payload: {
+    englishName: string;
+    arabicName: string;
+    description: string;
+    category: number;
+  },
+) {
+  const token = window.localStorage.getItem("studmanager-token") ?? (
+    getCookie(AUTH_TOKEN_COOKIE) ? decodeURIComponent(getCookie(AUTH_TOKEN_COOKIE) as string) : null
+  );
+  const response = await fetch(`${API_BASE_URL}/api/Settings/records`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Accept-Language": locale,
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  const result = await response.json().catch(() => null) as ApiMessageResult | null;
+
+  if (!response.ok || result?.succeeded === false) {
+    throw Object.assign(new Error(result?.message || response.statusText), {
+      status: response.status,
+      payload: result,
+    });
+  }
+
+  return result;
+}
+
 export function HealthRecordsTable({
   categoryId,
   horseId,
@@ -282,6 +328,12 @@ export function HealthRecordsTable({
       active = false;
     };
   }, [definition, localeCode]);
+
+  const refreshLookupCategory = useCallback(async (category: number) => {
+    const items = await fetchSettingRecords(localeCode, category);
+    setLookups((current) => ({ ...current, [category]: items }));
+    return items;
+  }, [localeCode]);
 
   const lookupNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -602,6 +654,16 @@ export function HealthRecordsTable({
                     }}
                   />
                 )}
+                {!editing ? (
+                  <input
+                    className="sr-only"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    required
+                    value={formHorseId ?? ""}
+                    onChange={() => undefined}
+                  />
+                ) : null}
               </label>
 
               {definition.fields.map((field) => (
@@ -610,20 +672,30 @@ export function HealthRecordsTable({
                     {isRTL ? field.labelAr : field.labelEn}
                   </span>
                   {field.kind === "lookup" ? (
-                    <select
+                    <CreatableSettingLookup
                       value={formSpecific[field.name] ?? ""}
-                      onChange={(event) =>
-                        setFormSpecific((current) => ({ ...current, [field.name]: event.target.value }))
+                      items={lookups[field.lookupCategory ?? 0] ?? []}
+                      category={field.lookupCategory ?? 0}
+                      placeholder={isRTL ? "اختر" : "Select"}
+                      onChange={(value) =>
+                        setFormSpecific((current) => ({ ...current, [field.name]: value }))
                       }
-                      className={inputClass}
-                    >
-                      <option value="">{isRTL ? "اختر" : "Select"}</option>
-                      {(lookups[field.lookupCategory ?? 0] ?? []).map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {isRTL ? item.arabicName || item.englishName : item.englishName || item.arabicName}
-                        </option>
-                      ))}
-                    </select>
+                      onCreated={async (category, englishName, arabicName) => {
+                        const items = await refreshLookupCategory(category);
+                        const created = items.find((item) =>
+                          [item.arabicName, item.englishName].some(
+                            (name) =>
+                              name?.trim().toLowerCase() === englishName.trim().toLowerCase() ||
+                              name?.trim().toLowerCase() === arabicName.trim().toLowerCase(),
+                          ),
+                        );
+                        if (created) {
+                          setFormSpecific((current) => ({ ...current, [field.name]: String(created.id) }));
+                        }
+                      }}
+                      disabled={!field.lookupCategory}
+                      required
+                    />
                   ) : field.kind === "severity" ? (
                     <select
                       value={formSpecific[field.name] ?? ""}
@@ -631,6 +703,7 @@ export function HealthRecordsTable({
                         setFormSpecific((current) => ({ ...current, [field.name]: event.target.value }))
                       }
                       className={inputClass}
+                      required
                     >
                       <option value="">{isRTL ? "اختر" : "Select"}</option>
                       {SEVERITIES.map((severity) => (
@@ -646,6 +719,7 @@ export function HealthRecordsTable({
                         setFormSpecific((current) => ({ ...current, [field.name]: event.target.value }))
                       }
                       className={inputClass}
+                      required
                     >
                       <option value="">{isRTL ? "غير محدد" : "Not set"}</option>
                       <option value="true">{isRTL ? "نعم" : "Yes"}</option>
@@ -660,6 +734,7 @@ export function HealthRecordsTable({
                         setFormSpecific((current) => ({ ...current, [field.name]: event.target.value }))
                       }
                       className={inputClass}
+                      required
                     />
                   ) : (
                     <input
@@ -668,6 +743,7 @@ export function HealthRecordsTable({
                         setFormSpecific((current) => ({ ...current, [field.name]: event.target.value }))
                       }
                       className={inputClass}
+                      required
                     />
                   )}
                 </label>
@@ -717,7 +793,13 @@ export function HealthRecordsTable({
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs font-bold text-[#6b5a4c]">{isRTL ? "تاريخ السجل" : "Record date"}</span>
-                <input type="date" value={formDate} onChange={(event) => setFormDate(event.target.value)} className={inputClass} />
+                <input
+                  type="date"
+                  value={formDate}
+                  onChange={(event) => setFormDate(event.target.value)}
+                  className={inputClass}
+                  required
+                />
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs font-bold text-[#6b5a4c]">{isRTL ? "تاريخ التنبيه" : "Reminder date"}</span>
@@ -736,6 +818,7 @@ export function HealthRecordsTable({
                   value={formCost}
                   onChange={(event) => setFormCost(event.target.value)}
                   className={inputClass}
+                  min="0"
                 />
               </label>
               <label className="block sm:col-span-2">
@@ -820,6 +903,111 @@ export function HealthRecordsTable({
         }}
         onConfirm={() => void confirmDelete()}
       />
+    </div>
+  );
+}
+
+function CreatableSettingLookup({
+  value,
+  items,
+  category,
+  placeholder,
+  onChange,
+  onCreated,
+  disabled,
+  required,
+}: {
+  value: string;
+  items: SettingRecord[];
+  category: number;
+  placeholder: string;
+  onChange: (value: string) => void;
+  onCreated: (category: number, englishName: string, arabicName: string) => Promise<void>;
+  disabled?: boolean;
+  required?: boolean;
+}) {
+  const { locale, direction } = useLocale();
+  const { t } = useTranslation();
+  const isRTL = direction === "rtl";
+  const localeCode = locale as LocaleCode;
+  const [newEnglishName, setNewEnglishName] = useState("");
+  const [newArabicName, setNewArabicName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
+  const trimmedEnglishName = newEnglishName.trim();
+  const trimmedArabicName = newArabicName.trim();
+
+  async function createOption() {
+    if (!trimmedEnglishName || !trimmedArabicName || !category) {
+      setError(isRTL ? "الاسم بالإنجليزية والعربية مطلوبان" : "English and Arabic names are required");
+      return;
+    }
+
+    setCreating(true);
+    setError("");
+
+    try {
+      await createSettingRecordDirect(localeCode, {
+        englishName: trimmedEnglishName,
+        arabicName: trimmedArabicName,
+        description: "",
+        category,
+      });
+      await onCreated(category, trimmedEnglishName, trimmedArabicName);
+      setNewEnglishName("");
+      setNewArabicName("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("common.error"));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={inputClass}
+        disabled={disabled || creating}
+        required={required}
+      >
+        <option value="">{placeholder}</option>
+        {items.map((item) => (
+          <option key={item.id} value={item.id}>
+            {isRTL ? item.arabicName || item.englishName : item.englishName || item.arabicName}
+          </option>
+        ))}
+      </select>
+
+      <div className="flex gap-2">
+        <input
+          value={newEnglishName}
+          onChange={(event) => setNewEnglishName(event.target.value)}
+          placeholder={isRTL ? "الاسم بالإنجليزية" : "English name"}
+          className={`${inputClass} min-w-0 flex-1`}
+          disabled={disabled || creating}
+          required={Boolean(newArabicName)}
+        />
+        <input
+          value={newArabicName}
+          onChange={(event) => setNewArabicName(event.target.value)}
+          placeholder={isRTL ? "الاسم بالعربية" : "Arabic name"}
+          className={`${inputClass} min-w-0 flex-1`}
+          disabled={disabled || creating}
+          required={Boolean(newEnglishName)}
+        />
+        <button
+          type="button"
+          onClick={() => void createOption()}
+          disabled={!trimmedEnglishName || !trimmedArabicName || disabled || creating}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#3b2b20] text-white transition hover:bg-[#2e2119] disabled:cursor-not-allowed disabled:opacity-45"
+          aria-label={isRTL ? "إضافة قيمة" : "Add value"}
+        >
+          {creating ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+        </button>
+      </div>
+      {error ? <p className="text-xs font-semibold text-red-600">{error}</p> : null}
     </div>
   );
 }

@@ -261,7 +261,7 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold text-[#20203C]">{t("settings.title")}</h1>
 
         <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-          <div className="flex min-h-[400px] flex-col lg:flex-row">
+          <div className="flex min-h-[400px] flex-col">
             <SettingsTabs activeTab={activeTab} onTabChange={changeTab} />
 
             <div className="min-w-0 flex-1">

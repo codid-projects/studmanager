@@ -9,6 +9,18 @@ const ARABIC_MESSAGE_MAP: Record<string, string> = {
   "not found": "حدث خطأ ما، يرجى المحاولة مرة أخرى.",
   "internal server error": "حدث خطأ في الخادم. يرجى المحاولة مرة أخرى.",
   success: "تم بنجاح.",
+  "horse not found": "لم يتم العثور على الخيل.",
+  "horse is not assigned to any box": "الخيل غير معيّن في أي مكان إيواء.",
+  "horse must be assigned to a box before temporary leaving can be set": "يجب تعيين مكان إيواء للخيل قبل تسجيل الخروج المؤقت.",
+  "horse is not temporarily away. provide a box to assign or move": "الخيل ليس خارج مكان الإيواء مؤقتاً. اختر مكاناً للتعيين أو النقل.",
+  "horse is not temporarily away provide a box to assign or move": "الخيل ليس خارج مكان الإيواء مؤقتاً. اختر مكاناً للتعيين أو النقل.",
+  "the selected housing unit does not exist": "مكان الإيواء المحدد غير موجود.",
+  "horse is already assigned to this box": "الخيل معيّن بالفعل في هذا المكان.",
+  "the selected housing unit is full": "مكان الإيواء المحدد ممتلئ.",
+  "please choose a specific barn slot": "يرجى اختيار مكان محدد داخل العنبر.",
+  "the selected barn slot does not exist": "مكان العنبر المحدد غير موجود.",
+  "the selected barn slot is full": "مكان العنبر المحدد ممتلئ.",
+  "leaving fields are only allowed when istemporarilyawayfrombox is true": "بيانات الخروج المؤقت مسموحة فقط عند تفعيل حالة الخروج المؤقت.",
 };
 
 const ARABIC_FIELD_MAP: Record<string, string> = {
@@ -54,6 +66,16 @@ export function localizeApiMessage(
 
   if (message.trim().toLowerCase() === "failed to fetch") {
     return getFriendlyApiErrorMessage(locale);
+  }
+
+  if (
+    /DbUpdateException|SqlException|Invalid object name|stack trace|Microsoft\.EntityFrameworkCore|Microsoft\.Data\.SqlClient/i.test(
+      message,
+    )
+  ) {
+    return locale === "ar"
+      ? "تعذر حفظ تغيير مكان الإيواء حالياً. تم تحديث العرض محلياً، ويرجى المحاولة لاحقاً."
+      : "Could not save the housing change right now. The profile was updated locally; please try again later.";
   }
 
   if (locale !== "ar") return message;

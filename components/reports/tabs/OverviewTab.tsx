@@ -105,10 +105,10 @@ export function OverviewTab({
             value={dashboard ? `${Math.round(dashboard.housing.occupancyRate)}%` : undefined}
             accent={SERIES[0]}
           />
-          <StatTile label={isRTL ? "أفراس حوامل" : "Pregnant mares"} value={dashboard?.breeding.pregnantMares} accent={SERIES[1]} />
+          <StatTile label={isRTL ? "أفراس حوامل" : "Pregnant mares"} value={dashboard?.breeding?.pregnantMares} accent={SERIES[1]} />
           <StatTile
             label={isRTL ? "معدل الولادات الحية" : "Live birth rate"}
-            value={breeding ? `${Math.round(breeding.pregnancyOutcomeSummary.liveBirthRate)}%` : undefined}
+            value={breeding?.pregnancyOutcomeSummary ? `${Math.round(breeding.pregnancyOutcomeSummary.liveBirthRate)}%` : undefined}
           />
           <StatTile label={isRTL ? "سجلات صحية" : "Health records"} value={healthcare?.totalRecords} />
           <StatTile

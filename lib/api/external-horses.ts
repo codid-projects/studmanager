@@ -66,6 +66,9 @@ export const externalHorseQueryKeys = {
   defaultStud: () => ['default-stud'] as const,
 };
 
+const pedigreeRequestCache = new Map<string, Promise<ApiResult<HorsePedigreeNode[][]>>>();
+const familyAnalysisRequestCache = new Map<string, Promise<ApiResult<PagedResponse<HorseFamilyTreeItem>>>>();
+
 function unwrap<T>(result: ApiResult<T> | T): ApiResult<T> {
   if (result && typeof result === 'object' && 'statusCode' in result && 'succeeded' in result) {
     return result as ApiResult<T>;
@@ -116,11 +119,13 @@ function normalizeTreePayload<T>(payload: unknown): T[][] {
 
 export const searchExternalHorses = async ({
   searchTerm,
+  tag,
   gender,
   pageNumber = 1,
   pageSize = 20,
 }: {
   searchTerm?: string;
+  tag?: string;
   gender?: string;
   pageNumber?: number;
   pageSize?: number;
@@ -129,8 +134,8 @@ export const searchExternalHorses = async ({
     await clientApiFetch<ApiResult<PagedResponse<ExternalHorseSearchItem>> | PagedResponse<ExternalHorseSearchItem>>({
       backendPath: '/api/ExternalHorses/search-external-horses',
       nextPath: '/api/horses/studbook',
-      backendQuery: { SearchTerm: searchTerm, Gender: gender, PageNumber: pageNumber, PageSize: pageSize },
-      nextQuery: { search: searchTerm, gender, pageNumber, pageSize },
+      backendQuery: { SearchTerm: searchTerm, Tag: tag, Gender: gender, PageNumber: pageNumber, PageSize: pageSize },
+      nextQuery: { search: searchTerm, tag, gender, pageNumber, pageSize },
     }),
   );
 
@@ -194,12 +199,23 @@ export const getHorsePedigree = async ({
 }: {
   localId: number;
   levels?: number;
-}): Promise<ApiResult<HorsePedigreeNode[][]>> =>
-  clientApiFetch<ApiResult<HorsePedigreeNode[][]>>({
+}): Promise<ApiResult<HorsePedigreeNode[][]>> => {
+  const key = `${localId}:${levels}`;
+  const cached = pedigreeRequestCache.get(key);
+  if (cached) return cached;
+
+  const request = clientApiFetch<ApiResult<HorsePedigreeNode[][]>>({
     backendPath: `/api/ExternalHorses/${localId}/pedigree`,
     nextPath: `/api/external-horses/${localId}/pedigree`,
     query: { levels },
+  }).catch((error) => {
+    pedigreeRequestCache.delete(key);
+    throw error;
   });
+
+  pedigreeRequestCache.set(key, request);
+  return request;
+};
 
 export const getHorsePedigreeBranch = async ({
   horseId,
@@ -252,12 +268,23 @@ export const getHorseFamilyAnalysisTree = async ({
   pageNumber?: number;
   pageSize?: number;
   search?: string;
-}): Promise<ApiResult<PagedResponse<HorseFamilyTreeItem>>> =>
-  clientApiFetch<ApiResult<PagedResponse<HorseFamilyTreeItem>>>({
+}): Promise<ApiResult<PagedResponse<HorseFamilyTreeItem>>> => {
+  const key = `${localId}:${levels}:${pageNumber}:${pageSize}:${search ?? ''}`;
+  const cached = familyAnalysisRequestCache.get(key);
+  if (cached) return cached;
+
+  const request = clientApiFetch<ApiResult<PagedResponse<HorseFamilyTreeItem>>>({
     backendPath: `/api/ExternalHorses/${localId}/analysis-tree`,
     nextPath: `/api/external-horses/${localId}/analysis-tree`,
     query: { levels, pageNumber, pageSize, search },
+  }).catch((error) => {
+    familyAnalysisRequestCache.delete(key);
+    throw error;
   });
+
+  familyAnalysisRequestCache.set(key, request);
+  return request;
+};
 
 export const getTailMale = async ({
   localId,

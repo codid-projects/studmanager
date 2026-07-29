@@ -29,6 +29,25 @@ function getHorseLocalId(horse: HorseListItemDto) {
   return horse.localId ?? horse.id;
 }
 
+async function findHorseListFallback(localId: string | number) {
+  const id = Number(localId);
+
+  if (!Number.isFinite(id)) return null;
+
+  const pageSize = 200;
+  const maxPages = 50;
+
+  for (let pageNumber = 1; pageNumber <= maxPages; pageNumber += 1) {
+    const horses = await getHorses({ pageNumber, pageSize });
+    const fallback = horses.data.find((horse) => getHorseLocalId(horse) === id);
+
+    if (fallback) return fallback;
+    if (!horses.hasNextPage || !horses.data.length) break;
+  }
+
+  return null;
+}
+
 export async function getHorses(params: {
   pageNumber?: number;
   pageSize?: number;
@@ -68,9 +87,11 @@ export async function getHorse(localId: string | number) {
 }
 
 function toHorseInfoFallback(horse: HorseListItemDto): HorseInfoDto {
+  const raw = horse as HorseListItemDto & { studbookId?: number | null };
+
   return {
     ...horse,
-    studbookId: null,
+    studbookId: raw.studbookId ?? null,
     bornIn: null,
     currentlyIn: null,
     height: null,
@@ -103,24 +124,16 @@ function toHorseInfoFallback(horse: HorseListItemDto): HorseInfoDto {
 }
 
 export async function getHorseWithListFallback(localId: string | number) {
-  try {
-    return await getHorse(localId);
-  } catch (error) {
-    const id = Number(localId);
+  const fallback = await findHorseListFallback(localId);
 
-    if (!Number.isFinite(id)) throw error;
+  if (fallback) return toHorseInfoFallback(fallback);
 
-    const horses = await getHorses({ pageNumber: 1, pageSize: 100 });
-    const fallback = horses.data.find((horse) => getHorseLocalId(horse) === id);
-
-    if (!fallback) throw error;
-
-    return toHorseInfoFallback(fallback);
-  }
+  return getHorse(localId);
 }
 
 export async function searchStudbookHorses(params: {
   searchTerm?: string;
+  tag?: string;
   gender?: string;
   pageNumber?: number;
   pageSize?: number;
@@ -130,6 +143,7 @@ export async function searchStudbookHorses(params: {
   >('/api/ExternalHorses/search-external-horses', {
     query: {
       SearchTerm: params.searchTerm,
+      Tag: params.tag,
       Gender: params.gender,
       PageNumber: params.pageNumber ?? 1,
       PageSize: params.pageSize ?? 12,
@@ -255,10 +269,13 @@ export async function assignHorseToHousing(
     mapKey?: string | null;
     entityType?: string | null;
     entityId?: string | number | null;
+    remove?: boolean | null;
   },
   body?: {
     isTemporarilyAwayFromBox?: boolean;
     temporaryLeavingReason?: string | null;
+    temporaryLeavingDate?: string | null;
+    leftToStudbookId?: number | null;
     leftToStudEn?: string | null;
     leftToStudAr?: string | null;
   },
@@ -266,7 +283,7 @@ export async function assignHorseToHousing(
   return apiFetch<ApiResult<never>>(`/api/Horses/${localId}/assign-box`, {
     method: 'POST',
     query: { box, ...query },
-    body: body ?? {},
+    body,
   });
 }
 

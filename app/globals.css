@@ -151,16 +151,24 @@ html[dir='ltr'] {
   }
 
   .nutrition-print-area,
-  .nutrition-print-area * {
+  .nutrition-print-area *,
+  .analysis-print-area,
+  .analysis-print-area * {
     visibility: visible;
   }
 
-  .nutrition-print-area {
+  .nutrition-print-area,
+  .analysis-print-area {
     position: absolute;
     inset: 0;
     width: 100%;
     border: 0 !important;
     box-shadow: none !important;
+  }
+
+  /* Printing must show every row, not just the slice that fits the viewport. */
+  .analysis-print-area .overflow-x-auto {
+    overflow: visible !important;
   }
 }
 @keyframes calendar-view-enter {

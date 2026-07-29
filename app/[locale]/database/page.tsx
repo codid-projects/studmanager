@@ -146,7 +146,7 @@ export default function DatabasePage() {
                   </div>
                 </div>
 
-                <div className="grid gap-3 lg:grid-cols-3">
+                <div className="grid gap-3 lg:grid-cols-4">
                   <HorsePicker
                     value={pedigreeHorse?.localId ?? null}
                     selectedLabel={pedigreeHorse?.localId ? pedigreeHorse.name : undefined}
@@ -173,6 +173,16 @@ export default function DatabasePage() {
                     title={t('database.selectHorse')}
                     open={pedigreePickerOpen}
                     onOpenChange={setPedigreePickerOpen}
+                    triggerClassName="min-h-[58px] rounded-2xl border-[#d8c8bc] bg-white px-5 font-bold text-[#3b2b20] shadow-sm transition hover:border-[#8d7769] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#8d7769]/25"
+                  />
+                  <ExternalHorsePicker
+                    value={!pedigreeHorse?.localId ? pedigreeHorse?.studbookId ?? null : null}
+                    selectedLabel={!pedigreeHorse?.localId ? pedigreeHorse?.name : undefined}
+                    onChange={(horse) => setPedigreeHorse(toSelectedHorse(horse))}
+                    placeholder={isRTL ? 'ابحث في Studbook بالوسم' : 'Search Studbook by tag'}
+                    title={isRTL ? 'وسوم Studbook' : 'Studbook tags'}
+                    emptyText={t('picker.noHorsesFound')}
+                    queryMode="tag"
                     triggerClassName="min-h-[58px] rounded-2xl border-[#d8c8bc] bg-white px-5 font-bold text-[#3b2b20] shadow-sm transition hover:border-[#8d7769] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#8d7769]/25"
                   />
                 </div>

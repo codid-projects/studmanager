@@ -19,6 +19,7 @@ interface ExternalHorsePickerProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   triggerClassName?: string;
+  queryMode?: "search" | "tag";
 }
 
 export function ExternalHorsePicker({
@@ -33,6 +34,7 @@ export function ExternalHorsePicker({
   open,
   onOpenChange,
   triggerClassName,
+  queryMode = "search",
 }: ExternalHorsePickerProps) {
   const { locale } = useLocale();
   const { t } = useTranslation();
@@ -48,7 +50,8 @@ export function ExternalHorsePicker({
     pageSize: number;
   }) => {
     const result = await searchExternalHorses({
-      searchTerm: search,
+      searchTerm: queryMode === "search" ? search : undefined,
+      tag: queryMode === "tag" ? search : undefined,
       gender,
       pageNumber,
       pageSize,
@@ -60,7 +63,7 @@ export function ExternalHorsePicker({
       currentPage: page.currentPage,
       hasNextPage: page.hasNextPage,
     };
-  }, [gender]);
+  }, [gender, queryMode]);
 
   return (
     <PaginatedPicker
@@ -68,7 +71,7 @@ export function ExternalHorsePicker({
       selectedLabel={selectedLabel}
       placeholder={placeholder ?? t("picker.selectHorse")}
       title={title ?? placeholder ?? t("picker.selectHorse")}
-      searchPlaceholder={t("picker.searchHorses")}
+      searchPlaceholder={queryMode === "tag" ? t("horses.tagFilterLabel") : t("picker.searchHorses")}
       emptyText={emptyText ?? t("picker.noHorsesFound")}
       fetchPage={fetchPage}
       getItemKey={(horse) => horse.id}

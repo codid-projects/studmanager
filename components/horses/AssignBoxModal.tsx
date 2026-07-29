@@ -16,12 +16,14 @@ import { useLocale } from '@/lib/locale-context';
 import { clientApiFetch } from '@/lib/api/client';
 import type {
   ApiResult,
+  ExternalStudSearchItem,
   HousingMapDto,
   HousingUnitDto,
   LocaleCode,
   UpdateHousingUnitCapacityPayload,
 } from '@/lib/api/types';
 import { HousingMapPicker } from './HousingMapPicker';
+import { ExternalStudPicker } from './ExternalStudPicker';
 
 interface AssignBoxModalProps {
   open: boolean;
@@ -38,9 +40,12 @@ interface AssignBoxModalProps {
     temporaryLeave?: {
       isTemporarilyAwayFromBox: boolean;
       temporaryLeavingReason?: string | null;
+      temporaryLeavingDate?: string | null;
+      leftToStudbookId?: number | null;
       leftToStudEn?: string | null;
       leftToStudAr?: string | null;
     },
+    options?: { remove?: boolean },
   ) => Promise<void>;
 }
 
@@ -124,6 +129,8 @@ export const AssignBoxModal = ({
   const [loadingMap, setLoadingMap] = useState(false);
   const [capacitySavingCode, setCapacitySavingCode] = useState<string | null>(null);
   const [leaveReason, setLeaveReason] = useState('');
+  const [leftToStudbookId, setLeftToStudbookId] = useState<number | null>(null);
+  const [leftToStudLabel, setLeftToStudLabel] = useState('');
   const [externalHostingLocation, setExternalHostingLocation] = useState('');
   const [loading, setLoading] = useState(false);
   const [leaveSaving, setLeaveSaving] = useState(false);
@@ -148,6 +155,8 @@ export const AssignBoxModal = ({
     setTypePage(1);
     setAvailability('all');
     setLeaveReason(temporaryLeavingReason ?? '');
+    setLeftToStudbookId(null);
+    setLeftToStudLabel('');
     setExternalHostingLocation((locale === 'ar' ? leftToStudAr || leftToStudEn : leftToStudEn || leftToStudAr) ?? '');
     setError('');
   }, [open, currentBox, leftToStudAr, leftToStudEn, locale, temporaryLeavingReason]);
@@ -449,6 +458,18 @@ export const AssignBoxModal = ({
     }
   };
 
+  const handleStudChange = (stud: ExternalStudSearchItem) => {
+    const label =
+      locale === 'ar'
+        ? stud.studArabicName || stud.studName || ''
+        : stud.studName || stud.studArabicName || '';
+
+    setLeftToStudbookId(stud.id);
+    setLeftToStudLabel(label);
+    setExternalHostingLocation(label);
+    setError('');
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -496,9 +517,11 @@ export const AssignBoxModal = ({
     setError('');
 
     try {
-      await onSubmit('', selectedBranch, {
+      await onSubmit(currentBox, selectedBranch, {
         isTemporarilyAwayFromBox: away,
         temporaryLeavingReason: away ? leaveReason.trim() || null : null,
+        temporaryLeavingDate: away ? new Date().toISOString() : null,
+        leftToStudbookId: away ? leftToStudbookId : null,
         leftToStudEn: away ? externalHostingLocation.trim() || null : null,
         leftToStudAr: away ? externalHostingLocation.trim() || null : null,
       });
@@ -513,6 +536,56 @@ export const AssignBoxModal = ({
       );
     } finally {
       setLeaveSaving(false);
+    }
+  };
+
+  const handleReturnFromAway = async () => {
+    if (!horseId || !isTemporarilyAwayFromBox) {
+      setError(locale === 'ar' ? 'الخيل ليس خارج مكان الإيواء مؤقتاً' : 'Horse is not temporarily away');
+      return;
+    }
+
+    setLeaveSaving(true);
+    setError('');
+
+    try {
+      await onSubmit('', selectedBranch);
+      onClose();
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : locale === 'ar'
+            ? 'فشل تسجيل العودة'
+            : 'Failed to return horse',
+      );
+    } finally {
+      setLeaveSaving(false);
+    }
+  };
+
+  const handleRemoveAssignment = async () => {
+    if (!horseId || !currentBox) {
+      setError(locale === 'ar' ? 'الخيل غير معيّن في أي مكان' : 'Horse is not assigned to any box');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await onSubmit('', selectedBranch, undefined, { remove: true });
+      onClose();
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : locale === 'ar'
+            ? 'فشل إزالة مكان الإيواء'
+            : 'Failed to remove housing',
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -594,13 +667,26 @@ export const AssignBoxModal = ({
           </div>
           {currentBox && (
             <div className="mt-4 grid gap-3 rounded-[16px] border border-[#e8d9cd] bg-white p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 lg:grid-cols-3">
+                <label className="block text-sm font-bold text-[#4a382e]">
+                  {locale === 'ar' ? 'اختيار مزرعة الوجهة' : 'Destination stud'}
+                  <ExternalStudPicker
+                    value={leftToStudbookId}
+                    selectedLabel={leftToStudLabel || externalHostingLocation || undefined}
+                    onChange={handleStudChange}
+                    triggerClassName="mt-2 h-11 w-full rounded-[12px] border border-[#d9cec6] bg-white px-3 text-sm font-bold text-[#4a382e]"
+                  />
+                </label>
                 <label className="block text-sm font-bold text-[#4a382e]">
                   {locale === 'ar' ? 'موقع الاستضافة الخارجية' : 'External hosting location'}
                   <input
                     value={externalHostingLocation}
                     maxLength={200}
-                    onChange={(event) => setExternalHostingLocation(event.target.value)}
+                    onChange={(event) => {
+                      setExternalHostingLocation(event.target.value);
+                      setLeftToStudbookId(null);
+                      setLeftToStudLabel('');
+                    }}
                     placeholder={
                       locale === 'ar'
                         ? 'مثال: عيادة أو مزرعة أخرى'
@@ -625,13 +711,13 @@ export const AssignBoxModal = ({
                 </label>
               </div>
               <div className="flex flex-wrap gap-2">
-                {isTemporarilyAwayFromBox && (
-                  <button
-                    type="button"
-                    disabled={leaveSaving || loading}
-                    onClick={() => handleTemporaryLeave(false)}
-                    className="h-11 rounded-[12px] border border-[#b9d0ad] px-4 text-sm font-bold text-[#45683a] hover:bg-[#f2f8ee] disabled:opacity-50"
-                  >
+	                {isTemporarilyAwayFromBox && (
+	                  <button
+	                    type="button"
+	                    disabled={leaveSaving || loading}
+	                    onClick={handleReturnFromAway}
+	                    className="h-11 rounded-[12px] border border-[#b9d0ad] px-4 text-sm font-bold text-[#45683a] hover:bg-[#f2f8ee] disabled:opacity-50"
+	                  >
                     {leaveSaving
                       ? locale === 'ar'
                         ? 'جارٍ الحفظ...'
@@ -978,8 +1064,24 @@ export const AssignBoxModal = ({
                 )}
               </div>
 
-              <div className="flex shrink-0 gap-2">
-                <button
+	              <div className="flex shrink-0 gap-2">
+	                {currentBox ? (
+	                  <button
+	                    type="button"
+	                    onClick={handleRemoveAssignment}
+	                    disabled={loading || leaveSaving}
+	                    className="min-w-28 rounded-[13px] border border-[#e4b8ae] px-5 py-3 text-sm font-bold text-[#9b3d2f] hover:bg-[#fff4f2] disabled:opacity-50"
+	                  >
+	                    {loading
+	                      ? locale === 'ar'
+	                        ? 'جارٍ الحذف...'
+	                        : 'Removing...'
+	                      : locale === 'ar'
+	                        ? 'إزالة المكان'
+	                        : 'Remove box'}
+	                  </button>
+	                ) : null}
+	                <button
                   type="button"
                   onClick={onClose}
                   disabled={loading}
