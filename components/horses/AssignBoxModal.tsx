@@ -29,6 +29,8 @@ interface AssignBoxModalProps {
   currentBox: string | null;
   isTemporarilyAwayFromBox?: boolean;
   temporaryLeavingReason?: string | null;
+  leftToStudEn?: string | null;
+  leftToStudAr?: string | null;
   onClose: () => void;
   onSubmit: (
     boxName: string,
@@ -36,6 +38,8 @@ interface AssignBoxModalProps {
     temporaryLeave?: {
       isTemporarilyAwayFromBox: boolean;
       temporaryLeavingReason?: string | null;
+      leftToStudEn?: string | null;
+      leftToStudAr?: string | null;
     },
   ) => Promise<void>;
 }
@@ -103,6 +107,8 @@ export const AssignBoxModal = ({
   currentBox,
   isTemporarilyAwayFromBox = false,
   temporaryLeavingReason = null,
+  leftToStudEn = null,
+  leftToStudAr = null,
   onClose,
   onSubmit,
 }: AssignBoxModalProps) => {
@@ -118,6 +124,7 @@ export const AssignBoxModal = ({
   const [loadingMap, setLoadingMap] = useState(false);
   const [capacitySavingCode, setCapacitySavingCode] = useState<string | null>(null);
   const [leaveReason, setLeaveReason] = useState('');
+  const [externalHostingLocation, setExternalHostingLocation] = useState('');
   const [loading, setLoading] = useState(false);
   const [leaveSaving, setLeaveSaving] = useState(false);
   const [error, setError] = useState('');
@@ -141,8 +148,9 @@ export const AssignBoxModal = ({
     setTypePage(1);
     setAvailability('all');
     setLeaveReason(temporaryLeavingReason ?? '');
+    setExternalHostingLocation((locale === 'ar' ? leftToStudAr || leftToStudEn : leftToStudEn || leftToStudAr) ?? '');
     setError('');
-  }, [open, currentBox, temporaryLeavingReason]);
+  }, [open, currentBox, leftToStudAr, leftToStudEn, locale, temporaryLeavingReason]);
 
   useEffect(() => {
     if (!open) return;
@@ -491,6 +499,8 @@ export const AssignBoxModal = ({
       await onSubmit('', selectedBranch, {
         isTemporarilyAwayFromBox: away,
         temporaryLeavingReason: away ? leaveReason.trim() || null : null,
+        leftToStudEn: away ? externalHostingLocation.trim() || null : null,
+        leftToStudAr: away ? externalHostingLocation.trim() || null : null,
       });
       onClose();
     } catch (requestError) {
@@ -584,20 +594,36 @@ export const AssignBoxModal = ({
           </div>
           {currentBox && (
             <div className="mt-4 grid gap-3 rounded-[16px] border border-[#e8d9cd] bg-white p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-              <label className="block text-sm font-bold text-[#4a382e]">
-                {locale === 'ar' ? 'سبب الخروج المؤقت من المكان' : 'Temporary leave reason'}
-                <input
-                  value={leaveReason}
-                  maxLength={500}
-                  onChange={(event) => setLeaveReason(event.target.value)}
-                  placeholder={
-                    locale === 'ar'
-                      ? 'مثال: خرج للحلاق (اختياري)'
-                      : 'Example: left for barber (optional)'
-                  }
-                  className="mt-2 h-11 w-full rounded-[12px] border border-[#d9cec6] px-3 text-sm outline-none focus:border-[#4b2d1c]"
-                />
-              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-sm font-bold text-[#4a382e]">
+                  {locale === 'ar' ? 'موقع الاستضافة الخارجية' : 'External hosting location'}
+                  <input
+                    value={externalHostingLocation}
+                    maxLength={200}
+                    onChange={(event) => setExternalHostingLocation(event.target.value)}
+                    placeholder={
+                      locale === 'ar'
+                        ? 'مثال: عيادة أو مزرعة أخرى'
+                        : 'Example: clinic or another farm'
+                    }
+                    className="mt-2 h-11 w-full rounded-[12px] border border-[#d9cec6] px-3 text-sm outline-none focus:border-[#4b2d1c]"
+                  />
+                </label>
+                <label className="block text-sm font-bold text-[#4a382e]">
+                  {locale === 'ar' ? 'ملاحظات الاستضافة' : 'Hosting notes'}
+                  <input
+                    value={leaveReason}
+                    maxLength={500}
+                    onChange={(event) => setLeaveReason(event.target.value)}
+                    placeholder={
+                      locale === 'ar'
+                        ? 'مثال: متابعة علاجية (اختياري)'
+                        : 'Example: treatment follow-up (optional)'
+                    }
+                    className="mt-2 h-11 w-full rounded-[12px] border border-[#d9cec6] px-3 text-sm outline-none focus:border-[#4b2d1c]"
+                  />
+                </label>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {isTemporarilyAwayFromBox && (
                   <button
@@ -637,7 +663,7 @@ export const AssignBoxModal = ({
               {isTemporarilyAwayFromBox && (
                 <p className="text-xs font-semibold text-[#8a6c55] md:col-span-2">
                   {locale === 'ar' ? 'الحالة الحالية: خارج مكان الإيواء مؤقتاً' : 'Current status: temporarily away from housing'}
-                  {temporaryLeavingReason ? ` - ${temporaryLeavingReason}` : ''}
+                  {externalHostingLocation ? ` - ${externalHostingLocation}` : temporaryLeavingReason ? ` - ${temporaryLeavingReason}` : ''}
                 </p>
               )}
             </div>

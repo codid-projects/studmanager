@@ -16,6 +16,8 @@ interface HorsePickerProps {
   placeholder?: string;
   title?: string;
   emptyText?: string;
+  searchPlaceholder?: string;
+  queryMode?: "search" | "tag";
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   triggerClassName?: string;
@@ -30,6 +32,8 @@ export function HorsePicker({
   placeholder,
   title,
   emptyText,
+  searchPlaceholder,
+  queryMode = "search",
   open,
   onOpenChange,
   triggerClassName,
@@ -47,14 +51,19 @@ export function HorsePicker({
     pageNumber: number;
     pageSize: number;
   }) => {
+    const query =
+      queryMode === "tag"
+        ? { pageNumber, pageSize, tag: search, gender }
+        : { pageNumber, pageSize, search, gender };
+
     return clientApiFetch<PagedResponse<HorseListItemDto>>({
       backendPath: "/api/Horses",
       nextPath: "/api/horses",
-      backendQuery: { pageNumber, pageSize, search, gender },
-      nextQuery: { pageNumber, pageSize, search, gender, locale },
+      backendQuery: query,
+      nextQuery: { ...query, locale },
       locale: localeCode,
     });
-  }, [gender, locale, localeCode]);
+  }, [gender, locale, localeCode, queryMode]);
 
   return (
     <PaginatedPicker
@@ -62,7 +71,7 @@ export function HorsePicker({
       selectedLabel={selectedLabel}
       placeholder={placeholder ?? t("picker.selectHorse")}
       title={title ?? placeholder ?? t("picker.selectHorse")}
-      searchPlaceholder={t("picker.searchHorses")}
+      searchPlaceholder={searchPlaceholder ?? t("picker.searchHorses")}
       emptyText={emptyText ?? t("picker.noHorsesFound")}
       fetchPage={fetchPage}
       getItemKey={(horse) => horse.localId ?? horse.id}

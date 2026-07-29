@@ -3,7 +3,7 @@
 import { FC, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MoreVertical, Pencil, Trash2, X } from 'lucide-react';
+import { MapPinOff, MoreVertical, Pencil, Tag, Trash2, X } from 'lucide-react';
 import { useLocale, useTranslation } from '@/lib/locale-context';
 import horsePlaceholder from '@/app/assets/imgs/horse-placehodler.png';
 
@@ -18,6 +18,11 @@ interface Horse {
   image: string;
   gender: string;
   isSold: boolean;
+  isTemporarilyAwayFromBox?: boolean;
+  temporaryLeavingReason?: string | null;
+  leftToStudEn?: string | null;
+  leftToStudAr?: string | null;
+  tags?: Array<{ id: number; name: string }>;
 }
 
 interface HorseCardProps {
@@ -38,6 +43,12 @@ export const HorseCard: FC<HorseCardProps> = ({
   const horseName = locale === 'ar' ? horse.nameAr : horse.nameEn;
   const hasActions = Boolean(onEdit || onDelete);
   const isRtl = direction === 'rtl';
+  const visibleTags = (horse.tags ?? []).filter((tag) => tag.name?.trim()).slice(0, 3);
+  const hiddenTagCount = Math.max(0, (horse.tags?.length ?? 0) - visibleTags.length);
+  const hostingLocation =
+    locale === 'ar'
+      ? horse.leftToStudAr || horse.leftToStudEn
+      : horse.leftToStudEn || horse.leftToStudAr;
 
   return (
     <div className="relative mx-auto w-full max-w-[360px] pt-[58px] xs:pt-[64px] sm:max-w-none sm:pt-[76px] lg:pt-[82px]">
@@ -153,6 +164,45 @@ export const HorseCard: FC<HorseCardProps> = ({
         >
           {horseName}
         </h3>
+
+        {horse.isTemporarilyAwayFromBox ? (
+          <div className="mb-3 rounded-xl border border-[#d9c7b8] bg-[#fffaf2] px-3 py-2 text-[11px] font-semibold text-[#6f523c]">
+            <div className={`flex items-center gap-1.5 ${isRtl ? 'flex-row-reverse' : ''}`}>
+              <MapPinOff className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">
+                {locale === 'ar' ? 'مستضاف خارج المزرعة' : 'Hosted Outside the Farm'}
+              </span>
+            </div>
+            {hostingLocation || horse.temporaryLeavingReason ? (
+              <div
+                className="mt-1 truncate text-[#8a725f]"
+                title={hostingLocation || horse.temporaryLeavingReason || undefined}
+              >
+                {hostingLocation || horse.temporaryLeavingReason}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {visibleTags.length ? (
+          <div className="mb-3 flex min-h-7 flex-wrap justify-center gap-1.5">
+            {visibleTags.map((tag) => (
+              <span
+                key={tag.id}
+                className="inline-flex max-w-[120px] items-center gap-1 rounded-full border border-[#eadfd9] bg-[#fbf8f4] px-2 py-1 text-[10px] font-bold text-[#6f5b4d]"
+                title={tag.name}
+              >
+                <Tag className="h-3 w-3 shrink-0" />
+                <span className="truncate">{tag.name}</span>
+              </span>
+            ))}
+            {hiddenTagCount ? (
+              <span className="rounded-full border border-[#eadfd9] bg-white px-2 py-1 text-[10px] font-bold text-[#6f5b4d]">
+                +{hiddenTagCount}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="mb-4 grid grid-cols-1 gap-2 text-center min-[360px]:grid-cols-3 sm:mb-6 sm:gap-3">
           <div className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl bg-[#fbf8f4] px-2 py-2.5 sm:rounded-2xl sm:px-3 sm:py-3">

@@ -384,7 +384,12 @@ export interface HorseListItemDto {
   deceasedReason?: string | null;
   isTemporarilyAwayFromBox?: boolean;
   temporaryLeavingReason?: string | null;
+  temporaryLeavingDate?: string | null;
+  leftToStudEn?: string | null;
+  leftToStudAr?: string | null;
   tags?: HorseTagDto[] | null;
+  box?: string | null;
+  microchipID?: string | null;
   horseFatherEnglishName?: string | null;
   horseFatherArabicName?: string | null;
   horseMotherEnglishName?: string | null;
@@ -491,6 +496,10 @@ export interface HorseInfoDto extends HorseListItemDto {
   box: string | null;
   isTemporarilyAwayFromBox?: boolean;
   temporaryLeavingReason?: string | null;
+  temporaryLeavingDate?: string | null;
+  leftToStud?: StudDto | null;
+  leftToStudEn?: string | null;
+  leftToStudAr?: string | null;
   owner: StudDto | null;
   breeder: StudDto | null;
   ownerEn?: string | null;

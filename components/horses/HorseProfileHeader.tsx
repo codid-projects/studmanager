@@ -34,6 +34,8 @@ interface HorseProfileHeaderProps {
   box?: string | null;
   isTemporarilyAwayFromBox?: boolean;
   temporaryLeavingReason?: string | null;
+  leftToStudEn?: string | null;
+  leftToStudAr?: string | null;
   onOpenAssignBox?: () => void;
   isActive?: boolean;
   statusLoading?: boolean;
@@ -54,6 +56,8 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
   box = null,
   isTemporarilyAwayFromBox = false,
   temporaryLeavingReason = null,
+  leftToStudEn = null,
+  leftToStudAr = null,
   onOpenAssignBox,
   isActive = true,
   statusLoading = false,
@@ -117,6 +121,7 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
     `/${locale}/reproduction?tab=${reproductionTab}` +
     `&horseId=${encodeURIComponent(horse.id)}` +
     `&horseName=${encodeURIComponent(horseName)}`;
+  const externalHostingLocation = localized(leftToStudAr, leftToStudEn);
 
   useEffect(() => {
     if (searchParams.get("horseSummary") === "1") {
@@ -206,8 +211,12 @@ export const HorseProfileHeader: FC<HorseProfileHeaderProps> = ({
               </div>
               {isTemporarilyAwayFromBox && (
                 <div className="max-w-full rounded-lg border border-[#e5c59d] bg-[#fff8ed] px-3 py-1.5 text-xs font-semibold text-[#8a5a20]">
-                  {isRTL ? 'خارج مؤقتاً' : 'Temporarily away'}
-                  {temporaryLeavingReason ? `: ${temporaryLeavingReason}` : ''}
+                  {isRTL ? 'مستضاف خارج المزرعة' : 'Hosted Outside the Farm'}
+                  {externalHostingLocation !== '-'
+                    ? `: ${externalHostingLocation}`
+                    : temporaryLeavingReason
+                      ? `: ${temporaryLeavingReason}`
+                      : ''}
                 </div>
               )}
               {onOpenAssignBox && (

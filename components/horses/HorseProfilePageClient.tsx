@@ -480,7 +480,12 @@ export function HorseProfilePageClient({
   const handleAssignBox = async (
     boxName: string,
     mapKey = 'mousa',
-    temporaryLeave?: { isTemporarilyAwayFromBox: boolean; temporaryLeavingReason?: string | null },
+    temporaryLeave?: {
+      isTemporarilyAwayFromBox: boolean;
+      temporaryLeavingReason?: string | null;
+      leftToStudEn?: string | null;
+      leftToStudAr?: string | null;
+    },
   ) => {
     if (!horseId || boxAssignLoading) return;
     setBoxAssignLoading(true);
@@ -515,6 +520,12 @@ export function HorseProfilePageClient({
                   : false,
                 temporaryLeavingReason: temporaryLeave?.isTemporarilyAwayFromBox
                   ? temporaryLeave.temporaryLeavingReason?.trim() || null
+                  : null,
+                leftToStudEn: temporaryLeave?.isTemporarilyAwayFromBox
+                  ? temporaryLeave.leftToStudEn?.trim() || null
+                  : null,
+                leftToStudAr: temporaryLeave?.isTemporarilyAwayFromBox
+                  ? temporaryLeave.leftToStudAr?.trim() || null
                   : null,
               }
             : current,
@@ -813,6 +824,8 @@ export function HorseProfilePageClient({
               box={horse?.box ?? null}
               isTemporarilyAwayFromBox={horse?.isTemporarilyAwayFromBox ?? false}
               temporaryLeavingReason={horse?.temporaryLeavingReason ?? null}
+              leftToStudEn={horse?.leftToStudEn ?? horse?.leftToStud?.studName ?? null}
+              leftToStudAr={horse?.leftToStudAr ?? horse?.leftToStud?.studArabicName ?? null}
               onOpenAssignBox={() => setIsAssignBoxOpen(true)}
               isActive={horse?.isActive ?? true}
               statusLoading={statusSaving}
@@ -899,6 +912,8 @@ export function HorseProfilePageClient({
               currentBox={horse?.box ?? null}
               isTemporarilyAwayFromBox={horse?.isTemporarilyAwayFromBox ?? false}
               temporaryLeavingReason={horse?.temporaryLeavingReason ?? null}
+              leftToStudEn={horse?.leftToStudEn ?? horse?.leftToStud?.studName ?? null}
+              leftToStudAr={horse?.leftToStudAr ?? horse?.leftToStud?.studArabicName ?? null}
               onClose={() => setIsAssignBoxOpen(false)}
               onSubmit={handleAssignBox}
             />

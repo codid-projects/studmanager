@@ -259,6 +259,8 @@ export async function assignHorseToHousing(
   body?: {
     isTemporarilyAwayFromBox?: boolean;
     temporaryLeavingReason?: string | null;
+    leftToStudEn?: string | null;
+    leftToStudAr?: string | null;
   },
 ) {
   return apiFetch<ApiResult<never>>(`/api/Horses/${localId}/assign-box`, {

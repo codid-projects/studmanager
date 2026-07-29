@@ -1218,6 +1218,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [apiColumns, setApiColumns] = useState<PedigreeNode[][]>([]);
   const [branchSteps, setBranchSteps] = useState<BranchExpansion[]>([]);
@@ -1543,11 +1544,12 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
     }
   };
 
-  const handleDownload = async () => {
+  const handleDownload = async (format: "pdf" | "image") => {
     if (!exportRef.current || isDownloading) return;
 
     try {
       setIsDownloading(true);
+      setDownloadMenuOpen(false);
       await waitForRenderableImages(exportRef.current);
 
       const exportWidth = exportRef.current.scrollWidth;
@@ -1564,16 +1566,41 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
         skipAutoScale: true,
       });
 
-      const link = document.createElement("a");
       const safeName = (horse?.name || "horse-pedigree")
         .trim()
         .toLowerCase()
         .replace(/\s+/g, "-")
         .replace(/[^\w-]/g, "");
 
-      link.href = dataUrl;
-      link.download = `${safeName || "horse-pedigree"}-certificate.png`;
-      link.click();
+      if (format === "image") {
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = `${safeName || "horse-pedigree"}-pedigree.png`;
+        link.click();
+        return;
+      }
+
+      const { jsPDF } = await import("jspdf");
+      const orientation = exportWidth >= exportHeight ? "landscape" : "portrait";
+      const doc = new jsPDF({ orientation, unit: "pt", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 28;
+      const maxWidth = pageWidth - margin * 2;
+      const maxHeight = pageHeight - margin * 2;
+      const scale = Math.min(maxWidth / exportWidth, maxHeight / exportHeight);
+      const imageWidth = exportWidth * scale;
+      const imageHeight = exportHeight * scale;
+
+      doc.addImage(
+        dataUrl,
+        "PNG",
+        (pageWidth - imageWidth) / 2,
+        (pageHeight - imageHeight) / 2,
+        imageWidth,
+        imageHeight,
+      );
+      doc.save(`${safeName || "horse-pedigree"}-pedigree.pdf`);
     } catch (error) {
       console.error("Download error:", error);
     } finally {
@@ -1739,31 +1766,55 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
         )}
 
         <div className="flex w-auto items-center gap-2 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={handleDownload}
-            disabled={isDownloading || !hasPedigree}
-            className={`inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap bg-white font-semibold text-[#3e3640] transition hover:bg-[#f8f3ed] disabled:cursor-not-allowed disabled:opacity-60 ${
-              controlsVariant === "compact"
-                ? "h-11 w-11 rounded-xl border border-[#e6ddd4]"
-                : "h-11 rounded-2xl px-4 text-sm"
-            }`}
-            title={isRTL ? "تحميل" : "Download"}
-          >
-            <DownloadIcon className="h-5 w-5" />
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setDownloadMenuOpen((open) => !open)}
+              disabled={isDownloading || !hasPedigree}
+              className={`inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap bg-white font-semibold text-[#3e3640] transition hover:bg-[#f8f3ed] disabled:cursor-not-allowed disabled:opacity-60 ${
+                controlsVariant === "compact"
+                  ? "h-11 w-11 rounded-xl border border-[#e6ddd4]"
+                  : "h-11 rounded-2xl px-4 text-sm"
+              }`}
+              title={isRTL ? "تحميل" : "Download"}
+            >
+              <DownloadIcon className="h-5 w-5" />
 
-            {controlsVariant === "default" ? (
-              <span>
-                {isDownloading
-                  ? isRTL
-                    ? "جاري التحميل..."
-                    : "Downloading..."
-                  : isRTL
-                    ? "تحميل"
-                    : "Download"}
-              </span>
+              {controlsVariant === "default" ? (
+                <span>
+                  {isDownloading
+                    ? isRTL
+                      ? "جاري التحميل..."
+                      : "Downloading..."
+                    : isRTL
+                      ? "تحميل"
+                      : "Download"}
+                </span>
+              ) : null}
+            </button>
+            {downloadMenuOpen ? (
+              <div
+                className={`absolute top-12 z-30 min-w-36 overflow-hidden rounded-xl border border-[#e6ddd4] bg-white py-1 text-sm font-semibold text-[#3e3640] shadow-lg ${
+                  isRTL ? "left-0 text-right" : "right-0 text-left"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => handleDownload("pdf")}
+                  className="block w-full px-4 py-2 hover:bg-[#f8f3ed]"
+                >
+                  {isRTL ? "تحميل PDF" : "Download PDF"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownload("image")}
+                  className="block w-full px-4 py-2 hover:bg-[#f8f3ed]"
+                >
+                  {isRTL ? "تحميل صورة" : "Download Image"}
+                </button>
+              </div>
             ) : null}
-          </button>
+          </div>
 
           <button
             type="button"

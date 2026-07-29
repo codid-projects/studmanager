@@ -4,18 +4,22 @@ import { useState } from 'react';
 import { Dna, HeartHandshake, Search } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { ExternalHorsePicker } from '@/components/horses/ExternalHorsePicker';
+import { HorsePicker } from '@/components/horses/HorsePicker';
 import { HorsePedigreeTree } from '@/components/horses/HorsePedigreeTree';
 import { getTestMatingTree } from '@/lib/api/external-horses';
 import { getLocalizedName } from '@/lib/api/localization';
 import type {
   ExternalHorseSearchItem,
   ExternalTreeNode,
+  HorseListItemDto,
 } from '@/lib/api/types';
 import { useLocale, useTranslation } from '@/lib/locale-context';
 
 type SelectedHorse = {
-  studbookId: number;
+  localId?: number | null;
+  studbookId?: number | null;
   name: string;
+  tags?: Array<{ id: number; name: string }> | null;
 };
 
 export default function DatabasePage() {
@@ -34,6 +38,12 @@ export default function DatabasePage() {
   const toSelectedHorse = (horse: ExternalHorseSearchItem): SelectedHorse => ({
     studbookId: horse.id,
     name: getLocalizedName(horse.englishName, horse.arabicName, isRTL),
+  });
+  const toSelectedLocalHorse = (horse: HorseListItemDto): SelectedHorse => ({
+    localId: horse.localId ?? horse.id,
+    studbookId: (horse as HorseListItemDto & { studbookId?: number | null }).studbookId ?? null,
+    name: getLocalizedName(horse.englishName, horse.arabicName, isRTL),
+    tags: horse.tags ?? [],
   });
 
   const selectParent = (
@@ -57,8 +67,8 @@ export default function DatabasePage() {
 
     try {
       const result = await getTestMatingTree({
-        horseFatherStudbookId: father.studbookId,
-        horseMotherStudbookId: mother.studbookId,
+        horseFatherStudbookId: father.studbookId as number,
+        horseMotherStudbookId: mother.studbookId as number,
         levels: 6,
       });
       setMatingTree(result.data ?? []);
@@ -136,16 +146,50 @@ export default function DatabasePage() {
                   </div>
                 </div>
 
-                <ExternalHorsePicker
-                  value={pedigreeHorse?.studbookId ?? null}
-                  selectedLabel={pedigreeHorse?.name}
-                  onChange={(horse) => setPedigreeHorse(toSelectedHorse(horse))}
-                  placeholder={t('database.selectHorse')}
-                  title={t('database.selectHorse')}
-                  open={pedigreePickerOpen}
-                  onOpenChange={setPedigreePickerOpen}
-                  triggerClassName="min-h-[58px] rounded-2xl border-[#d8c8bc] bg-white px-5 font-bold text-[#3b2b20] shadow-sm transition hover:border-[#8d7769] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#8d7769]/25"
-                />
+                <div className="grid gap-3 lg:grid-cols-3">
+                  <HorsePicker
+                    value={pedigreeHorse?.localId ?? null}
+                    selectedLabel={pedigreeHorse?.localId ? pedigreeHorse.name : undefined}
+                    onChange={(horse) => setPedigreeHorse(toSelectedLocalHorse(horse))}
+                    placeholder={isRTL ? 'ابحث في خيول المزرعة' : 'Search farm horses'}
+                    title={isRTL ? 'خيول المزرعة' : 'Farm horses'}
+                    triggerClassName="min-h-[58px] rounded-2xl border-[#d8c8bc] bg-white px-5 font-bold text-[#3b2b20] shadow-sm transition hover:border-[#8d7769] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#8d7769]/25"
+                  />
+                  <HorsePicker
+                    value={pedigreeHorse?.localId ?? null}
+                    selectedLabel={pedigreeHorse?.localId ? pedigreeHorse.name : undefined}
+                    onChange={(horse) => setPedigreeHorse(toSelectedLocalHorse(horse))}
+                    placeholder={isRTL ? 'ابحث بوسم الخيل' : 'Search by horse tag'}
+                    title={isRTL ? 'وسوم الخيول' : 'Horse tags'}
+                    searchPlaceholder={isRTL ? 'اكتب الوسم' : 'Type a tag'}
+                    queryMode="tag"
+                    triggerClassName="min-h-[58px] rounded-2xl border-[#d8c8bc] bg-white px-5 font-bold text-[#3b2b20] shadow-sm transition hover:border-[#8d7769] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#8d7769]/25"
+                  />
+                  <ExternalHorsePicker
+                    value={!pedigreeHorse?.localId ? pedigreeHorse?.studbookId ?? null : null}
+                    selectedLabel={!pedigreeHorse?.localId ? pedigreeHorse?.name : undefined}
+                    onChange={(horse) => setPedigreeHorse(toSelectedHorse(horse))}
+                    placeholder={t('database.selectHorse')}
+                    title={t('database.selectHorse')}
+                    open={pedigreePickerOpen}
+                    onOpenChange={setPedigreePickerOpen}
+                    triggerClassName="min-h-[58px] rounded-2xl border-[#d8c8bc] bg-white px-5 font-bold text-[#3b2b20] shadow-sm transition hover:border-[#8d7769] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#8d7769]/25"
+                  />
+                </div>
+                {pedigreeHorse?.tags?.length ? (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {pedigreeHorse.tags
+                      .filter((tag) => tag.name?.trim())
+                      .map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="rounded-full border border-[#e4d6ca] bg-white px-2.5 py-1 text-xs font-bold text-[#6f5b4d]"
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                  </div>
+                ) : null}
               </div>
 
               <div>
@@ -154,10 +198,11 @@ export default function DatabasePage() {
                 </h2>
                 {pedigreeHorse ? (
                   <HorsePedigreeTree
-                    key={pedigreeHorse.studbookId}
+                    key={pedigreeHorse.localId ?? pedigreeHorse.studbookId}
                     horse={{
-                      id: String(pedigreeHorse.studbookId),
-                      studbookId: pedigreeHorse.studbookId,
+                      id: String(pedigreeHorse.localId ?? pedigreeHorse.studbookId),
+                      localId: pedigreeHorse.localId,
+                      studbookId: pedigreeHorse.studbookId ?? null,
                       name: pedigreeHorse.name,
                     }}
                     showTitle={false}

@@ -68,6 +68,8 @@ function exportHeaders(locale: LocaleCode) {
         'الأب',
         'الأم',
         'الحالة',
+        'رقم الشريحة',
+        'الوسوم',
       ]
     : [
         '#',
@@ -81,6 +83,8 @@ function exportHeaders(locale: LocaleCode) {
         'Father',
         'Mother',
         'Status',
+        'Microchip',
+        'Tags',
       ];
 }
 
@@ -117,6 +121,11 @@ function exportRows(horses: HorseListItemDto[], locale: LocaleCode) {
       parentName(horse.horseFatherEnglishName, horse.horseFatherArabicName, locale),
       parentName(horse.horseMotherEnglishName, horse.horseMotherArabicName, locale),
       statusLabel(horse, locale),
+      horse.microchipID?.trim() || '-',
+      (horse.tags ?? [])
+        .map((tag) => tag.name?.trim())
+        .filter(Boolean)
+        .join(', ') || '-',
     ];
   });
 }
@@ -146,6 +155,8 @@ export async function exportHorsesToExcel({ horses, filters, locale }: HorsesExp
     { wch: 28 },
     { wch: 28 },
     { wch: 10 },
+    { wch: 18 },
+    { wch: 34 },
   ];
 
   const workbook = XLSX.utils.book_new();

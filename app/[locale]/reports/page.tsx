@@ -11,7 +11,7 @@ export default function ReportsPage() {
   return (
     <MainLayout>
       <div
-        className={`mx-auto max-w-[1400px] p-6 ${isRTL ? "text-right font-cairo" : "text-left"}`}
+        className={`mx-auto max-w-[1400px] p-4 sm:p-6 ${isRTL ? "text-right font-cairo" : "text-left"}`}
         dir={direction}
       >
         <ReportsDashboard />

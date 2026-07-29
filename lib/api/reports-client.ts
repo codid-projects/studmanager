@@ -121,6 +121,18 @@ export interface BreedingReport {
     totalPregnancies: number;
     liveBirths: number;
     liveBirthRate: number;
+    currentlyPregnant?: number;
+    expectedFoalingThisMonth?: number;
+  };
+  expectedBirthReport?: {
+    currentlyPregnantMares: number;
+    months: Array<{
+      year: number;
+      month: number;
+      expectedBirths: number;
+      mares: ExpectedBirthMare[];
+    }>;
+    incompleteMares: ExpectedBirthMare[];
   };
   foalReport: {
     totalFoalRegistrations: number;
@@ -136,6 +148,18 @@ export interface BreedingReport {
     averageDurationDays: number;
     monthlyTrend: MonthlyCount[];
   };
+}
+
+export interface ExpectedBirthMare {
+  mareId: number;
+  profileId: number;
+  mareName: string;
+  mareNameAr: string;
+  stallionName: string | null;
+  expectedFoalingStartDate: string | null;
+  expectedFoalingEndDate: string | null;
+  lastExamDate: string;
+  missingReason: string | null;
 }
 
 export interface HealthcareReport {

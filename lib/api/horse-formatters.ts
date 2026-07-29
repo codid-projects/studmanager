@@ -102,6 +102,11 @@ export function toHorseCardModel(horse: HorseListItemDto, locale: LocaleCode) {
     image: horse.horseProfileImage || mediaUrl(horse.images?.[0]) || DEFAULT_HORSE_IMAGE,
     gender: horse.gender ?? '',
     isSold: horse.isSold ?? false,
+    isTemporarilyAwayFromBox: horse.isTemporarilyAwayFromBox ?? false,
+    temporaryLeavingReason: horse.temporaryLeavingReason ?? null,
+    leftToStudEn: horse.leftToStudEn ?? null,
+    leftToStudAr: horse.leftToStudAr ?? null,
+    tags: horse.tags ?? [],
   };
 }
 

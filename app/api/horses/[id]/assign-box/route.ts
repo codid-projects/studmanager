@@ -29,6 +29,14 @@ export async function POST(request: NextRequest, { params }: RouteProps) {
           typeof body.temporaryLeavingReason === 'string'
             ? body.temporaryLeavingReason
             : null,
+        leftToStudEn:
+          typeof body.leftToStudEn === 'string'
+            ? body.leftToStudEn
+            : null,
+        leftToStudAr:
+          typeof body.leftToStudAr === 'string'
+            ? body.leftToStudAr
+            : null,
       },
     );
     return NextResponse.json(result, { status: result.statusCode ?? 200 });
