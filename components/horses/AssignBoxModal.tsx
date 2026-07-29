@@ -45,7 +45,7 @@ interface AssignBoxModalProps {
       leftToStudEn?: string | null;
       leftToStudAr?: string | null;
     },
-    options?: { remove?: boolean },
+    options?: { remove?: boolean; entityType?: string | null; entityId?: string | number | null },
   ) => Promise<void>;
 }
 
@@ -473,9 +473,37 @@ export const AssignBoxModal = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!horseId || !selectedCode) {
+    if (!horseId) {
       setError(locale === 'ar' ? 'يرجى اختيار مكان الإيواء' : 'Please select a housing slot');
       return;
+    }
+
+    if (manualType === 'barn' && manualUnit && !getSelectedSlotNumber(selectedCode)) {
+      setError(locale === 'ar' ? 'يرجى اختيار مكان محدد داخل العنبر' : 'Please choose a specific barn slot');
+      return;
+    }
+
+    if (!selectedCode) {
+      setError(locale === 'ar' ? 'يرجى اختيار مكان الإيواء' : 'Please select a housing slot');
+      return;
+    }
+
+    if (!selectedUnit) {
+      setError(locale === 'ar' ? 'مكان الإيواء المحدد غير موجود' : 'The selected housing unit does not exist');
+      return;
+    }
+
+    if (selectedUnit.type === 'barn' && !getSelectedSlotNumber(selectedCode)) {
+      setError(locale === 'ar' ? 'يرجى اختيار مكان محدد داخل العنبر' : 'Please choose a specific barn slot');
+      return;
+    }
+
+    if (selectedUnit.type === 'barn') {
+      const slotNumber = getSelectedSlotNumber(selectedCode);
+      if (!slotNumber || slotNumber < 1 || slotNumber > selectedUnit.capacity) {
+        setError(locale === 'ar' ? 'مكان العنبر المحدد غير موجود' : 'The selected barn slot does not exist');
+        return;
+      }
     }
 
     if (!selectionChanged) {
@@ -492,7 +520,10 @@ export const AssignBoxModal = ({
     setError('');
 
     try {
-      await onSubmit(selectedCode, selectedBranch);
+      await onSubmit(selectedCode, selectedBranch, undefined, {
+        entityType: mapData?.entityType ?? null,
+        entityId: mapData?.entityId ?? null,
+      });
       onClose();
     } catch (requestError) {
       setError(
@@ -524,6 +555,9 @@ export const AssignBoxModal = ({
         leftToStudbookId: away ? leftToStudbookId : null,
         leftToStudEn: away ? externalHostingLocation.trim() || null : null,
         leftToStudAr: away ? externalHostingLocation.trim() || null : null,
+      }, {
+        entityType: mapData?.entityType ?? null,
+        entityId: mapData?.entityId ?? null,
       });
       onClose();
     } catch (requestError) {
@@ -549,7 +583,10 @@ export const AssignBoxModal = ({
     setError('');
 
     try {
-      await onSubmit('', selectedBranch);
+      await onSubmit('', selectedBranch, undefined, {
+        entityType: mapData?.entityType ?? null,
+        entityId: mapData?.entityId ?? null,
+      });
       onClose();
     } catch (requestError) {
       setError(
@@ -574,7 +611,11 @@ export const AssignBoxModal = ({
     setError('');
 
     try {
-      await onSubmit('', selectedBranch, undefined, { remove: true });
+      await onSubmit('', selectedBranch, undefined, {
+        remove: true,
+        entityType: mapData?.entityType ?? null,
+        entityId: mapData?.entityId ?? null,
+      });
       onClose();
     } catch (requestError) {
       setError(

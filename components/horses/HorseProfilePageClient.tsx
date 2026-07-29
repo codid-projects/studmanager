@@ -38,7 +38,8 @@ import {
 } from '@/lib/api/external-horses';
 import { mediaUrl, mediaUrls, toProfileHorseModel } from '@/lib/api/horse-formatters';
 import { getLocalizedName } from '@/lib/api/localization';
-import { isDirectApiMode } from '@/lib/api/transport';
+import { API_BASE_URL, isDirectApiMode } from '@/lib/api/transport';
+import { AUTH_TOKEN_COOKIE } from '@/lib/auth';
 import type {
   ApiResult,
   HorseFamilyTreeItem,
@@ -119,15 +120,86 @@ type AssignBoxResult = ApiResult<never> & {
   success?: boolean;
 };
 
+function getClientCookie(name: string) {
+  if (typeof document === 'undefined') return undefined;
+
+  return document.cookie
+    .split('; ')
+    .find((cookie) => cookie.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+}
+
+async function postAssignBoxDirect({
+  horseId,
+  locale,
+  boxName,
+  mapKey,
+  entityType,
+  entityId,
+  remove,
+  temporaryLeave,
+}: {
+  horseId: string;
+  locale: LocaleCode;
+  boxName: string;
+  mapKey: string;
+  entityType?: string | null;
+  entityId?: string | number | null;
+  remove?: boolean;
+  temporaryLeave?: {
+    isTemporarilyAwayFromBox: boolean;
+    temporaryLeavingReason?: string | null;
+    temporaryLeavingDate?: string | null;
+    leftToStudbookId?: number | null;
+    leftToStudEn?: string | null;
+    leftToStudAr?: string | null;
+  };
+}) {
+  const url = new URL(`/api/Horses/${horseId}/assign-box`, API_BASE_URL);
+  if (boxName) url.searchParams.set('box', boxName);
+  if (mapKey) url.searchParams.set('mapKey', mapKey);
+  if (entityType) url.searchParams.set('entityType', entityType);
+  if (entityId !== undefined && entityId !== null && entityId !== '') {
+    url.searchParams.set('entityId', String(entityId));
+  }
+  if (remove) url.searchParams.set('remove', 'true');
+
+  const token =
+    window.localStorage.getItem('studmanager-token') ??
+    (getClientCookie(AUTH_TOKEN_COOKIE)
+      ? decodeURIComponent(getClientCookie(AUTH_TOKEN_COOKIE) as string)
+      : null);
+  const headers = new Headers({ Accept: 'application/json', 'Accept-Language': locale });
+  if (temporaryLeave) headers.set('Content-Type', 'application/json');
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers,
+    body: temporaryLeave ? JSON.stringify(temporaryLeave) : undefined,
+  });
+  const result = (await response.json().catch(() => ({
+    succeeded: false,
+    success: false,
+    message: response.statusText,
+    statusCode: response.status,
+  }))) as AssignBoxResult;
+
+  if (!response.ok || result.success === false || result.succeeded === false) {
+    throw Object.assign(new Error(result.message || response.statusText), {
+      status: response.status || result.statusCode,
+      payload: result,
+    });
+  }
+
+  return result;
+}
+
 function isSuccessfulAssignBoxResult(result: AssignBoxResult) {
   return result.success === true ||
     result.succeeded === true ||
     result.statusCode === 200 ||
     result.statusCode === undefined;
-}
-
-function isAlreadyAssignedMessage(message: string | null | undefined) {
-  return /already assigned to this box|معيّن بالفعل|معين بالفعل/i.test(String(message ?? ''));
 }
 
 function toHorseInfoFallback(horse: HorseListItemDto): HorseInfoDto {
@@ -567,7 +639,7 @@ export function HorseProfilePageClient({
       leftToStudEn?: string | null;
       leftToStudAr?: string | null;
     },
-    options?: { remove?: boolean },
+    options?: { remove?: boolean; entityType?: string | null; entityId?: string | number | null },
   ) => {
     if (!horseId || boxAssignLoading) return;
     setBoxAssignLoading(true);
@@ -586,35 +658,17 @@ export function HorseProfilePageClient({
     };
 
     try {
-      const query = new URLSearchParams({ locale, mapKey });
-      if (boxName) query.set('box', boxName);
-      if (options?.remove) query.set('remove', 'true');
-      const response = await fetch(`/api/horses/${horseId}/assign-box?${query.toString()}`, {
-        method: 'POST',
-        headers: temporaryLeave ? { 'Content-Type': 'application/json', Accept: 'application/json' } : { Accept: 'application/json' },
-        body: temporaryLeave ? JSON.stringify(temporaryLeave) : undefined,
+      const result = await postAssignBoxDirect({
+        horseId,
+        locale: locale as LocaleCode,
+        boxName,
+        mapKey,
+        entityType: options?.entityType,
+        entityId: options?.entityId,
+        remove: options?.remove,
+        temporaryLeave,
       });
-      const result = (await response.json().catch(() => ({
-        succeeded: false,
-        message: t('common.error'),
-        statusCode: response.status,
-      }))) as AssignBoxResult;
 
-      if (!response.ok) {
-        if (response.status === 400 && isAlreadyAssignedMessage(result.message)) {
-          setHorse((current) => (current ? { ...current, ...nextHousing } : current));
-          writeHorseBoxOverride(horseId, nextHousing);
-          setIsAssignBoxOpen(false);
-          return;
-        }
-
-        throw Object.assign(new Error(result.message || t('common.error')), {
-          status: response.status,
-          payload: result,
-        });
-      }
-
-      // Check for 409 Conflict first
       if (result.statusCode === 409) {
         const errorMessage = locale === 'ar' 
           ? 'هذا المكان مأخوذ بالفعل'
@@ -637,7 +691,6 @@ export function HorseProfilePageClient({
         throw new Error(result.message || t('common.error'));
       }
     } catch (requestError) {
-      // Check if error has status 409 (from clientApiFetch)
       if (requestError instanceof Error && (requestError as any).status === 409) {
         const errorMessage = locale === 'ar' 
           ? 'هذا المكان مأخوذ بالفعل'
@@ -652,10 +705,8 @@ export function HorseProfilePageClient({
       )) {
         throw requestError;
       }
-      
-      setHorse((current) => (current ? { ...current, ...nextHousing } : current));
-      writeHorseBoxOverride(horseId, nextHousing);
-      setIsAssignBoxOpen(false);
+
+      throw requestError instanceof Error ? requestError : new Error(t('common.error'));
     } finally {
       setBoxAssignLoading(false);
     }
