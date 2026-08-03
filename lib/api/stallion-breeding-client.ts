@@ -21,14 +21,19 @@ export type StallionDashboard = {
 export type StallionRecord = {
   id: number;
   profileId: number;
+  profileHorseId: number;
+  profileHorseName: string | null;
+  profileHorseNameAr: string | null;
   recordDate: string;
   recordType: number;
-  veterinarianName: string;
+  veterinarianName: string | null;
+  relatedHorseId: number | null;
   relatedHorseName: string | null;
   relatedHorseNameAr: string | null;
   destination: string | null;
   motilityPercent: number | null;
   totalCost: number;
+  followUpDate: string | null;
   hasFollowUp: boolean;
 };
 export type StallionRecordDetail = StallionRecord &
@@ -36,10 +41,13 @@ export type StallionRecordDetail = StallionRecord &
     followUpDate?: string | null;
     followUpNotes?: string | null;
     veterinarianComments?: string | null;
-    mareId?: number | null;
+    relatedHorseId?: number | null;
+    relatedHorseName?: string | null;
+    relatedHorseNameAr?: string | null;
     surrogateMareId?: number | null;
-    mareName?: string | null;
-    mareNameAr?: string | null;
+    surrogateMareName?: string | null;
+    surrogateMareNameAr?: string | null;
+    inseminationMethod?: number | null;
     billedServices?: Array<{
       id: number;
       serviceName: string;

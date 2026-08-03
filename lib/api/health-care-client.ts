@@ -179,3 +179,17 @@ export function fetchHealthVeterinarians(locale: LocaleCode) {
     locale,
   });
 }
+
+export function createHealthVeterinarian(
+  locale: LocaleCode,
+  payload: { name: string; phone?: string; email?: string },
+) {
+  return clientApiFetch<SummarizedContactDto>({
+    method: 'POST',
+    backendPath: '/api/DropDowns/veterinarians',
+    nextPath: '/api/injury/veterinarians',
+    nextQuery: { locale },
+    body: payload,
+    locale,
+  });
+}

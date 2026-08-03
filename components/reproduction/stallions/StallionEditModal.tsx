@@ -60,9 +60,9 @@ export function StallionEditModal({
         : null;
     setMare(
       horse(
-        record?.mareId,
-        record?.mareName == null ? null : String(record.mareName),
-        record?.mareNameAr == null ? null : String(record.mareNameAr),
+        record?.relatedHorseId,
+        record?.relatedHorseName,
+        record?.relatedHorseNameAr,
       ),
     );
     setSurrogate(
@@ -223,7 +223,7 @@ export function StallionEditModal({
                 <HorsePickerField
                   locale={locale}
                   gender="Female"
-                  name="MareId"
+                  name="RelatedHorseId"
                   selected={mare}
                   onSelect={(horse) => {
                     setMare(horse);

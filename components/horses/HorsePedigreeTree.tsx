@@ -25,6 +25,8 @@ import {
 import type {
   ApiResult,
   ExternalHorseSummaryItem,
+  HorsePedigreePayload,
+  HorsePedigreeTreeResponse,
   HorseTagDto,
   LocaleCode,
 } from "@/lib/api/types";
@@ -39,11 +41,13 @@ interface Horse {
 
 interface HorsePedigreeTreeProps {
   horse: Horse;
+  pedigreeSource?: "auto" | "external";
   showTitle?: boolean;
   controlsVariant?: "default" | "compact";
   pedigreeData?: unknown;
   loading?: boolean;
   onTagsMutated?: () => void;
+  onPedigreeLoaded?: (pedigree: HorsePedigreeTreeResponse) => void;
 }
 
 type ParentRole = "Root" | "Mother" | "Father";
@@ -77,6 +81,9 @@ type PedigreeNode = {
 type TopMetaItem = {
   label: string;
   value: string;
+  breakAll?: boolean;
+  keepValueOnOneLine?: boolean;
+  valueDirection?: "ltr" | "rtl";
 };
 
 type BranchExpansion = {
@@ -169,6 +176,13 @@ const normalizePedigreeLevels = (payload: unknown): unknown[][] => {
 
   return [];
 };
+
+const isPedigreeTreeResponse = (
+  payload: HorsePedigreePayload,
+): payload is HorsePedigreeTreeResponse =>
+  !Array.isArray(payload) &&
+  Boolean(payload?.root) &&
+  Array.isArray(payload?.ancestors);
 
 const ParentIcon = ({ role }: { role: ParentRole }) => {
   if (role === "Root") return null;
@@ -404,6 +418,7 @@ const getTopMetaItems = (horse: Horse, isRTL: boolean): TopMetaItem[] => {
     getNestedName(raw.owner, isRTL) || pickText(raw.ownerEn, raw.ownerAr);
   const microchip =
     typeof raw.microchipID === "string" ? raw.microchipID.trim() : "";
+  const unknown = isRTL ? "غير معروف" : "Unknown";
   if (isRTL) {
     return [
       {
@@ -413,6 +428,7 @@ const getTopMetaItems = (horse: Horse, isRTL: boolean): TopMetaItem[] => {
       {
         label: "تاريخ الميلاد",
         value: birth,
+        keepValueOnOneLine: true,
       },
       {
         label: "الرسن",
@@ -420,7 +436,9 @@ const getTopMetaItems = (horse: Horse, isRTL: boolean): TopMetaItem[] => {
       },
       {
         label: "رقم الشريحة",
-        value: microchip || "-",
+        value: microchip || unknown,
+        breakAll: true,
+        valueDirection: microchip ? "ltr" : "rtl",
       },
       {
         label: "المنتج",
@@ -445,10 +463,13 @@ const getTopMetaItems = (horse: Horse, isRTL: boolean): TopMetaItem[] => {
     {
       label: isRTL ? "تاريخ الميلاد" : "Birth Date",
       value: birth,
+      keepValueOnOneLine: true,
     },
     {
       label: isRTL ? "رقم الشريحة" : "Microchip",
-      value: microchip || "-",
+      value: microchip || unknown,
+      breakAll: true,
+      valueDirection: "ltr",
     },
     {
       label: isRTL ? "المربي" : "Breeder",
@@ -508,22 +529,33 @@ const TopMetaRow = ({
   return (
     <div
       dir={isRTL ? "rtl" : "ltr"}
-      className="pointer-events-none w-full px-8 pb-5 pt-5 text-[#159456]"
+      className="pointer-events-none w-full px-8 pb-4 pt-7 text-[#159456]"
       style={{
         fontFamily: isRTL
           ? "'Diwani Letter', 'SF Pro AR', serif"
           : "'SF Pro AR', serif",
       }}
     >
-      <div className="flex max-w-full flex-nowrap items-center justify-between gap-3 overflow-hidden whitespace-nowrap text-[15px] md:text-[20px] xl:text-[26px]">
+      <div className="grid max-w-full grid-cols-3 items-start gap-x-6 gap-y-2 text-[18px] leading-[1.5] xl:text-[23px]">
         {items.map((item, index) => (
           <div
             key={`${item.label}-${index}`}
-            className="flex min-w-0 shrink items-baseline gap-2"
+            className="flex min-w-0 items-baseline gap-1.5"
           >
-            <span className="shrink-0">{item.label} :</span>
+            <span className="shrink-0 whitespace-nowrap">{item.label} :</span>
 
-            <span className="min-w-0 truncate">{item.value}</span>
+            <span
+              dir={item.valueDirection}
+              className={`min-w-0 leading-tight [unicode-bidi:isolate] ${
+                item.breakAll ? "break-all" : "break-words"
+              } ${
+                item.keepValueOnOneLine
+                  ? "whitespace-nowrap"
+                  : "whitespace-normal"
+              }`}
+            >
+              {item.value}
+            </span>
           </div>
         ))}
       </div>
@@ -1199,15 +1231,19 @@ const PedigreeReadonlyTags = ({
 
 export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
   horse,
+  pedigreeSource = "auto",
   showTitle = true,
   controlsVariant = "default",
   pedigreeData,
   loading = false,
   onTagsMutated,
+  onPedigreeLoaded,
 }) => {
   const router = useRouter();
   const onTagsMutatedRef = useRef(onTagsMutated);
   onTagsMutatedRef.current = onTagsMutated;
+  const onPedigreeLoadedRef = useRef(onPedigreeLoaded);
+  onPedigreeLoadedRef.current = onPedigreeLoaded;
   const { direction, locale } = useLocale();
   const isRTL = direction === "rtl";
   const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -1227,11 +1263,20 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
     () => new Set(),
   );
   const [branchLoadingKey, setBranchLoadingKey] = useState<string | null>(null);
-  const horseLocalId = horse.localId ?? horse.id;
   const numericLocalId =
-    typeof horseLocalId === "number" ? horseLocalId : Number(horseLocalId);
+    typeof horse.localId === "number" ? horse.localId : Number(horse.localId);
   const hasLocalId = Number.isFinite(numericLocalId) && numericLocalId > 0;
-  const [isTreeLoading, setIsTreeLoading] = useState(hasLocalId || loading);
+  const numericStudbookId =
+    typeof horse.studbookId === "number"
+      ? horse.studbookId
+      : Number(horse.studbookId);
+  const hasStudbookId =
+    Number.isFinite(numericStudbookId) && numericStudbookId > 0;
+  const hasPedigreeHorseId =
+    pedigreeSource === "external" ? hasStudbookId : hasLocalId || hasStudbookId;
+  const [isTreeLoading, setIsTreeLoading] = useState(
+    hasPedigreeHorseId || loading,
+  );
   const [treeError, setTreeError] = useState("");
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryNode, setSummaryNode] = useState<PedigreeNode | null>(null);
@@ -1251,7 +1296,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
   const hasPedigree = apiColumns.length > 0;
   const canExpandPedigree =
     !pedigreeData &&
-    hasLocalId &&
+    hasPedigreeHorseId &&
     hasPedigree &&
     apiColumns.length < MAX_PEDIGREE_LEVELS;
   const certificateMinWidth = Math.max(
@@ -1314,7 +1359,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
       return;
     }
 
-    if (!hasLocalId) {
+    if (!hasPedigreeHorseId) {
       setApiColumns([]);
       setIsTreeLoading(false);
       setTreeError("");
@@ -1337,15 +1382,25 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
       setBranchLoadingKey(null);
 
       try {
-        const result = await getHorsePedigree({
-          localId: numericLocalId,
-          levels: INITIAL_PEDIGREE_LEVELS,
-        });
-        const levels = normalizePedigreeLevels(result.data);
+        const result =
+          pedigreeSource === "external" || !hasLocalId
+            ? await getHorsePedigreeBranch({
+                horseId: numericStudbookId,
+                levels: INITIAL_PEDIGREE_LEVELS,
+              })
+            : await getHorsePedigree({
+                localId: numericLocalId,
+                levels: INITIAL_PEDIGREE_LEVELS,
+              });
+        const pedigreePayload = result.data;
+        const levels = normalizePedigreeLevels(pedigreePayload);
         const mappedLevels = mapPedigreeLevels(levels, isRTL);
 
         if (mounted) {
           setApiColumns(mappedLevels);
+          if (pedigreePayload && isPedigreeTreeResponse(pedigreePayload)) {
+            onPedigreeLoadedRef.current?.(pedigreePayload);
+          }
 
           // The backend caches this pedigree right after responding; refresh
           // the profile tags shortly after so inherited tags resolved through
@@ -1374,7 +1429,16 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
     return () => {
       mounted = false;
     };
-  }, [hasLocalId, numericLocalId, isRTL, pedigreeData, loading]);
+  }, [
+    hasLocalId,
+    hasPedigreeHorseId,
+    numericLocalId,
+    numericStudbookId,
+    pedigreeSource,
+    isRTL,
+    pedigreeData,
+    loading,
+  ]);
 
   useEffect(() => {
     const mobileMedia = window.matchMedia("(max-width: 767px)");
@@ -1429,12 +1493,17 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
 
     const frame = window.requestAnimationFrame(() => {
       if (scrollerRef.current) {
-        scrollerRef.current.scrollLeft = 0;
+        scrollerRef.current.scrollLeft = shouldUseScrollableCanvas
+          ? Math.max(
+              0,
+              scrollerRef.current.scrollWidth - scrollerRef.current.clientWidth,
+            )
+          : 0;
       }
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [hasPedigree, orderedColumns.length, isFullscreen]);
+  }, [hasPedigree, orderedColumns.length, isFullscreen, shouldUseScrollableCanvas]);
 
   const handleToggleFullscreen = async () => {
     if (!fullscreenRef.current) return;
@@ -1879,7 +1948,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
               />
             </div>
 
-            <div className="relative z-10 flex h-full flex-col px-7 pb-7 pt-5 sm:px-9 sm:pb-9 sm:pt-7 lg:px-10 lg:pb-10 lg:pt-8 xl:px-12">
+            <div className="relative z-10 flex h-full flex-col px-7 pb-7 pt-11 sm:px-9 sm:pb-9 sm:pt-12 lg:px-10 lg:pb-10 lg:pt-14 xl:px-12">
               <TopMetaRow
                 isRTL={isRTL}
                 items={[
@@ -1952,7 +2021,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
         </div>
       ) : !hasPedigree ? (
         <div className="rounded-[26px] border border-dashed border-[#d9c8ba] bg-white p-10 text-center text-sm text-[#7a6c63]">
-          {hasLocalId
+          {hasPedigreeHorseId
             ? isRTL
               ? "لا توجد بيانات نسب متاحة لهذا الخيل."
               : "No pedigree data is available for this horse."
@@ -1989,9 +2058,11 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
           <div
             dir="ltr"
             ref={scrollerRef}
-            className={`flex w-full justify-center rounded-[22px] ${
+            className={`flex w-full rounded-[22px] ${
+              shouldUseScrollableCanvas ? "justify-start" : "justify-center"
+            } ${
               isFullscreen && !shouldUseScrollableCanvas
-                ? "flex items-center justify-center overflow-hidden"
+                ? "items-center overflow-hidden"
                 : ""
             } ${
               isFullscreen && shouldUseScrollableCanvas
@@ -2039,7 +2110,7 @@ export const HorsePedigreeTree: FC<HorsePedigreeTreeProps> = ({
                 />
               </div>
 
-              <div className="relative z-10 flex h-full flex-col px-7 pb-7 pt-5 sm:px-9 sm:pb-9 sm:pt-7 lg:px-10 lg:pb-10 lg:pt-8 xl:px-12">
+              <div className="relative z-10 flex h-full flex-col px-7 pb-7 pt-11 sm:px-9 sm:pb-9 sm:pt-12 lg:px-10 lg:pb-10 lg:pt-14 xl:px-12">
                 <TopMetaRow items={topMetaItems} isRTL={isRTL} />
 
                 <div

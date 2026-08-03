@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronDown, Plus, Search, X } from "lucide-react";
+import { Check, ChevronDown, LoaderCircle, Plus, Search, Trash2, X } from "lucide-react";
 import { useLocale, useTranslation } from "@/lib/locale-context";
 import { useBodyScrollLock } from "./useBodyScrollLock";
 
@@ -35,6 +35,11 @@ interface OptionPickerProps {
   createTitle?: string;
   createFields?: CreateField[];
   onCreate?: (values: Record<string, string>) => Promise<PickerOption>;
+  /** When provided, each option can be removed after an inline confirmation. */
+  onDelete?: (option: PickerOption) => Promise<void>;
+  deleteLabel?: string;
+  deleteTitle?: string;
+  deleteDescription?: string;
 }
 
 /**
@@ -55,6 +60,10 @@ export function OptionPicker({
   createTitle,
   createFields,
   onCreate,
+  onDelete,
+  deleteLabel,
+  deleteTitle,
+  deleteDescription,
 }: OptionPickerProps) {
   const { direction } = useLocale();
   const { t } = useTranslation();
@@ -63,6 +72,8 @@ export function OptionPicker({
   const [creating, setCreating] = useState(false);
   const [createValues, setCreateValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PickerOption | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
 
   const canCreate = Boolean(onCreate && createFields?.length);
@@ -74,6 +85,7 @@ export function OptionPicker({
       setSearch("");
       setCreating(false);
       setCreateValues({});
+      setDeleteTarget(null);
       setError("");
     }
   }, [open]);
@@ -123,12 +135,34 @@ export function OptionPicker({
     }
   };
 
+  const confirmDelete = async () => {
+    if (!onDelete || !deleteTarget) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await onDelete(deleteTarget);
+      setDeleteTarget(null);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : t("common.requestError"));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const pickerTitle = deleteTarget
+    ? deleteTitle ?? deleteLabel ?? title
+    : creating
+      ? createTitle ?? createLabel ?? title
+      : title;
+
   return (
     <>
       <button
         type="button"
         disabled={disabled}
         onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         className="flex min-h-[52px] w-full items-center justify-between gap-3 rounded-xl border border-solid border-gray-300 bg-white px-4 py-3.5 text-start outline-none transition-colors hover:border-[#4b2f1a] focus:border-[#4b2f1a] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:hover:border-gray-300 sm:py-4"
       >
         <span className={`truncate ${selected ? "text-gray-700" : "text-gray-400"}`}>
@@ -147,13 +181,49 @@ export function OptionPicker({
         >
           <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b px-5 py-4">
-              <h3 className="text-xl font-bold text-[#3b2b20]">{creating ? createTitle ?? createLabel ?? title : title}</h3>
+              <h3 className="text-xl font-bold text-[#3b2b20]">{pickerTitle}</h3>
               <button type="button" onClick={() => setOpen(false)} className="rounded-full p-2 hover:bg-gray-100" aria-label={t("common.cancel")}>
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            {creating && canCreate ? (
+            {deleteTarget && onDelete ? (
+              <div className="flex flex-col items-center gap-4 p-6 text-center">
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-600">
+                  <Trash2 className="h-7 w-7" />
+                </span>
+                <div>
+                  <p className="font-bold text-[#3b2b20]">{deleteTarget.label}</p>
+                  <p className="mt-2 text-sm text-gray-500">
+                    {deleteDescription ?? (direction === "rtl"
+                      ? "هل أنت متأكد من حذف هذه القيمة؟"
+                      : "Are you sure you want to delete this value?")}
+                  </p>
+                </div>
+                {error && <p className="text-xs font-medium text-red-600">{error}</p>}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={confirmDelete}
+                    disabled={deleting}
+                    className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 font-bold text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+                  >
+                    {deleting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    {deleting
+                      ? direction === "rtl" ? "جارٍ الحذف..." : "Deleting..."
+                      : deleteLabel ?? (direction === "rtl" ? "حذف" : "Delete")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setDeleteTarget(null); setError(""); }}
+                    disabled={deleting}
+                    className="rounded-xl px-5 py-2.5 font-bold text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-60"
+                  >
+                    {t("common.cancel")}
+                  </button>
+                </div>
+              </div>
+            ) : creating && canCreate ? (
               <div className="flex flex-col gap-3 p-5">
                 {createFields!.map((field) => (
                   <label key={field.key} className="flex flex-col gap-1.5 text-sm font-medium text-[#58483e]">
@@ -242,18 +312,32 @@ export function OptionPicker({
                       {filtered.map((option) => {
                         const isSelected = String(option.id) === String(value ?? "");
                         return (
-                          <button
+                          <div
                             key={option.id}
-                            type="button"
-                            onClick={() => { onChange(option); setOpen(false); }}
-                            className={`flex w-full items-center gap-3 rounded-xl p-3 text-start transition-colors ${isSelected ? "bg-[#f2ece7]" : "hover:bg-gray-50"}`}
+                            className={`flex w-full items-center gap-1 rounded-xl transition-colors ${isSelected ? "bg-[#f2ece7]" : "hover:bg-gray-50"}`}
                           >
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate font-semibold text-[#3b2b20]">{option.label}</span>
-                              {option.subtitle && <span className="mt-0.5 block truncate text-xs text-gray-500">{option.subtitle}</span>}
-                            </span>
-                            {isSelected && <Check className="h-5 w-5 shrink-0 text-[#6f513c]" />}
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => { onChange(option); setOpen(false); }}
+                              className="flex min-w-0 flex-1 items-center gap-3 p-3 text-start"
+                            >
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate font-semibold text-[#3b2b20]">{option.label}</span>
+                                {option.subtitle && <span className="mt-0.5 block truncate text-xs text-gray-500">{option.subtitle}</span>}
+                              </span>
+                              {isSelected && <Check className="h-5 w-5 shrink-0 text-[#6f513c]" />}
+                            </button>
+                            {onDelete && (
+                              <button
+                                type="button"
+                                onClick={() => { setDeleteTarget(option); setError(""); }}
+                                className="mx-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                aria-label={`${deleteLabel ?? (direction === "rtl" ? "حذف" : "Delete")} ${option.label}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
                         );
                       })}
                     </div>

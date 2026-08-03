@@ -50,11 +50,26 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
   const color = (input?: string | null) => localizeColor(input, locale === "ar" ? "ar" : "en");
   const gender = (input?: string | null) => localizeGender(input, locale === "ar" ? "ar" : "en");
   const studName = (stud?: HorseInfoDto["owner"]) => localized(stud?.studArabicName, stud?.studName);
+  const studOrFallback = (
+    stud: HorseInfoDto["owner"] | undefined,
+    ar?: string | null,
+    en?: string | null,
+  ) => {
+    const nested = stud ? studName(stud) : "-";
+    return nested !== "-" ? nested : localized(ar, en);
+  };
   const strain = localized(raw?.strainAr, raw?.strainEn);
   const line = localized(
     raw?.lineAr ?? raw?.specialAr,
     raw?.lineEn ?? raw?.specialEn,
   );
+  const markings: Array<[string, string | null | undefined]> = [
+    [isRTL ? "علامات الوجه :" : "Face :", raw.faceSpecialMarkings],
+    [isRTL ? "الرجل الأمامية اليمنى :" : "Front Right Leg :", raw.frontRightLeg],
+    [isRTL ? "الرجل الأمامية اليسرى :" : "Front Left Leg :", raw.frontLeftLeg],
+    [isRTL ? "الرجل الخلفية اليمنى :" : "Back Right Leg :", raw.backRightLeg],
+    [isRTL ? "الرجل الخلفية اليسرى :" : "Back Left Leg :", raw.backLeftLeg],
+  ];
 
   return (
     <div className={`mb-12 ${isRTL ? "text-right" : "text-left"}`}>
@@ -122,6 +137,16 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
             <span className="text-[#a08a6b] font-medium">{isRTL ? "ولد في :" : "Born In :"}</span>
             <span className="text-black font-semibold">{country(raw?.bornIn)}</span>
           </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-[#a08a6b] font-medium">{isRTL ? "الارتفاع :" : "Height :"}</span>
+            <span className="text-black font-semibold">{value(raw?.height)}</span>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-[#a08a6b] font-medium">{isRTL ? "النوع :" : "Type :"}</span>
+            <span className="text-black font-semibold">{value(raw?.type)}</span>
+          </div>
         </div>
 
         {/* Column 2: Registration Numbers */}
@@ -152,6 +177,11 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
             <span className="text-[#a08a6b] font-medium">{isRTL ? "رقم تسجيل الرياضي المحلي :" : "Local Registration :"}</span>
             <span className="text-black font-semibold">{value(raw.nationalSportRegistrationNumber)}</span>
           </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-[#a08a6b] font-medium">{isRTL ? "رقم جواز السفر :" : "Passport No :"}</span>
+            <span className="text-black font-semibold">{value(raw.passportNumber)}</span>
+          </div>
         </div>
 
         {/* Column 3: Breeder Information */}
@@ -160,7 +190,7 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
           
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "اسم المربي :" : "Breeder Name :"}</span>
-            <span className="text-black font-semibold">{raw.breeder ? studName(raw.breeder) : localized(raw.breederAr, raw.breederEn)}</span>
+            <span className="text-black font-semibold">{studOrFallback(raw.breeder, raw.breederAr, raw.breederEn)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -172,6 +202,11 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
             <span className="text-[#a08a6b] font-medium">{isRTL ? "رقم الهاتف :" : "Phone Number :"}</span>
             <span className="text-black font-semibold">{value(raw.breeder?.primaryPhoneNumber)}</span>
           </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-[#a08a6b] font-medium">{isRTL ? "رقم الهاتف البديل :" : "Alternative Phone :"}</span>
+            <span className="text-black font-semibold">{value(raw.breeder?.secondryPhoneNumber)}</span>
+          </div>
         </div>
 
         {/* Column 4: Owner Information */}
@@ -180,7 +215,7 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
           
           <div className="flex flex-col gap-1">
             <span className="text-[#a08a6b] font-medium">{isRTL ? "اسم المالك :" : "Owner Name :"}</span>
-            <span className="text-black font-semibold">{raw.owner ? studName(raw.owner) : localized(raw.ownerAr, raw.ownerEn)}</span>
+            <span className="text-black font-semibold">{studOrFallback(raw.owner, raw.ownerAr, raw.ownerEn)}</span>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -192,8 +227,70 @@ export const HorseInfoTab: FC<HorseInfoTabProps> = ({ horse }) => {
             <span className="text-[#a08a6b] font-medium">{isRTL ? "رقم الهاتف :" : "Phone Number :"}</span>
             <span className="text-black font-semibold">{value(raw.owner?.primaryPhoneNumber)}</span>
           </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-[#a08a6b] font-medium">{isRTL ? "رقم الهاتف البديل :" : "Alternative Phone :"}</span>
+            <span className="text-black font-semibold">{value(raw.owner?.secondryPhoneNumber)}</span>
+          </div>
         </div>
 
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-8 rounded-3xl bg-[#fdfbf7] p-8 shadow-sm md:grid-cols-2 md:p-12 lg:grid-cols-3">
+        <div className="flex flex-col gap-6">
+          <h3 className="mb-2 text-xl font-bold text-[#2a2a2a]">
+            {isRTL ? "معلومات النسب" : "Pedigree Information"}
+          </h3>
+
+          <div className="flex flex-col gap-1">
+            <span className="font-medium text-[#a08a6b]">{isRTL ? "الأب :" : "Father :"}</span>
+            <span className="font-semibold text-black">{localized(raw.horseFatherArabicName, raw.horseFatherEnglishName)}</span>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="font-medium text-[#a08a6b]">{isRTL ? "الأم :" : "Mother :"}</span>
+            <span className="font-semibold text-black">{localized(raw.horseMotherArabicName, raw.horseMotherEnglishName)}</span>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="font-medium text-[#a08a6b]">{isRTL ? "الرسن :" : "Strain :"}</span>
+            <span className="font-semibold text-black">{strain}</span>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="font-medium text-[#a08a6b]">{isRTL ? "الخط :" : "Line :"}</span>
+            <span className="font-semibold text-black">{line}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <h3 className="mb-2 text-xl font-bold text-[#2a2a2a]">
+            {isRTL ? "العلامات المميزة" : "Distinguishing Markings"}
+          </h3>
+
+          {markings.map(([label, fieldValue]) => (
+            <div key={label} className="flex flex-col gap-1">
+              <span className="font-medium text-[#a08a6b]">{label}</span>
+              <span className="font-semibold text-black">{value(fieldValue)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <h3 className="mb-2 text-xl font-bold text-[#2a2a2a]">
+            {isRTL ? "معلومات إضافية" : "Additional Information"}
+          </h3>
+
+          <div className="flex flex-col gap-1">
+            <span className="font-medium text-[#a08a6b]">{isRTL ? "المعلومات الإضافية :" : "Details :"}</span>
+            <span className="whitespace-pre-wrap font-semibold text-black">{value(raw.additionalInformation)}</span>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="font-medium text-[#a08a6b]">{isRTL ? "ملاحظات خاصة :" : "Special Notes :"}</span>
+            <span className="whitespace-pre-wrap font-semibold text-black">{value(raw.specialNotes)}</span>
+          </div>
+        </div>
       </div>
     </div>
   );

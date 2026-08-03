@@ -1,6 +1,7 @@
 "use client";
 
 import { Edit3, LoaderCircle, Trash2 } from "lucide-react";
+import { useLocale } from "@/lib/locale-context";
 
 export type TableColumn<T> = {
   key: string;
@@ -23,6 +24,8 @@ export function RecordTable<T extends { id: number }>({
   onDelete: (row: T) => void;
   busyId?: number | null;
 }) {
+  const { locale } = useLocale();
+  const ar = locale !== "en";
   return (
     <div className="overflow-hidden rounded-[9px] border border-[#e1d8d2] bg-white shadow-[0_2px_5px_rgba(47,29,18,.08)]">
       <div className="overflow-x-auto">
@@ -34,7 +37,9 @@ export function RecordTable<T extends { id: number }>({
                   {column.label}
                 </th>
               ))}
-              <th className="p-3 text-start">Actions</th>
+              <th className="p-3 text-start">
+                {ar ? "الإجراءات" : "Actions"}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -55,11 +60,17 @@ export function RecordTable<T extends { id: number }>({
                     ) : (
                       <>
                         {onEdit && (
-                          <button onClick={() => onEdit(row)}>
+                          <button
+                            onClick={() => onEdit(row)}
+                            aria-label={ar ? "تعديل السجل" : "Edit record"}
+                          >
                             <Edit3 className="h-3.5 w-3.5" />
                           </button>
                         )}
-                        <button onClick={() => onDelete(row)}>
+                        <button
+                          onClick={() => onDelete(row)}
+                          aria-label={ar ? "حذف السجل" : "Delete record"}
+                        >
                           <Trash2 className="h-3.5 w-3.5 text-[#ef5148]" />
                         </button>
                       </>

@@ -51,7 +51,7 @@ export const HorseCard: FC<HorseCardProps> = ({
       : horse.leftToStudEn || horse.leftToStudAr;
 
   return (
-    <div className="relative mx-auto w-full max-w-[360px] pt-[58px] xs:pt-[64px] sm:max-w-none sm:pt-[76px] lg:pt-[82px]">
+    <div className="relative mx-auto h-full w-full max-w-[360px] pt-[58px] xs:pt-[64px] sm:max-w-none sm:pt-[76px] lg:pt-[82px]">
       <div className="absolute left-1/2 top-0 z-20 h-[108px] w-[108px] -translate-x-1/2 overflow-hidden rounded-full bg-gray-200 ring-[9px] ring-[#faf5f2] xs:h-[116px] xs:w-[116px] sm:h-[142px] sm:w-[142px] sm:ring-[14px] lg:h-[154px] lg:w-[154px] lg:ring-[16px]">
         <Image
           src={horse.image || horsePlaceholder}
@@ -137,7 +137,7 @@ export const HorseCard: FC<HorseCardProps> = ({
       ) : null}
 
       <div
-        className={`flex min-h-[250px] w-full flex-col rounded-[24px] bg-white px-3 pb-4 pt-[64px] shadow-sm transition-shadow duration-300 hover:shadow-md xs:px-4 xs:pb-5 xs:pt-[70px] sm:min-h-[320px] sm:rounded-[30px] sm:px-5 sm:pb-6 sm:pt-[92px] lg:px-6 lg:pt-[102px] ${
+        className={`flex h-full min-h-[250px] w-full flex-col rounded-[24px] bg-white px-3 pb-4 pt-[64px] shadow-sm transition-shadow duration-300 hover:shadow-md xs:px-4 xs:pb-5 xs:pt-[70px] sm:min-h-[320px] sm:rounded-[30px] sm:px-5 sm:pb-6 sm:pt-[92px] lg:px-6 lg:pt-[102px] ${
           isRtl ? 'text-right' : 'text-left'
         }`}
       >
@@ -184,25 +184,26 @@ export const HorseCard: FC<HorseCardProps> = ({
           </div>
         ) : null}
 
-        {visibleTags.length ? (
-          <div className="mb-3 flex min-h-7 flex-wrap justify-center gap-1.5">
-            {visibleTags.map((tag) => (
-              <span
-                key={tag.id}
-                className="inline-flex max-w-[120px] items-center gap-1 rounded-full border border-[#eadfd9] bg-[#fbf8f4] px-2 py-1 text-[10px] font-bold text-[#6f5b4d]"
-                title={tag.name}
-              >
-                <Tag className="h-3 w-3 shrink-0" />
-                <span className="truncate">{tag.name}</span>
-              </span>
-            ))}
-            {hiddenTagCount ? (
-              <span className="rounded-full border border-[#eadfd9] bg-white px-2 py-1 text-[10px] font-bold text-[#6f5b4d]">
-                +{hiddenTagCount}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
+        <div
+          className="mb-3 flex min-h-7 flex-wrap justify-center gap-1.5"
+          aria-hidden={visibleTags.length ? undefined : true}
+        >
+          {visibleTags.map((tag) => (
+            <span
+              key={tag.id}
+              className="inline-flex max-w-[120px] items-center gap-1 rounded-full border border-[#eadfd9] bg-[#fbf8f4] px-2 py-1 text-[10px] font-bold text-[#6f5b4d]"
+              title={tag.name}
+            >
+              <Tag className="h-3 w-3 shrink-0" />
+              <span className="truncate">{tag.name}</span>
+            </span>
+          ))}
+          {hiddenTagCount ? (
+            <span className="rounded-full border border-[#eadfd9] bg-white px-2 py-1 text-[10px] font-bold text-[#6f5b4d]">
+              +{hiddenTagCount}
+            </span>
+          ) : null}
+        </div>
 
         <div className="mb-4 grid grid-cols-1 gap-2 text-center min-[360px]:grid-cols-3 sm:mb-6 sm:gap-3">
           <div className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl bg-[#fbf8f4] px-2 py-2.5 sm:rounded-2xl sm:px-3 sm:py-3">

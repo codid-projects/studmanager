@@ -208,13 +208,14 @@ export default function DatabasePage() {
                 </h2>
                 {pedigreeHorse ? (
                   <HorsePedigreeTree
-                    key={pedigreeHorse.localId ?? pedigreeHorse.studbookId}
+                    key={pedigreeHorse.studbookId ?? pedigreeHorse.localId}
                     horse={{
-                      id: String(pedigreeHorse.localId ?? pedigreeHorse.studbookId),
+                      id: String(pedigreeHorse.studbookId ?? pedigreeHorse.localId),
                       localId: pedigreeHorse.localId,
                       studbookId: pedigreeHorse.studbookId ?? null,
                       name: pedigreeHorse.name,
                     }}
+                    pedigreeSource="external"
                     showTitle={false}
                     controlsVariant="compact"
                   />

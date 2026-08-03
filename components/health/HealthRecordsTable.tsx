@@ -5,16 +5,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit,
-  LoaderCircle,
   Paperclip,
-  Plus,
   Search,
   Trash2,
   X,
 } from "lucide-react";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
+import { OptionPicker } from "@/components/common/OptionPicker";
 import { HorsePicker } from "@/components/horses/HorsePicker";
 import {
+  createHealthVeterinarian,
   createHealthRecord,
   deleteHealthRecord,
   fetchHealthVeterinarians,
@@ -27,26 +27,30 @@ import {
   type HealthRecordSummary,
   type SettingRecord,
 } from "@/lib/api/health-care-client";
-import { API_BASE_URL } from "@/lib/api/transport";
-import { AUTH_TOKEN_COOKIE } from "@/lib/auth";
-import type { ApiMessageResult, LocaleCode, SummarizedContactDto } from "@/lib/api/types";
+import {
+  removeContact,
+  removeSettingRecord,
+  saveSettingRecord,
+} from "@/lib/api/management-client";
+import { SETTING_RECORD_CATEGORY } from "@/lib/settings-record-categories";
+import type { LocaleCode, SummarizedContactDto } from "@/lib/api/types";
 import { useLocale, useTranslation } from "@/lib/locale-context";
 
 const PAGE_SIZE = 10;
 
 // RecordCategory enum values on the backend (Settings lookup lists).
 const LOOKUP = {
-  bloodAnalysis: 1,
-  dewormingDose: 2,
-  injuries: 3,
-  medicalCare: 4,
-  medications: 5,
-  medicationReasons: 6,
-  xRay: 7,
-  vaccinations: 8,
-  vaccinationReasons: 9,
-  shoeing: 10,
-  hoofTrimming: 11,
+  bloodAnalysis: SETTING_RECORD_CATEGORY.bloodTest,
+  dewormingDose: SETTING_RECORD_CATEGORY.wormDose,
+  injuries: SETTING_RECORD_CATEGORY.injuries,
+  medicalCare: SETTING_RECORD_CATEGORY.medicalCare,
+  medications: SETTING_RECORD_CATEGORY.medications,
+  medicationReasons: SETTING_RECORD_CATEGORY.medicationReasons,
+  xRay: SETTING_RECORD_CATEGORY.xRay,
+  vaccinations: SETTING_RECORD_CATEGORY.vaccinations,
+  vaccinationReasons: SETTING_RECORD_CATEGORY.vaccinationReasons,
+  shoeing: SETTING_RECORD_CATEGORY.shoeing,
+  hoofTrimming: SETTING_RECORD_CATEGORY.hoofLegCare,
 } as const;
 
 const SEVERITIES = [
@@ -174,48 +178,6 @@ function formatDate(value: string | null | undefined, locale: string) {
 const inputClass =
   "w-full h-11 rounded-xl border border-[#e4d9cf] bg-[#fdfbf9] px-3 text-sm text-[#2f261f] outline-none transition focus:border-[#4b2f1a] focus:bg-white";
 
-function getCookie(name: string) {
-  if (typeof document === "undefined") return undefined;
-  return document.cookie
-    .split("; ")
-    .find((cookie) => cookie.startsWith(`${name}=`))
-    ?.slice(name.length + 1);
-}
-
-async function createSettingRecordDirect(
-  locale: LocaleCode,
-  payload: {
-    englishName: string;
-    arabicName: string;
-    description: string;
-    category: number;
-  },
-) {
-  const token = window.localStorage.getItem("studmanager-token") ?? (
-    getCookie(AUTH_TOKEN_COOKIE) ? decodeURIComponent(getCookie(AUTH_TOKEN_COOKIE) as string) : null
-  );
-  const response = await fetch(`${API_BASE_URL}/api/Settings/records`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Accept-Language": locale,
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(payload),
-  });
-  const result = await response.json().catch(() => null) as ApiMessageResult | null;
-
-  if (!response.ok || result?.succeeded === false) {
-    throw Object.assign(new Error(result?.message || response.statusText), {
-      status: response.status,
-      payload: result,
-    });
-  }
-
-  return result;
-}
-
 export function HealthRecordsTable({
   categoryId,
   horseId,
@@ -329,6 +291,13 @@ export function HealthRecordsTable({
     };
   }, [definition, localeCode]);
 
+  const refreshVeterinarians = useCallback(async () => {
+    const items = await fetchHealthVeterinarians(localeCode);
+    const normalizedItems = Array.isArray(items) ? items : [];
+    setVets(normalizedItems);
+    return normalizedItems;
+  }, [localeCode]);
+
   const refreshLookupCategory = useCallback(async (category: number) => {
     const items = await fetchSettingRecords(localeCode, category);
     setLookups((current) => ({ ...current, [category]: items }));
@@ -411,6 +380,16 @@ export function HealthRecordsTable({
 
     if (!editing && !formHorseId) {
       setFormError(isRTL ? "يرجى اختيار الخيل" : "Please select a horse");
+      return;
+    }
+
+    const missingField = definition.fields.find(
+      (field) => !(formSpecific[field.name] ?? "").trim(),
+    );
+    if (missingField) {
+      setFormError(isRTL
+        ? `يرجى تعبئة حقل ${missingField.labelAr}`
+        : `Please complete ${missingField.labelEn}`);
       return;
     }
 
@@ -667,34 +646,106 @@ export function HealthRecordsTable({
               </label>
 
               {definition.fields.map((field) => (
-                <label key={field.name} className="block">
+                <div key={field.name} className="block">
                   <span className="mb-1 block text-xs font-bold text-[#6b5a4c]">
                     {isRTL ? field.labelAr : field.labelEn}
                   </span>
                   {field.kind === "lookup" ? (
-                    <CreatableSettingLookup
+                    <OptionPicker
                       value={formSpecific[field.name] ?? ""}
-                      items={lookups[field.lookupCategory ?? 0] ?? []}
-                      category={field.lookupCategory ?? 0}
+                      options={(lookups[field.lookupCategory ?? 0] ?? []).map((item) => ({
+                        id: item.id,
+                        label: isRTL
+                          ? item.arabicName || item.englishName
+                          : item.englishName || item.arabicName,
+                        subtitle: isRTL
+                          ? item.englishName || undefined
+                          : item.arabicName || undefined,
+                      }))}
                       placeholder={isRTL ? "اختر" : "Select"}
-                      onChange={(value) =>
-                        setFormSpecific((current) => ({ ...current, [field.name]: value }))
+                      title={isRTL ? field.labelAr : field.labelEn}
+                      searchPlaceholder={isRTL ? "ابحث في الخيارات" : "Search options"}
+                      emptyText={isRTL ? "لا توجد خيارات" : "No options"}
+                      onChange={(option) =>
+                        setFormSpecific((current) => ({ ...current, [field.name]: String(option.id) }))
                       }
-                      onCreated={async (category, englishName, arabicName) => {
-                        const items = await refreshLookupCategory(category);
-                        const created = items.find((item) =>
-                          [item.arabicName, item.englishName].some(
-                            (name) =>
-                              name?.trim().toLowerCase() === englishName.trim().toLowerCase() ||
-                              name?.trim().toLowerCase() === arabicName.trim().toLowerCase(),
-                          ),
+                      createLabel={isRTL ? "إضافة خيار جديد" : "Add new option"}
+                      createTitle={isRTL
+                        ? `إضافة ${field.labelAr}`
+                        : `Add ${field.labelEn.toLowerCase()}`}
+                      createFields={[
+                        {
+                          key: "arabicName",
+                          label: isRTL ? "الاسم بالعربية" : "Arabic name",
+                          required: true,
+                        },
+                        {
+                          key: "englishName",
+                          label: isRTL ? "الاسم بالإنجليزية" : "English name",
+                          required: true,
+                        },
+                      ]}
+                      onCreate={async (values) => {
+                        const category = field.lookupCategory ?? 0;
+                        const englishName = values.englishName.trim();
+                        const arabicName = values.arabicName.trim();
+                        const previousIds = new Set(
+                          (lookups[category] ?? []).map((item) => item.id),
                         );
-                        if (created) {
-                          setFormSpecific((current) => ({ ...current, [field.name]: String(created.id) }));
+
+                        const result = await saveSettingRecord(localeCode, {
+                          englishName,
+                          arabicName,
+                          description: "",
+                          category,
+                        });
+                        if (result?.succeeded === false) {
+                          throw new Error(result.message || (isRTL
+                            ? "تعذر إضافة الخيار"
+                            : "Could not add the option"));
+                        }
+                        const items = await refreshLookupCategory(category);
+                        const matchesNames = (item: SettingRecord) =>
+                          (item.englishName ?? "").trim().toLowerCase() === englishName.toLowerCase()
+                          && (item.arabicName ?? "").trim().toLowerCase() === arabicName.toLowerCase();
+                        const created = items.find((item) =>
+                          !previousIds.has(item.id) && matchesNames(item),
+                        ) ?? items.find(matchesNames);
+                        if (!created) {
+                          throw new Error(isRTL
+                            ? "تمت الإضافة لكن تعذر تحديد الخيار الجديد"
+                            : "The option was added but could not be selected");
+                        }
+
+                        return {
+                          id: created.id,
+                          label: isRTL
+                            ? created.arabicName || created.englishName
+                            : created.englishName || created.arabicName,
+                          subtitle: isRTL
+                            ? created.englishName || undefined
+                            : created.arabicName || undefined,
+                        };
+                      }}
+                      onDelete={async (option) => {
+                        const category = field.lookupCategory ?? 0;
+                        const result = await removeSettingRecord(localeCode, Number(option.id));
+                        if (result?.succeeded === false) {
+                          throw new Error(result.message || (isRTL
+                            ? "تعذر حذف الخيار"
+                            : "Could not delete the option"));
+                        }
+                        await refreshLookupCategory(category);
+                        if (String(option.id) === (formSpecific[field.name] ?? "")) {
+                          setFormSpecific((current) => ({ ...current, [field.name]: "" }));
                         }
                       }}
+                      deleteLabel={isRTL ? "حذف" : "Delete"}
+                      deleteTitle={isRTL ? "حذف الخيار" : "Delete option"}
+                      deleteDescription={isRTL
+                        ? "سيُحذف هذا الخيار من الإعدادات أيضاً. لا يمكن حذف خيار مستخدم في سجل حالي."
+                        : "This also removes the option from Settings. Options used by existing records cannot be deleted."}
                       disabled={!field.lookupCategory}
-                      required
                     />
                   ) : field.kind === "severity" ? (
                     <select
@@ -746,36 +797,90 @@ export function HealthRecordsTable({
                       required
                     />
                   )}
-                </label>
+                </div>
               ))}
 
-              <label className="block">
+              <div className="block">
                 <span className="mb-1 block text-xs font-bold text-[#6b5a4c]">{isRTL ? "الطبيب البيطري" : "Veterinarian"}</span>
-                <select
+                <OptionPicker
                   value={formVetId}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    if (!value) {
-                      setFormVetId("");
-                      return;
+                  options={vets.map((vet) => ({
+                    id: vet.id,
+                    label: vet.name,
+                    subtitle: vet.phone ?? undefined,
+                  }))}
+                  onChange={(option) => {
+                    const vet = vets.find((item) => item.id === Number(option.id));
+                    setFormVetId(Number(option.id));
+                    setFormVetName(vet?.name ?? option.label);
+                    setFormPhone(vet?.phone ?? option.subtitle ?? "");
+                  }}
+                  placeholder={isRTL ? "اختر أو اكتب الاسم" : "Select or type a name"}
+                  title={isRTL ? "الطبيب البيطري" : "Veterinarian"}
+                  searchPlaceholder={isRTL ? "ابحث عن طبيب بيطري" : "Search veterinarians"}
+                  emptyText={isRTL ? "لا يوجد أطباء بيطريون" : "No veterinarians"}
+                  createLabel={isRTL ? "إضافة طبيب بيطري جديد" : "Add new veterinarian"}
+                  createTitle={isRTL ? "إضافة طبيب بيطري" : "Add veterinarian"}
+                  createFields={[
+                    {
+                      key: "name",
+                      label: isRTL ? "الاسم" : "Name",
+                      required: true,
+                    },
+                    {
+                      key: "phone",
+                      label: isRTL ? "رقم الهاتف" : "Phone number",
+                      type: "tel",
+                    },
+                    {
+                      key: "email",
+                      label: isRTL ? "البريد الإلكتروني" : "Email",
+                    },
+                  ]}
+                  onCreate={async (values) => {
+                    const name = (values.name ?? "").trim();
+                    const phone = (values.phone ?? "").trim();
+                    const email = (values.email ?? "").trim();
+                    const created = await createHealthVeterinarian(localeCode, {
+                      name,
+                      phone: phone || undefined,
+                      email: email || undefined,
+                    });
+                    const items = await refreshVeterinarians();
+                    const veterinarian = items.find((item) => item.id === created.id) ?? created;
+                    if (!veterinarian?.id) {
+                      throw new Error(isRTL
+                        ? "تمت الإضافة لكن تعذر تحديد الطبيب الجديد"
+                        : "The veterinarian was added but could not be selected");
                     }
-                    const vet = vets.find((item) => item.id === Number(value));
-                    setFormVetId(Number(value));
-                    if (vet) {
-                      setFormVetName(vet.name);
-                      setFormPhone(vet.phone ?? "");
+
+                    return {
+                      id: veterinarian.id,
+                      label: veterinarian.name || name,
+                      subtitle: veterinarian.phone ?? undefined,
+                    };
+                  }}
+                  onDelete={async (option) => {
+                    const result = await removeContact(localeCode, Number(option.id));
+                    if (result?.succeeded === false) {
+                      throw new Error(result.message || (isRTL
+                        ? "تعذر حذف الطبيب البيطري"
+                        : "Could not delete the veterinarian"));
+                    }
+                    await refreshVeterinarians();
+                    if (Number(option.id) === formVetId) {
+                      setFormVetId("");
+                      setFormVetName("");
+                      setFormPhone("");
                     }
                   }}
-                  className={inputClass}
-                >
-                  <option value="">{isRTL ? "اختر أو اكتب الاسم" : "Select or type a name"}</option>
-                  {vets.map((vet) => (
-                    <option key={vet.id} value={vet.id}>
-                      {vet.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  deleteLabel={isRTL ? "حذف" : "Delete"}
+                  deleteTitle={isRTL ? "حذف الطبيب البيطري" : "Delete veterinarian"}
+                  deleteDescription={isRTL
+                    ? "سيُحذف الطبيب من جهات الاتصال أيضاً. لا يمكن حذف طبيب مرتبط بسجل حالي."
+                    : "This also removes the veterinarian from Contacts. Veterinarians linked to existing records cannot be deleted."}
+                />
+              </div>
               <label className="block">
                 <span className="mb-1 block text-xs font-bold text-[#6b5a4c]">{isRTL ? "اسم المعالج" : "Veterinarian name"}</span>
                 <input
@@ -903,111 +1008,6 @@ export function HealthRecordsTable({
         }}
         onConfirm={() => void confirmDelete()}
       />
-    </div>
-  );
-}
-
-function CreatableSettingLookup({
-  value,
-  items,
-  category,
-  placeholder,
-  onChange,
-  onCreated,
-  disabled,
-  required,
-}: {
-  value: string;
-  items: SettingRecord[];
-  category: number;
-  placeholder: string;
-  onChange: (value: string) => void;
-  onCreated: (category: number, englishName: string, arabicName: string) => Promise<void>;
-  disabled?: boolean;
-  required?: boolean;
-}) {
-  const { locale, direction } = useLocale();
-  const { t } = useTranslation();
-  const isRTL = direction === "rtl";
-  const localeCode = locale as LocaleCode;
-  const [newEnglishName, setNewEnglishName] = useState("");
-  const [newArabicName, setNewArabicName] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState("");
-  const trimmedEnglishName = newEnglishName.trim();
-  const trimmedArabicName = newArabicName.trim();
-
-  async function createOption() {
-    if (!trimmedEnglishName || !trimmedArabicName || !category) {
-      setError(isRTL ? "الاسم بالإنجليزية والعربية مطلوبان" : "English and Arabic names are required");
-      return;
-    }
-
-    setCreating(true);
-    setError("");
-
-    try {
-      await createSettingRecordDirect(localeCode, {
-        englishName: trimmedEnglishName,
-        arabicName: trimmedArabicName,
-        description: "",
-        category,
-      });
-      await onCreated(category, trimmedEnglishName, trimmedArabicName);
-      setNewEnglishName("");
-      setNewArabicName("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t("common.error"));
-    } finally {
-      setCreating(false);
-    }
-  }
-
-  return (
-    <div className="space-y-2">
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={inputClass}
-        disabled={disabled || creating}
-        required={required}
-      >
-        <option value="">{placeholder}</option>
-        {items.map((item) => (
-          <option key={item.id} value={item.id}>
-            {isRTL ? item.arabicName || item.englishName : item.englishName || item.arabicName}
-          </option>
-        ))}
-      </select>
-
-      <div className="flex gap-2">
-        <input
-          value={newEnglishName}
-          onChange={(event) => setNewEnglishName(event.target.value)}
-          placeholder={isRTL ? "الاسم بالإنجليزية" : "English name"}
-          className={`${inputClass} min-w-0 flex-1`}
-          disabled={disabled || creating}
-          required={Boolean(newArabicName)}
-        />
-        <input
-          value={newArabicName}
-          onChange={(event) => setNewArabicName(event.target.value)}
-          placeholder={isRTL ? "الاسم بالعربية" : "Arabic name"}
-          className={`${inputClass} min-w-0 flex-1`}
-          disabled={disabled || creating}
-          required={Boolean(newEnglishName)}
-        />
-        <button
-          type="button"
-          onClick={() => void createOption()}
-          disabled={!trimmedEnglishName || !trimmedArabicName || disabled || creating}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#3b2b20] text-white transition hover:bg-[#2e2119] disabled:cursor-not-allowed disabled:opacity-45"
-          aria-label={isRTL ? "إضافة قيمة" : "Add value"}
-        >
-          {creating ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-        </button>
-      </div>
-      {error ? <p className="text-xs font-semibold text-red-600">{error}</p> : null}
     </div>
   );
 }

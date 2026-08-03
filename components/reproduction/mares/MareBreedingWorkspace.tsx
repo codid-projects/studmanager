@@ -1,15 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { LoaderCircle } from "lucide-react";
+import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import { useLocale } from "@/lib/locale-context";
 import type { LocaleCode } from "@/lib/api/types";
 import {
   deleteCycle,
+  deleteMareBreedingEvent,
   deleteExamination,
   deleteFoal,
   getExamination,
+  getMareBreedingEvent,
   getMareDashboard,
+  listMareBreedingEvents,
   listCycles,
   listExaminations,
   listFoals,
@@ -19,6 +24,11 @@ import {
   type MareDashboard,
   type MareExaminationDetail,
 } from "@/lib/api/mare-breeding-client";
+import {
+  resolveBreedingPartner,
+  type BreedingEventDetail,
+  type BreedingEventRecord,
+} from "@/lib/api/breeding-event-client";
 import { useBreedingHorse } from "../shared/useBreedingHorse";
 import { BreedingHorseCard } from "../shared/BreedingHorseCard";
 import { RecordTable, type TableColumn } from "../shared/RecordTable";
@@ -29,11 +39,20 @@ import { EstrusCycleForm } from "./EstrusCycleForm";
 import { MareSoundnessForm } from "./MareSoundnessForm";
 import { ExpandableFormCard } from "../shared/ExpandableFormCard";
 import { OvulationExaminationEditModal } from "./OvulationExaminationEditModal";
+import { NaturalBreedingForm } from "../stallions/NaturalBreedingForm";
+import { BreedingEventEditModal } from "../shared/BreedingEventEditModal";
 
-type Tab = "overview" | "foals" | "ovulation" | "cycles" | "soundness";
+type Tab =
+  | "overview"
+  | "breeding"
+  | "foals"
+  | "ovulation"
+  | "cycles"
+  | "soundness";
 
 const tabs: Array<{ key: Tab; ar: string; en: string }> = [
   { key: "overview", ar: "ملخص التناسل", en: "Breeding summary" },
+  { key: "breeding", ar: "الطلوقة الطبيعية", en: "Natural breeding" },
   { key: "foals", ar: "مولود جديد", en: "New foal" },
   { key: "ovulation", ar: "التحكم في التناسل", en: "Breeding control" },
   { key: "cycles", ar: "متابعة دورة الشبق", en: "Estrus Cycle Log" },
@@ -61,6 +80,7 @@ export default function MareBreedingWorkspace({
   });
   const [tab, setTab] = useState<Tab>("overview");
   const [dashboard, setDashboard] = useState<MareDashboard | null>(null);
+  const [breedingEvents, setBreedingEvents] = useState<BreedingEventRecord[]>([]);
   const [foals, setFoals] = useState<FoalRegistration[]>([]);
   const [ovulation, setOvulation] = useState<ExaminationSummary[]>([]);
   const [cycles, setCycles] = useState<EstrusCycle[]>([]);
@@ -69,20 +89,24 @@ export default function MareBreedingWorkspace({
   const [error, setError] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editingOvulation, setEditingOvulation] = useState<MareExaminationDetail | null>(null);
+  const [editingBreeding, setEditingBreeding] = useState<BreedingEventDetail | null>(null);
+  const [deleteBreedingTarget, setDeleteBreedingTarget] = useState<BreedingEventRecord | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
   const load = useCallback(async () => {
     if (!horse.profile) return;
     setLoading(true);
     setError("");
     try {
-      const [dash, f, o, c, s] = await Promise.all([
+      const [dash, breeding, f, o, c, s] = await Promise.all([
         getMareDashboard(locale, horse.profile.profileId),
+        listMareBreedingEvents(locale, horse.profile.profileId),
         listFoals(locale, horse.profile.profileId),
         listExaminations(locale, horse.profile.profileId, "ovulation"),
         listCycles(locale, horse.profile.profileId),
         listExaminations(locale, horse.profile.profileId, "soundness"),
       ]);
       setDashboard(dash);
+      setBreedingEvents(breeding.data ?? []);
       setFoals(f.data ?? []);
       setOvulation(o.data ?? []);
       setCycles(c.data ?? []);
@@ -158,6 +182,52 @@ export default function MareBreedingWorkspace({
         ar ? row.stallionNameAr || row.stallionName : row.stallionName,
     },
   ];
+  const breedingColumns: TableColumn<BreedingEventRecord>[] = [
+    {
+      key: "stallion",
+      label: ar ? "الفحل" : "Stallion",
+      render: (row) => {
+        const partner = resolveBreedingPartner(
+          row,
+          horse.profile!.profileId,
+        );
+        const name = (ar
+          ? partner.nameAr || partner.name
+          : partner.name || partner.nameAr) || "—";
+
+        return partner.id ? (
+          <Link
+            href={`/${locale}/horses/${partner.id}`}
+            className="font-bold text-[#351d10] underline decoration-[#ad9352] decoration-1 underline-offset-4 transition hover:text-[#8a6728]"
+            title={ar ? "فتح ملف الفحل" : "Open stallion profile"}
+          >
+            {name}
+          </Link>
+        ) : name;
+      },
+    },
+    {
+      key: "date",
+      label: ar ? "تاريخ الطلوقة" : "Service date",
+      render: (row) => date(row.recordDate, locale),
+    },
+    {
+      key: "vet",
+      label: ar ? "المنفذ / الطبيب" : "Responsible person",
+      render: (row) => row.veterinarianName || "—",
+    },
+    {
+      key: "followup",
+      label: ar ? "تكرار التلقيح" : "Repeat breeding",
+      render: (row) =>
+        row.followUpDate ? date(row.followUpDate, locale) : "—",
+    },
+    {
+      key: "cost",
+      label: ar ? "السعر" : "Cost",
+      render: (row) => `${row.totalCost ?? 0} EGP`,
+    },
+  ];
   const cycleColumns: TableColumn<EstrusCycle>[] = [
     {
       key: "start",
@@ -181,15 +251,25 @@ export default function MareBreedingWorkspace({
     },
   ];
   async function remove(kind: Tab, id: number) {
-    if (kind === "foals") await deleteFoal(locale, id);
-    else if (kind === "cycles") await deleteCycle(locale, id);
-    else
-      await deleteExamination(
-        locale,
-        kind === "ovulation" ? "ovulation" : "soundness",
-        id,
-      );
-    await load();
+    setBusyId(id);
+    setError("");
+    try {
+      if (kind === "breeding") await deleteMareBreedingEvent(locale, id);
+      else if (kind === "foals") await deleteFoal(locale, id);
+      else if (kind === "cycles") await deleteCycle(locale, id);
+      else
+        await deleteExamination(
+          locale,
+          kind === "ovulation" ? "ovulation" : "soundness",
+          id,
+        );
+      setDeleteBreedingTarget(null);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Delete failed");
+    } finally {
+      setBusyId(null);
+    }
   }
   async function editOvulation(row: ExaminationSummary) {
     setBusyId(row.id);
@@ -202,7 +282,28 @@ export default function MareBreedingWorkspace({
       setBusyId(null);
     }
   }
+  async function editBreeding(row: BreedingEventRecord) {
+    setBusyId(row.id);
+    setError("");
+    try {
+      setEditingBreeding(await getMareBreedingEvent(locale, row.id));
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to load breeding service",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
   const formMeta = {
+    breeding: {
+      ar: "تسجيل طلوقة جديدة",
+      en: "New breeding service",
+      subAr: "إضافة بيانات الفحل وموعد تكرار التلقيح",
+      subEn: "Add stallion details and the repeat breeding date",
+    },
     foals: {
       ar: "تسجيل مولود جديد",
       en: "Register new foal",
@@ -241,6 +342,7 @@ export default function MareBreedingWorkspace({
             onClick={() => {
               setTab(item.key);
               setCreateOpen(false);
+              setEditingBreeding(null);
             }}
             className={`h-9 rounded-[7px] border px-5 text-[11px] ${tab === item.key ? "border-[#ad9352] bg-[#fff8c9] text-[#352417]" : "border-transparent bg-white text-[#544a44]"}`}
           >
@@ -269,6 +371,60 @@ export default function MareBreedingWorkspace({
         <>
           {tab === "overview" && dashboard && (
             <MareOverview dashboard={dashboard} locale={locale} />
+          )}
+          {tab === "breeding" && (
+            <>
+              <ExpandableFormCard
+                open={createOpen}
+                onToggle={() => setCreateOpen((value) => !value)}
+                title={ar ? formMeta.breeding.ar : formMeta.breeding.en}
+                subtitle={
+                  ar ? formMeta.breeding.subAr : formMeta.breeding.subEn
+                }
+              >
+                <NaturalBreedingForm
+                  locale={locale}
+                  profile={horse.profile}
+                  api="mare"
+                  onSaved={saved}
+                />
+              </ExpandableFormCard>
+              <RecordTable
+                rows={breedingEvents}
+                columns={breedingColumns}
+                emptyLabel={
+                  ar ? "لا توجد سجلات طلوقة" : "No breeding services"
+                }
+                onEdit={(row) => void editBreeding(row)}
+                onDelete={setDeleteBreedingTarget}
+                busyId={busyId}
+              />
+              <BreedingEventEditModal
+                locale={locale}
+                api="mare"
+                viewingProfileId={horse.profile.profileId}
+                record={editingBreeding}
+                onClose={() => setEditingBreeding(null)}
+                onSaved={load}
+              />
+              <DeleteConfirmModal
+                open={Boolean(deleteBreedingTarget)}
+                title={ar ? "حذف سجل الطلوقة؟" : "Delete breeding service?"}
+                description={
+                  ar
+                    ? "لا يمكن التراجع عن هذا الإجراء."
+                    : "This action cannot be undone."
+                }
+                onCancel={() =>
+                  !busyId && setDeleteBreedingTarget(null)
+                }
+                onConfirm={() =>
+                  deleteBreedingTarget &&
+                  void remove("breeding", deleteBreedingTarget.id)
+                }
+                loading={Boolean(busyId)}
+              />
+            </>
           )}
           {tab === "foals" && (
             <>

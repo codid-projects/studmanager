@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, localizeApiMessage } from "@/lib/api/errors";
 import { apiFetch } from "@/lib/api/http";
-import type { ApiResult, HorsePedigreeNode, LocaleCode } from "@/lib/api/types";
+import type { ApiResult, HorsePedigreePayload, LocaleCode } from "@/lib/api/types";
 
 interface PedigreeBranchRouteProps {
   params: Promise<{ horseId: string }>;
@@ -20,7 +20,7 @@ export async function GET(
   passthroughQuery.levels = passthroughQuery.levels ?? "3";
 
   try {
-    const result = await apiFetch<ApiResult<HorsePedigreeNode[][]>>(
+    const result = await apiFetch<ApiResult<HorsePedigreePayload>>(
       `/api/ExternalHorses/pedigree-branch/${horseId}`,
       { query: passthroughQuery },
     );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -31,10 +31,8 @@ import { buildCreateHorseFormData } from '@/lib/api/create-horse-form-data';
 import { buildChangedHorsePayload } from '@/lib/api/horse-update-payload';
 import {
   getExternalHorseDashboard,
-  getHorseFamilyAnalysisTree,
   getHorseOffsprings,
   getHorseSiblings,
-  normalizePagedList,
 } from '@/lib/api/external-horses';
 import { mediaUrl, mediaUrls, toProfileHorseModel } from '@/lib/api/horse-formatters';
 import { getLocalizedName } from '@/lib/api/localization';
@@ -42,8 +40,8 @@ import { API_BASE_URL, isDirectApiMode } from '@/lib/api/transport';
 import { AUTH_TOKEN_COOKIE } from '@/lib/auth';
 import type {
   ApiResult,
-  HorseFamilyTreeItem,
   HorseInfoDto,
+  HorsePedigreeTreeResponse,
   HorseDeceasedPayload,
   HorseListItemDto,
   HorseRatingPayload,
@@ -267,52 +265,30 @@ async function findHorseListFallback(horseId: string, locale: LocaleCode) {
 }
 
 async function fetchHorseDetailWithFallback(horseId: string, locale: LocaleCode) {
+  let detailError: unknown;
+
+  try {
+    const payload = await clientApiFetch<ApiResult<HorseInfoDto> | HorseInfoDto>({
+      backendPath: `/api/Horses/${horseId}`,
+      nextPath: `/api/horses/${horseId}`,
+      nextQuery: { locale },
+      locale,
+    });
+    const detail = unwrapResult(payload);
+    if (detail) return detail;
+  } catch (error) {
+    detailError = error;
+  }
+
   const fallback = await findHorseListFallback(horseId, locale);
   if (fallback) return fallback;
 
-  const response = await fetch(`/api/horses/${horseId}?locale=${locale}`, {
-    headers: { Accept: 'application/json' },
-  });
-  const payload = await response.json().catch(() => null);
-
-  if (response.ok) return unwrapResult(payload as ApiResult<HorseInfoDto> | HorseInfoDto);
-
-  throw new Error(
-    payload && typeof payload === 'object' && 'message' in payload
-      ? String(payload.message)
-      : response.statusText,
-  );
+  throw detailError instanceof Error ? detailError : new Error('Horse not found.');
 }
 
 function cleanParentName(value: string | null | undefined) {
   const next = typeof value === 'string' ? value.trim() : '';
   return next && next.toLowerCase() !== 'null' && next.toLowerCase() !== 'undefined' && next !== '-' ? next : '';
-}
-
-function directParentsFromFamilyTree(items: HorseFamilyTreeItem[], localId: number | null | undefined, isRTL: boolean) {
-  const parentNameFor = (item: HorseFamilyTreeItem) => {
-    const fatherName = cleanParentName(getLocalizedName(
-      item.horseFatherEnglishName,
-      item.horseFatherArabicName,
-      isRTL,
-    ));
-    const motherName = cleanParentName(getLocalizedName(
-      item.horseMotherEnglishName,
-      item.horseMotherArabicName,
-      isRTL,
-    ));
-
-    return { fatherName, motherName };
-  };
-
-  const currentHorse = items.find((item) => item.id === localId) ?? items[0];
-
-  if (currentHorse) {
-    const parents = parentNameFor(currentHorse);
-    if (parents.fatherName || parents.motherName) return parents;
-  }
-
-  return { fatherName: '', motherName: '' };
 }
 
 export function HorseProfilePageClient({
@@ -387,6 +363,52 @@ export function HorseProfilePageClient({
   const hasVideos = mediaUrls(horse?.videos).length > 0;
   const tagsHorseId = horseId ?? profileHorse?.id;
   const [tagsLoaded, setTagsLoaded] = useState(false);
+
+  const handlePedigreeLoaded = useCallback((pedigree: HorsePedigreeTreeResponse) => {
+    const root = pedigree.root;
+    const father = pedigree.ancestors[0]?.[0];
+    const mother = pedigree.ancestors[0]?.[1];
+    const prefer = (current: string | null | undefined, fallback: string | null | undefined) =>
+      current?.trim() ? current : fallback ?? current;
+
+    setHorse((current) => current ? {
+      ...current,
+      studbookId: current.studbookId ?? root.id,
+      englishName: prefer(current.englishName, root.englishName) ?? current.englishName,
+      arabicName: prefer(current.arabicName, root.arabicName) ?? current.arabicName,
+      gender: prefer(current.gender, root.gender) ?? current.gender,
+      dateofBirth: prefer(current.dateofBirth, root.dateofBirth) ?? current.dateofBirth,
+      microchipID: prefer(current.microchipID, root.microchipID) ?? current.microchipID,
+      strainEn: prefer(current.strainEn, root.strainEn) ?? null,
+      strainAr: prefer(current.strainAr, root.strainAr) ?? null,
+      specialEn: prefer(current.specialEn, root.lineEn) ?? null,
+      specialAr: prefer(current.specialAr, root.lineAr) ?? null,
+      lineEn: prefer(current.lineEn, root.lineEn),
+      lineAr: prefer(current.lineAr, root.lineAr),
+      breederEn: prefer(current.breederEn, root.breederEn),
+      breederAr: prefer(current.breederAr, root.breederAr),
+      ownerEn: prefer(current.ownerEn, root.ownerEn),
+      ownerAr: prefer(current.ownerAr, root.ownerAr),
+      horseFatherEnglishName: prefer(current.horseFatherEnglishName, father?.englishName) ?? null,
+      horseFatherArabicName: prefer(current.horseFatherArabicName, father?.arabicName) ?? null,
+      horseMotherEnglishName: prefer(current.horseMotherEnglishName, mother?.englishName) ?? null,
+      horseMotherArabicName: prefer(current.horseMotherArabicName, mother?.arabicName) ?? null,
+      tags: current.tags?.length ? current.tags : root.tags ?? current.tags,
+    } : current);
+
+    setPedigreeParents({
+      fatherName: cleanParentName(getLocalizedName(
+        father?.englishName,
+        father?.arabicName,
+        isRTL,
+      )),
+      motherName: cleanParentName(getLocalizedName(
+        mother?.englishName,
+        mother?.arabicName,
+        isRTL,
+      )),
+    });
+  }, [isRTL]);
 
   // Tags are loaded from the dedicated tags endpoint (not the horse-by-id
   // payload) so they can be re-fetched whenever a tag changes anywhere. The
@@ -793,7 +815,6 @@ export function HorseProfilePageClient({
   }, [horseId]);
 
   useEffect(() => {
-    const localId = profileLocalId;
     const profileParents = {
       fatherName: cleanParentName(getLocalizedName(
         horse?.horseFatherEnglishName,
@@ -809,54 +830,11 @@ export function HorseProfilePageClient({
 
     if (profileParents.fatherName || profileParents.motherName) {
       setPedigreeParents(profileParents);
-      return;
-    }
-
-    if (!Number.isFinite(localId) || localId <= 0) {
+    } else {
       setPedigreeParents({ fatherName: '', motherName: '' });
-      return;
     }
-
-    let mounted = true;
-
-    async function loadFamilyTreeParents() {
-      try {
-        const familyResult = await getHorseFamilyAnalysisTree({
-          localId,
-          levels: 1,
-          pageNumber: 1,
-          pageSize: 20,
-        });
-
-        if (!mounted) return;
-
-        const familyParents = directParentsFromFamilyTree(
-          normalizePagedList(familyResult).items,
-          localId,
-          isRTL,
-        );
-
-        if (
-          (familyParents.fatherName && familyParents.fatherName !== '-') ||
-          (familyParents.motherName && familyParents.motherName !== '-')
-        ) {
-          setPedigreeParents(familyParents);
-          return;
-        }
-
-        setPedigreeParents({ fatherName: '', motherName: '' });
-      } catch {
-        if (mounted) setPedigreeParents({ fatherName: '', motherName: '' });
-      }
-    }
-
-    loadFamilyTreeParents();
-
-    return () => {
-      mounted = false;
-    };
   }, [
-    profileLocalId,
+    horse?.id,
     horse?.horseFatherEnglishName,
     horse?.horseFatherArabicName,
     horse?.horseMotherEnglishName,
@@ -1013,6 +991,7 @@ export function HorseProfilePageClient({
                 <HorsePedigreeTree
                   horse={{ ...profileHorse, localId: profileLocalId }}
                   onTagsMutated={refreshTags}
+                  onPedigreeLoaded={handlePedigreeLoaded}
                 />
               </>
             )}

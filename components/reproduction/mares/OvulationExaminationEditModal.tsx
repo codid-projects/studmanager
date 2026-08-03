@@ -119,21 +119,33 @@ export function OvulationExaminationEditModal({
                 gender="Male"
                 name="StallionIdDisplay"
                 selected={stallion}
-                onSelect={setStallion}
+                onSelect={(horse) => {
+                  setStallion(horse);
+                  if (horse) setStallionNameText("");
+                }}
               />
             </FormField>
-            {!stallion ? (
+            <FormField
+              label={
+                ar
+                  ? "أو اكتب اسم فحل غير مسجل"
+                  : "Or enter an unregistered stallion name"
+              }
+            >
               <input
                 value={stallionNameText}
-                onChange={(event) => setStallionNameText(event.target.value)}
+                onChange={(event) => {
+                  setStallionNameText(event.target.value);
+                  if (event.target.value) setStallion(null);
+                }}
                 placeholder={
                   ar
-                    ? "أو اكتب اسم فحل من خارج الإسطبل"
-                    : "Or type an external stallion name"
+                    ? "اكتب الاسم بدلًا من اختيار فحل"
+                    : "Type a name instead of selecting a horse"
                 }
                 className={fieldClass}
               />
-            ) : null}
+            </FormField>
           </div>
           {pregnant ? (
             <div className="mt-4 rounded-xl border border-[#d7dfc3] bg-[#f7f9f1] p-4">

@@ -93,7 +93,6 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
   const [taggingHorseId, setTaggingHorseId] = useState<number | null>(null);
   const [tagName, setTagName] = useState('');
   const [tagSavingId, setTagSavingId] = useState<number | null>(null);
-  const [tagLoadingId, setTagLoadingId] = useState<number | null>(null);
   const [tagSavedHorseId, setTagSavedHorseId] = useState<number | null>(null);
   const [directTagsByHorseId, setDirectTagsByHorseId] = useState<Record<number, HorseTagDto | null>>({});
   const [tagMessage, setTagMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -146,7 +145,14 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
         });
 
         if (!mounted) return;
-        setAncestors(normalizePagedList(result).items);
+        const items = normalizePagedList(result).items;
+        setAncestors(items);
+        setDirectTagsByHorseId(Object.fromEntries(
+          items.map((item) => [
+            item.id,
+            (item.tags ?? []).find((tag) => !tag.isInherited) ?? null,
+          ]),
+        ));
       } catch (requestError) {
         if (!mounted) return;
         setError(
@@ -177,76 +183,12 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
   const showEmpty = !loading && !error && matches !== null && matches.length === 0;
   const visibleMatches = matches?.slice(0, MAX_RENDERED_RESULTS) ?? [];
 
-  useEffect(() => {
-    const missing = visibleMatches
-      .map((item) => item.id)
-      .filter((id) => directTagsByHorseId[id] === undefined);
-
-    if (!missing.length) return;
-
-    let mounted = true;
-
-    missing.forEach((horseId) => {
-      clientApiFetch<ApiResult<HorseTagDto[]>>({
-        backendPath: `/api/Horses/${horseId}/tags`,
-        nextPath: `/api/horses/${horseId}/tags`,
-        query: { idType: 'studbook' },
-        nextQuery: { idType: 'studbook' },
-      })
-        .then((result) => {
-          if (!mounted) return;
-          const directTag = (result.data ?? []).find((tag) => !tag.isInherited) ?? null;
-          setDirectTagsByHorseId((current) => ({ ...current, [horseId]: directTag }));
-        })
-        .catch(() => {
-          if (!mounted) return;
-          setDirectTagsByHorseId((current) => ({ ...current, [horseId]: null }));
-        });
-    });
-
-    return () => {
-      mounted = false;
-    };
-  }, [directTagsByHorseId, visibleMatches]);
-
-  async function loadDirectTag(item: HorseFamilyTreeItem) {
-    setTagLoadingId(item.id);
-    setTagMessage(null);
-
-    try {
-      const result = await clientApiFetch<ApiResult<HorseTagDto[]>>({
-        backendPath: `/api/Horses/${item.id}/tags`,
-        nextPath: `/api/horses/${item.id}/tags`,
-        query: { idType: 'studbook' },
-      });
-
-      const directTag = (result.data ?? []).find((tag) => !tag.isInherited) ?? null;
-      setDirectTagsByHorseId((current) => ({ ...current, [item.id]: directTag }));
-      setTagName(directTag?.name ?? '');
-    } catch (requestError) {
-      setDirectTagsByHorseId((current) => ({ ...current, [item.id]: null }));
-      setTagName('');
-      setTagMessage({
-        type: 'error',
-        text:
-          requestError instanceof Error
-            ? requestError.message
-            : isRTL
-              ? 'تعذر تحميل الوسم.'
-              : 'Failed to load tag.',
-      });
-    } finally {
-      setTagLoadingId(null);
-    }
-  }
-
   function openTagEditor(item: HorseFamilyTreeItem) {
     const existingTag = directTagsByHorseId[item.id];
     setTaggingHorseId(item.id);
     setTagName(existingTag?.name ?? '');
     setTagSavedHorseId(null);
     setTagMessage(null);
-    loadDirectTag(item);
   }
 
   async function saveSearchResultTag(item: HorseFamilyTreeItem) {
@@ -285,8 +227,12 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
         throw new Error(result.message || (isRTL ? 'تعذر حفظ الوسم.' : 'Failed to save tag.'));
       }
 
-      const directTag = (result.data ?? []).find((tag) => !tag.isInherited) ?? null;
+      const tags = result.data ?? [];
+      const directTag = tags.find((tag) => !tag.isInherited) ?? null;
       setDirectTagsByHorseId((current) => ({ ...current, [item.id]: directTag }));
+      setAncestors((current) => current?.map((ancestor) =>
+        ancestor.id === item.id ? { ...ancestor, tags } : ancestor
+      ) ?? current);
       setTagMessage({
         type: 'success',
         text: existingTag
@@ -299,7 +245,6 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : '';
       if (message.includes('already has a tag')) {
-        await loadDirectTag(item);
         setTagMessage({
           type: 'error',
           text: isRTL
@@ -487,7 +432,7 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
                   <div className="space-y-2">
                     {visibleMatches.map((item) => {
                       const name = getLocalizedName(item.englishName, item.arabicName, isRTL) || '-';
-                      const directTag = directTagsByHorseId[item.id];
+                      const effectiveTags = item.tags ?? [];
                       const fatherName = getLocalizedName(
                         item.horseFatherEnglishName,
                         item.horseFatherArabicName,
@@ -556,10 +501,22 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
                           ) : null}
 
                           <div className="mt-3 border-t border-[#eadfd4] pt-3">
-                            {directTag ? (
-                              <div className="mb-2 inline-flex max-w-full items-center gap-1.5 rounded-full bg-[#d8eddf] px-3 py-1 text-xs font-bold text-[#245338]">
-                                <Tag className="h-3.5 w-3.5 shrink-0" />
-                                <span className="truncate">{directTag.name}</span>
+                            {effectiveTags.length ? (
+                              <div className="mb-2 flex flex-wrap gap-1.5">
+                                {effectiveTags.map((tag) => (
+                                  <div
+                                    key={tag.id}
+                                    className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
+                                      tag.isInherited
+                                        ? 'bg-[#f0e5d3] text-[#7a5c2e]'
+                                        : 'bg-[#d8eddf] text-[#245338]'
+                                    }`}
+                                    title={tag.sourceLine ?? undefined}
+                                  >
+                                    <Tag className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="truncate">{tag.name}</span>
+                                  </div>
+                                ))}
                               </div>
                             ) : null}
 
@@ -577,11 +534,8 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
                                       value={tagName}
                                       onChange={(event) => setTagName(event.target.value)}
                                       placeholder={
-                                        tagLoadingId === item.id
-                                          ? isRTL ? 'تحميل الوسم...' : 'Loading tag...'
-                                          : isRTL ? 'اسم الوسم' : 'Tag name'
+                                        isRTL ? 'اسم الوسم' : 'Tag name'
                                       }
-                                      disabled={tagLoadingId === item.id}
                                       className={`h-10 w-full rounded-xl border border-[#e6ddd4] bg-white text-sm text-[#2b1a12] outline-none transition placeholder:text-[#b3a698] focus:border-[#c9a76a] ${
                                         isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'
                                       }`}
@@ -594,7 +548,7 @@ export const HorseFamilySearch: FC<HorseFamilySearchProps> = ({ localId }) => {
                                   <button
                                     type="button"
                                     onClick={() => saveSearchResultTag(item)}
-                                    disabled={tagSavingId === item.id || tagLoadingId === item.id}
+                                    disabled={tagSavingId === item.id}
                                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#4a2b1a] text-white transition hover:bg-[#3b2115] disabled:cursor-not-allowed disabled:opacity-60"
                                     aria-label={
                                       directTagsByHorseId[item.id]

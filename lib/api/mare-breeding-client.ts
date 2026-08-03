@@ -1,5 +1,12 @@
 import { clientApiFetch } from './client';
 import type { ApiResult, HorseListItemDto, LocaleCode, PagedResponse } from './types';
+import {
+  createBreedingEvent,
+  deleteBreedingEvent,
+  getBreedingEvent,
+  listBreedingEvents,
+  updateBreedingEvent,
+} from './breeding-event-client';
 
 export type BreedingProfile = {
   horseId: number;
@@ -25,6 +32,8 @@ export type MareDashboard = {
   totalEmbryosCount: number;
   totalPregnanciesCount: number;
   currentStallionName?: string | null;
+  lastFollowUpDate?: string | null;
+  totalBreedingEvents: number;
   totalCycles: number;
 };
 
@@ -66,6 +75,13 @@ export type MareExaminationDetail = {
     unitPrice: number;
     totalPrice: number;
   }>;
+};
+
+export type PreviousPregnancyStallion = {
+  stallionId: number | null;
+  stallionName: string | null;
+  examinationId: number;
+  recordDate: string;
 };
 
 export type EstrusCycle = {
@@ -160,16 +176,40 @@ export async function getMareDashboard(locale: LocaleCode, profileId: number) {
   ));
 }
 
+export const listMareBreedingEvents = (
+  locale: LocaleCode,
+  profileId: number,
+) => listBreedingEvents(locale, 'mare', profileId);
+
+export const getMareBreedingEvent = (locale: LocaleCode, id: number) =>
+  getBreedingEvent(locale, 'mare', id);
+
+export const createMareBreedingEvent = (
+  locale: LocaleCode,
+  formData: FormData,
+) => createBreedingEvent(locale, 'mare', formData);
+
+export const updateMareBreedingEvent = (
+  locale: LocaleCode,
+  id: number,
+  formData: FormData,
+) => updateBreedingEvent(locale, 'mare', id, formData);
+
+export const deleteMareBreedingEvent = (locale: LocaleCode, id: number) =>
+  deleteBreedingEvent(locale, 'mare', id);
+
 export async function listExaminations(
   locale: LocaleCode,
   profileId: number,
   kind: 'ovulation' | 'soundness',
+  pageNumber = 1,
+  pageSize = 50,
 ) {
   const result = await request<ApiResult<PagedResponse<ExaminationSummary>>>(
     locale,
     'GET',
     `/api/mare-breeding/${kind}-examinations`,
-    { query: { profileId, pageNumber: 1, pageSize: 50 } },
+    { query: { profileId, pageNumber, pageSize } },
   );
   return unwrap(result);
 }
@@ -193,6 +233,56 @@ export async function getExamination(locale: LocaleCode, id: number) {
     'GET',
     `/api/mare-breeding/examinations/${id}`,
   ));
+}
+
+/**
+ * Returns the sire recorded on the mare's newest successful pregnancy exam.
+ *
+ * The examination summary endpoint is ordered newest-first but does not expose
+ * the clinical result or stallion id. Read the full records in small batches so
+ * we can preserve whether the historical sire was a local horse id or free text.
+ */
+export async function getPreviousPregnancyStallion(
+  locale: LocaleCode,
+  profileId: number,
+): Promise<PreviousPregnancyStallion | null> {
+  const pageSize = 50;
+  let pageNumber = 1;
+
+  while (true) {
+    const page = await listExaminations(
+      locale,
+      profileId,
+      'ovulation',
+      pageNumber,
+      pageSize,
+    );
+    const summaries = page.data ?? [];
+
+    for (let index = 0; index < summaries.length; index += 5) {
+      const batch = summaries.slice(index, index + 5);
+      const details = await Promise.all(
+        batch.map((summary) => getExamination(locale, summary.id)),
+      );
+      const previousPregnancy = details.find(
+        (detail) =>
+          (detail.clinicalResult === 3 || detail.clinicalResult === 4) &&
+          (Boolean(detail.stallionId) || Boolean(detail.stallionName?.trim())),
+      );
+
+      if (previousPregnancy) {
+        return {
+          stallionId: previousPregnancy.stallionId ?? null,
+          stallionName: previousPregnancy.stallionName?.trim() || null,
+          examinationId: previousPregnancy.id,
+          recordDate: previousPregnancy.recordDate,
+        };
+      }
+    }
+
+    if (!page.hasNextPage || summaries.length === 0) return null;
+    pageNumber += 1;
+  }
 }
 
 export async function updateExamination(

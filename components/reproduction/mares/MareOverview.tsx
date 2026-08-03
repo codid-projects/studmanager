@@ -1,6 +1,14 @@
 "use client";
 
-import { Baby, CalendarDays, Dna, HeartPulse, Mars } from "lucide-react";
+import {
+  Baby,
+  CalendarCheck2,
+  CalendarDays,
+  Dna,
+  HeartPulse,
+  Mars,
+  Repeat2,
+} from "lucide-react";
 import type { MareDashboard } from "@/lib/api/mare-breeding-client";
 
 export function MareOverview({
@@ -11,6 +19,11 @@ export function MareOverview({
   locale: "ar" | "en";
 }) {
   const ar = locale === "ar";
+  const lastFollowUp = dashboard.lastFollowUpDate
+    ? new Date(dashboard.lastFollowUpDate).toLocaleDateString(
+        ar ? "ar-EG" : "en-GB",
+      )
+    : null;
   const items = [
     [ar ? "عدد الأبناء" : "Foals", dashboard.totalFoals, Baby],
     [
@@ -39,6 +52,16 @@ export function MareOverview({
       Dna,
     ],
     [ar ? "دورات الشبق" : "Estrus cycles", dashboard.totalCycles, CalendarDays],
+    [
+      ar ? "إجمالي سجلات الطلوقة" : "Breeding services",
+      dashboard.totalBreedingEvents,
+      Repeat2,
+    ],
+    [
+      ar ? "موعد تكرار التلقيح" : "Next repeat breeding",
+      lastFollowUp,
+      CalendarCheck2,
+    ],
   ] as const;
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -52,7 +75,7 @@ export function MareOverview({
             <Icon className="h-4 w-4 text-[#6b5140]" />
           </div>
           <p className="mt-4 text-center text-2xl text-[#2d241f]">
-            {value || "—"}
+            {value ?? "—"}
           </p>
         </article>
       ))}

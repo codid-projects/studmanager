@@ -674,6 +674,32 @@ export type HorsePedigreeNode = {
   tags?: HorseTagDto[] | null;
 };
 
+export type HorsePedigreeRoot = {
+  id: number;
+  localId?: number | null;
+  englishName: string | null;
+  arabicName: string | null;
+  gender?: string | null;
+  dateofBirth?: string | null;
+  microchipID?: string | null;
+  strainEn?: string | null;
+  strainAr?: string | null;
+  lineEn?: string | null;
+  lineAr?: string | null;
+  breederEn?: string | null;
+  breederAr?: string | null;
+  ownerEn?: string | null;
+  ownerAr?: string | null;
+  tags?: HorseTagDto[] | null;
+};
+
+export type HorsePedigreeTreeResponse = {
+  root: HorsePedigreeRoot;
+  ancestors: HorsePedigreeNode[][];
+};
+
+export type HorsePedigreePayload = HorsePedigreeTreeResponse | HorsePedigreeNode[][];
+
 export type ExternalHorseSummaryItem = {
   id: number;
   englishName: string | null;
@@ -726,6 +752,7 @@ export type HorseFamilyTreeItem = {
   generationLevels: number[] | null;
   generationLevelsFromMother: number[] | null;
   generationLevelsFromFather: number[] | null;
+  tags?: HorseTagDto[] | null;
 };
 
 export type ExternalTailNode = {

@@ -15,7 +15,7 @@ import type {
   HorseEventHistory,
   HorseFamilyTreeItem,
   HorseOffspring,
-  HorsePedigreeNode,
+  HorsePedigreePayload,
   HorseSiblingsDto,
   ImportHorsePayload,
   PagedResponse,
@@ -66,7 +66,7 @@ export const externalHorseQueryKeys = {
   defaultStud: () => ['default-stud'] as const,
 };
 
-const pedigreeRequestCache = new Map<string, Promise<ApiResult<HorsePedigreeNode[][]>>>();
+const pedigreeRequestCache = new Map<string, Promise<ApiResult<HorsePedigreePayload>>>();
 const familyAnalysisRequestCache = new Map<string, Promise<ApiResult<PagedResponse<HorseFamilyTreeItem>>>>();
 
 function unwrap<T>(result: ApiResult<T> | T): ApiResult<T> {
@@ -199,12 +199,12 @@ export const getHorsePedigree = async ({
 }: {
   localId: number;
   levels?: number;
-}): Promise<ApiResult<HorsePedigreeNode[][]>> => {
+}): Promise<ApiResult<HorsePedigreePayload>> => {
   const key = `${localId}:${levels}`;
   const cached = pedigreeRequestCache.get(key);
   if (cached) return cached;
 
-  const request = clientApiFetch<ApiResult<HorsePedigreeNode[][]>>({
+  const request = clientApiFetch<ApiResult<HorsePedigreePayload>>({
     backendPath: `/api/ExternalHorses/${localId}/pedigree`,
     nextPath: `/api/external-horses/${localId}/pedigree`,
     query: { levels },
@@ -239,8 +239,8 @@ export const getHorsePedigreeBranch = async ({
   fatherArabicName?: string | null;
   motherEnglishName?: string | null;
   motherArabicName?: string | null;
-}): Promise<ApiResult<HorsePedigreeNode[][]>> =>
-  clientApiFetch<ApiResult<HorsePedigreeNode[][]>>({
+}): Promise<ApiResult<HorsePedigreePayload>> =>
+  clientApiFetch<ApiResult<HorsePedigreePayload>>({
     backendPath: `/api/ExternalHorses/pedigree-branch/${horseId}`,
     nextPath: `/api/external-horses/pedigree-branch/${horseId}`,
     query: {

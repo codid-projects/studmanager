@@ -4,7 +4,10 @@ import { FormEvent, useState } from "react";
 import { CalendarDays, Dna } from "lucide-react";
 import type { HorseListItemDto, LocaleCode } from "@/lib/api/types";
 import { type BreedingProfile } from "@/lib/api/mare-breeding-client";
-import { createStallionRecord } from "@/lib/api/stallion-breeding-client";
+import {
+  createBreedingEvent,
+  type BreedingEventApi,
+} from "@/lib/api/breeding-event-client";
 import {
   fieldClass,
   FormActions,
@@ -20,21 +23,33 @@ import { HorsePickerField } from "../shared/HorsePickerField";
 export function NaturalBreedingForm({
   locale,
   profile,
+  api = "stallion",
   onSaved,
 }: {
   locale: LocaleCode;
   profile: BreedingProfile;
+  api?: BreedingEventApi;
   onSaved: () => void;
 }) {
   const ar = locale === "ar";
-  const [mare, setMare] = useState<HorseListItemDto | null>(null);
+  const mareProfile = api === "mare";
+  const partnerGender = mareProfile ? "Male" : "Female";
+  const [partner, setPartner] = useState<HorseListItemDto | null>(null);
   const [surrogate, setSurrogate] = useState<HorseListItemDto | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!mare) {
-      setError(ar ? "اختر الفرس الأم" : "Select the donor mare");
+    if (!partner) {
+      setError(
+        mareProfile
+          ? ar
+            ? "اختر الفحل"
+            : "Select the stallion"
+          : ar
+            ? "اختر الفرس الأم"
+            : "Select the donor mare",
+      );
       return;
     }
     setSaving(true);
@@ -42,19 +57,29 @@ export function NaturalBreedingForm({
     const form = event.currentTarget;
     const data = new FormData(form);
     try {
-      data.set("MareId", String(mare.localId ?? mare.id));
+      data.set(
+        "RelatedHorseId",
+        String(partner.localId ?? partner.id),
+      );
       if (surrogate)
         data.set("SurrogateMareId", String(surrogate.localId ?? surrogate.id));
       else data.delete("SurrogateMareId");
       data.set("ProfileId", String(profile.profileId));
       appendBilledService(data, "Natural breeding");
+      const recordDate = String(data.get("RecordDate") ?? "").trim();
+      // The service time is optional for the user. When it is unknown, store
+      // the time of registration so the event still has a valid audit date.
       data.set(
         "RecordDate",
-        new Date(String(data.get("RecordDate"))).toISOString(),
+        recordDate
+          ? new Date(recordDate).toISOString()
+          : new Date().toISOString(),
       );
-      await createStallionRecord(locale, "breeding-events", data);
+      if (!String(data.get("VeterinarianName") ?? "").trim())
+        data.delete("VeterinarianName");
+      await createBreedingEvent(locale, api, data);
       form.reset();
-      setMare(null);
+      setPartner(null);
       setSurrogate(null);
       onSaved();
     } catch (cause) {
@@ -71,20 +96,40 @@ export function NaturalBreedingForm({
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-3">
           <FormSection
-            title={ar ? "بيانات الفرسة" : "Mare details"}
+            title={
+              mareProfile
+                ? ar
+                  ? "بيانات الفحل"
+                  : "Stallion details"
+                : ar
+                  ? "بيانات الفرس"
+                  : "Mare details"
+            }
             icon={<Dna className="h-4 w-4" />}
             tone="sage"
           >
             <div className="space-y-3">
-              <FormField label={ar ? "الفرس الأم" : "Donor mare"} required>
+              <FormField
+                label={
+                  mareProfile
+                    ? ar
+                      ? "الفحل"
+                      : "Stallion"
+                    : ar
+                      ? "الفرس الأم"
+                      : "Donor mare"
+                }
+                required
+              >
                 <HorsePickerField
                   locale={locale}
-                  gender="Female"
-                  name="MareId"
-                  selected={mare}
+                  gender={partnerGender}
+                  name="RelatedHorseId"
+                  selected={partner}
                   onSelect={(horse) => {
-                    setMare(horse);
+                    setPartner(horse);
                     if (
+                      !mareProfile &&
                       horse &&
                       surrogate &&
                       Number(horse.localId ?? horse.id) ===
@@ -106,35 +151,42 @@ export function NaturalBreedingForm({
                   name="SurrogateMareId"
                   selected={surrogate}
                   onSelect={setSurrogate}
-                  excludeHorseIds={
-                    mare ? [Number(mare.localId ?? mare.id)] : []
-                  }
+                  excludeHorseIds={[
+                    ...(mareProfile ? [profile.horseId] : []),
+                    ...(!mareProfile && partner
+                      ? [Number(partner.localId ?? partner.id)]
+                      : []),
+                  ]}
                 />
               </FormField>
             </div>
           </FormSection>
-          <FormSection title={ar ? "طريقة التلقيح" : "Insemination method"}>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                [1, "Natural / طبيعية"],
-                [2, "Fresh / مجمعة"],
-                [3, "Frozen / مجمدة"],
-              ].map(([value, label]) => (
-                <label key={value}>
-                  <input
-                    type="radio"
-                    name="InseminationMethod"
-                    value={value}
-                    defaultChecked={value === 1}
-                    className="peer sr-only"
-                  />
-                  <span className="grid h-9 cursor-pointer place-items-center rounded-[7px] bg-[#d6eef6] text-[10px] peer-checked:bg-[#351d10] peer-checked:text-white">
-                    {label}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </FormSection>
+          {!mareProfile && (
+            <FormSection
+              title={ar ? "طريقة التلقيح" : "Insemination method"}
+            >
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  [1, ar ? "طبيعية" : "Natural"],
+                  [2, ar ? "طازج" : "Fresh"],
+                  [3, ar ? "مجمّد" : "Frozen"],
+                ].map(([value, label]) => (
+                  <label key={value}>
+                    <input
+                      type="radio"
+                      name="InseminationMethod"
+                      value={value}
+                      defaultChecked={value === 1}
+                      className="peer sr-only"
+                    />
+                    <span className="grid h-9 cursor-pointer place-items-center rounded-[7px] bg-[#d6eef6] text-[10px] peer-checked:bg-[#351d10] peer-checked:text-white">
+                      {label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </FormSection>
+          )}
           <FormSection title={ar ? "ملاحظات إضافية" : "Additional notes"}>
             <textarea
               name="VeterinarianComments"
@@ -150,31 +202,42 @@ export function NaturalBreedingForm({
           >
             <div className="space-y-3">
               <FormField
-                label={ar ? "تاريخ ووقت الخدمة" : "Service date and time"}
-                required
+                label={
+                  ar
+                    ? "تاريخ ووقت الطلوقة (اختياري)"
+                    : "Service date and time (optional)"
+                }
               >
                 <input
-                  required
                   name="RecordDate"
                   type="datetime-local"
                   className={fieldClass}
                 />
               </FormField>
               <FormField
-                label={ar ? "الطبيب المسؤول" : "Veterinarian"}
-                required
+                label={
+                  ar
+                    ? "الطبيب المسؤول (اختياري)"
+                    : "Veterinarian (optional)"
+                }
               >
-                <input
-                  required
-                  name="VeterinarianName"
-                  className={fieldClass}
-                />
+                <input name="VeterinarianName" className={fieldClass} />
               </FormField>
             </div>
           </FormSection>
           <FormSection tone="sage" title={ar ? "تكرار التلقيح" : "Follow-up"}>
             <div className="space-y-3">
-              <input name="FollowUpDate" type="date" className={fieldClass} />
+              <FormField
+                label={ar ? "موعد تكرار التلقيح" : "Repeat breeding date"}
+                required
+              >
+                <input
+                  required
+                  name="FollowUpDate"
+                  type="date"
+                  className={fieldClass}
+                />
+              </FormField>
               <input
                 name="FollowUpNotes"
                 placeholder={ar ? "ملاحظات الموعد القادم" : "Follow-up notes"}

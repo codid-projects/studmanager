@@ -1,10 +1,11 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { CalendarDays, FlaskConical, HeartPulse } from "lucide-react";
 import type { HorseListItemDto, LocaleCode } from "@/lib/api/types";
 import {
   createExamination,
+  getPreviousPregnancyStallion,
   type BreedingProfile,
 } from "@/lib/api/mare-breeding-client";
 import {
@@ -18,6 +19,10 @@ import {
   appendBilledService,
   BilledServiceFields,
 } from "../shared/BilledServiceFields";
+import {
+  getLatestMareBreedingEvent,
+  resolveBreedingPartner,
+} from "@/lib/api/breeding-event-client";
 
 export function OvulationExaminationForm({
   locale,
@@ -35,6 +40,97 @@ export function OvulationExaminationForm({
   const [expectedStartDate, setExpectedStartDate] = useState("");
   const [expectedEndDate, setExpectedEndDate] = useState("");
   const [stallion, setStallion] = useState<HorseListItemDto | null>(null);
+  const [stallionNameText, setStallionNameText] = useState("");
+  const [followUpDate, setFollowUpDate] = useState("");
+  const [latestState, setLatestState] = useState<
+    "idle" | "loading" | "pregnancy" | "breeding" | "empty"
+  >("idle");
+  const stallionChangedByUser = useRef(false);
+  const followUpChangedByUser = useRef(false);
+  const pregnant = clinicalResult === "3" || clinicalResult === "4";
+
+  useEffect(() => {
+    stallionChangedByUser.current = false;
+    followUpChangedByUser.current = false;
+    setStallion(null);
+    setStallionNameText("");
+    setFollowUpDate("");
+    setLatestState("idle");
+  }, [profile.profileId]);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!pregnant) {
+      setLatestState("idle");
+      // Remove untouched values that came from the latest breeding event.
+      // Explicit user choices stay in place when the result is changed.
+      if (!stallionChangedByUser.current) {
+        setStallion(null);
+        setStallionNameText("");
+      }
+      if (!followUpChangedByUser.current) setFollowUpDate("");
+      return;
+    }
+
+    setLatestState("loading");
+
+    Promise.allSettled([
+      getPreviousPregnancyStallion(locale, profile.profileId),
+      getLatestMareBreedingEvent(locale, profile.profileId),
+    ])
+      .then(([pregnancyResult, breedingResult]) => {
+        if (!active) return;
+
+        const previousPregnancy =
+          pregnancyResult.status === "fulfilled"
+            ? pregnancyResult.value
+            : null;
+        const latestBreeding =
+          breedingResult.status === "fulfilled" ? breedingResult.value : null;
+        const breedingPartner = latestBreeding
+          ? resolveBreedingPartner(latestBreeding, profile.profileId)
+          : null;
+
+        // A free-text sire has a null id by design. Keep the pregnancy record
+        // authoritative instead of mixing its name with the breeding-event id.
+        const stallionId = previousPregnancy
+          ? previousPregnancy.stallionId
+          : breedingPartner?.id ?? null;
+        const stallionName = previousPregnancy
+          ? previousPregnancy.stallionName ?? ""
+          : breedingPartner?.name ?? breedingPartner?.nameAr ?? "";
+
+        if (!stallionChangedByUser.current) {
+          if (stallionId) {
+            setStallion({
+              id: stallionId,
+              localId: stallionId,
+              englishName: stallionName || null,
+              arabicName: stallionName || null,
+            } as HorseListItemDto);
+            setStallionNameText("");
+          } else {
+            setStallion(null);
+            setStallionNameText(stallionName);
+          }
+        }
+
+        if (!followUpChangedByUser.current)
+          setFollowUpDate(latestBreeding?.followUpDate?.slice(0, 10) ?? "");
+
+        if (previousPregnancy) setLatestState("pregnancy");
+        else if (breedingPartner || latestBreeding?.followUpDate)
+          setLatestState("breeding");
+        else setLatestState("empty");
+      })
+      // Prefill is a convenience; a temporary failure must not block the exam.
+      .catch(() => active && setLatestState("empty"));
+
+    return () => {
+      active = false;
+    };
+  }, [locale, pregnant, profile.profileId]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -42,7 +138,6 @@ export function OvulationExaminationForm({
     setError("");
     const data = new FormData(form);
     try {
-      const pregnant = clinicalResult === "3" || clinicalResult === "4";
       if (pregnant && (!expectedStartDate || !expectedEndDate)) {
         throw new Error(ar ? "يرجى تحديد نطاق موعد الولاده المتوقع" : "Please select the expected foaling range");
       }
@@ -55,11 +150,18 @@ export function OvulationExaminationForm({
         data.set("ExpectedFoalingStartDate", expectedStartDate);
         data.set("ExpectedFoalingEndDate", expectedEndDate);
       }
-      // The backend links a local stallion by StallionId (and resolves the
-      // name itself); StallionName is only for stallions outside the stable.
-      if (!String(data.get("StallionId") ?? "").trim()) data.delete("StallionId");
-      else data.delete("StallionName");
-      if (!String(data.get("StallionName") ?? "").trim()) data.delete("StallionName");
+      // The API accepts either a local horse id or an external stallion name.
+      if (stallion) {
+        data.set("StallionId", String(stallion.localId ?? stallion.id));
+        data.delete("StallionName");
+      } else {
+        data.delete("StallionId");
+        const externalStallionName = stallionNameText.trim();
+        if (externalStallionName)
+          data.set("StallionName", externalStallionName);
+        else data.delete("StallionName");
+      }
+      if (!followUpDate) data.delete("FollowUpDate");
       appendBilledService(data, "Ovulation examination");
       data.set(
         "RecordDate",
@@ -71,6 +173,9 @@ export function OvulationExaminationForm({
       setExpectedStartDate("");
       setExpectedEndDate("");
       setStallion(null);
+      setStallionNameText("");
+      setFollowUpDate("");
+      setLatestState("idle");
       onSaved();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Failed");
@@ -174,7 +279,7 @@ export function OvulationExaminationForm({
                 </label>
               ))}
             </div>
-            {clinicalResult === "3" || clinicalResult === "4" ? (
+            {pregnant ? (
               <div className="mt-4 rounded-xl border border-[#d7dfc3] bg-[#f7f9f1] p-3">
                 <div className="mb-3 flex items-center gap-2 text-xs font-bold text-[#53603d]">
                   <CalendarDays className="h-4 w-4" />
@@ -250,19 +355,60 @@ export function OvulationExaminationForm({
                   gender="Male"
                   name="StallionId"
                   selected={stallion}
-                  onSelect={setStallion}
+                  onSelect={(horse) => {
+                    stallionChangedByUser.current = true;
+                    setStallion(horse);
+                    if (horse) setStallionNameText("");
+                  }}
                 />
               </FormField>
-              {!stallion ? (
+              <FormField
+                label={
+                  ar
+                    ? "أو اكتب اسم فحل غير مسجل"
+                    : "Or enter an unregistered stallion name"
+                }
+              >
                 <input
                   name="StallionName"
+                  value={stallionNameText}
+                  onChange={(event) => {
+                    stallionChangedByUser.current = true;
+                    setStallionNameText(event.target.value);
+                    if (event.target.value) setStallion(null);
+                  }}
                   placeholder={
                     ar
-                      ? "أو اكتب اسم فحل من خارج الإسطبل"
-                      : "Or type an external stallion name"
+                      ? "اكتب الاسم بدلًا من اختيار فحل"
+                      : "Type a name instead of selecting a horse"
                   }
                   className={fieldClass}
                 />
+              </FormField>
+              {pregnant && latestState !== "idle" ? (
+                <p
+                  className={`rounded-lg px-3 py-2 text-[10px] leading-5 ${
+                    latestState === "pregnancy" || latestState === "breeding"
+                      ? "bg-[#eef5e5] text-[#53603d]"
+                      : "bg-[#f7f3ef] text-[#7a6d65]"
+                  }`}
+                >
+                  {latestState === "loading"
+                    ? ar
+                      ? "جارٍ تحميل آخر فحل وموعد متابعة..."
+                      : "Loading the latest stallion and follow-up date..."
+                    : latestState === "pregnancy"
+                      ? ar
+                        ? "تم اختيار فحل آخر حمل تلقائيًا، وموعد المتابعة من آخر طلوقة. يمكنك تغييرهما."
+                        : "The sire from the latest pregnancy and the latest follow-up date were selected automatically. You can change either value."
+                      : latestState === "breeding"
+                        ? ar
+                          ? "لا يوجد حمل سابق مسجل؛ تم استخدام قيم آخر طلوقة ويمكنك تغييرها."
+                          : "No previous pregnancy was found, so the latest breeding values were used. You can change them."
+                      : ar
+                        ? "لا يوجد حمل أو طلوقة سابقة؛ اختر الفحل أو اكتب اسمه وحدد الموعد."
+                        : "No previous pregnancy or breeding event was found. Select a stallion or type its name and choose the date."}
+                </p>
               ) : null}
             </div>
           </FormSection>
@@ -272,7 +418,18 @@ export function OvulationExaminationForm({
             icon={<CalendarDays className="h-4 w-4" />}
           >
             <div className="space-y-3">
-              <input name="FollowUpDate" type="date" className={fieldClass} />
+              <FormField label={ar ? "موعد المتابعة" : "Follow-up date"}>
+                <input
+                  name="FollowUpDate"
+                  type="date"
+                  value={followUpDate}
+                  onInput={(event) => {
+                    followUpChangedByUser.current = true;
+                    setFollowUpDate(event.currentTarget.value);
+                  }}
+                  className={fieldClass}
+                />
+              </FormField>
               <input
                 name="FollowUpNotes"
                 placeholder={ar ? "ملاحظات الموعد القادم" : "Follow-up notes"}

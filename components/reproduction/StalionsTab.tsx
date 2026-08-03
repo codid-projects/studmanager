@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { LoaderCircle } from "lucide-react";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import { useLocale } from "@/lib/locale-context";
@@ -24,6 +25,8 @@ import { SemenShipmentForm } from "./stallions/SemenShipmentForm";
 import { StallionSoundnessForm } from "./stallions/StallionSoundnessForm";
 import { StallionEditModal } from "./stallions/StallionEditModal";
 import { ExpandableFormCard } from "./shared/ExpandableFormCard";
+import { BreedingEventEditModal } from "./shared/BreedingEventEditModal";
+import { resolveBreedingPartner } from "@/lib/api/breeding-event-client";
 
 const sections: Array<{ key: StallionSection; ar: string; en: string }> = [
   { key: "breeding-events", ar: "الطلوقة الطبيعية", en: "Natural breeding" },
@@ -119,13 +122,38 @@ export default function StallionsTab({
       ? [
           {
             key: "related",
-            label: ar ? "الفرس المستقبلة" : "Mare",
-            render: (row) =>
-              (ar
-                ? row.relatedHorseNameAr || row.relatedHorseName
-                : row.relatedHorseName) || "—",
+            label: ar ? "الفرس" : "Mare",
+            render: (row) => {
+              const partner = resolveBreedingPartner(
+                row,
+                horse.profile!.profileId,
+              );
+              const name = (ar
+                ? partner.nameAr || partner.name
+                : partner.name || partner.nameAr) || "—";
+
+              return partner.id ? (
+                <Link
+                  href={`/${locale}/horses/${partner.id}`}
+                  className="font-bold text-[#351d10] underline decoration-[#ad9352] decoration-1 underline-offset-4 transition hover:text-[#8a6728]"
+                  title={ar ? "فتح ملف الفرس" : "Open mare profile"}
+                >
+                  {name}
+                </Link>
+              ) : name;
+            },
           },
           ...baseColumns,
+          {
+            key: "followup-date",
+            label: ar ? "تكرار التلقيح" : "Repeat breeding",
+            render: (row) =>
+              row.followUpDate
+                ? new Date(row.followUpDate).toLocaleDateString(
+                    ar ? "ar-EG" : "en-GB",
+                  )
+                : "—",
+          },
         ]
       : section === "semen-collections"
         ? [
@@ -300,13 +328,24 @@ export default function StallionsTab({
                 dashboard.totalSoundnessExams}
             </p>
           )}
-          <StallionEditModal
-            locale={locale}
-            section={section}
-            record={editing}
-            onClose={() => setEditing(null)}
-            onSaved={load}
-          />
+          {section === "breeding-events" ? (
+            <BreedingEventEditModal
+              locale={locale}
+              api="stallion"
+              viewingProfileId={horse.profile.profileId}
+              record={editing}
+              onClose={() => setEditing(null)}
+              onSaved={load}
+            />
+          ) : (
+            <StallionEditModal
+              locale={locale}
+              section={section}
+              record={editing}
+              onClose={() => setEditing(null)}
+              onSaved={load}
+            />
+          )}
           <DeleteConfirmModal
             open={Boolean(deleteTarget)}
             title={ar ? "حذف سجل التربية؟" : "Delete breeding record?"}
