@@ -30,9 +30,12 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      # Do NOT add NEXT_PUBLIC_* here. Next inlines them at build time into both
-      # the client and server bundles, so setting them at runtime does nothing —
-      # pointing at another API means a new pipeline run.
+      # Backend API — changeable from here, no rebuild needed. The entrypoint
+      # rewrites it into the bundles on start. Takes effect on redeploy (or any
+      # recreate), not on a bare `docker restart`.
+      STUDMANAGER_API_URL: ${STUDMANAGER_API_URL:-https://studmanagerapi-dev.studmarket.net}
+      # The transport MODE is not settable here — `server` mode needs app/api
+      # routes that do not all exist, so the image is always built as `direct`.
 
     networks:
       - proxy

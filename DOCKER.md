@@ -9,6 +9,7 @@ via Portainer.
 | File | Purpose |
 |---|---|
 | `Dockerfile` | 3-stage build: `deps` → `builder` → `runner` (standalone, non-root) |
+| `docker-entrypoint.sh` | Resolves `STUDMANAGER_API_URL` into the built bundles at container start |
 | `.dockerignore` | Keeps `node_modules`, `.env*`, docs and stray assets out of the build context |
 | `azure-pipelines.yml` | CI: build and push `registry.studmarket.net/studmanager-web` |
 | `portainer-stack.yml` | **Pull-only stack to paste into Portainer on the VPS** |
@@ -23,13 +24,40 @@ This is the one thing to get right.
 
 | Variable | When it applies | Notes |
 |---|---|---|
-| `NEXT_PUBLIC_STUDMANAGER_API_URL` | **Build time only** | Inlined by `next build` into **both** the client and server bundles. Setting it on the container does nothing — pointing at another API means a **new pipeline run**. |
-| `NEXT_PUBLIC_STUDMANAGER_API_MODE` | **Build time only** | `direct` (browser → API host, needs CORS) or `server` (browser → Next `/api/*` → API). Currently `direct`. |
+| `STUDMANAGER_API_URL` | **Runtime** | The backend the app talks to. Set it in the Portainer stack; no rebuild needed. Default `https://studmanagerapi-dev.studmarket.net`. |
 | `IMAGE_TAG` | Runtime | Which pushed tag the stack runs. `latest`, or a `$(Build.BuildId)` to roll back. |
+| `NPM_NETWORK` | Runtime | The Nginx Proxy Manager docker network to join. |
 | `PORT` / `HOSTNAME` | Runtime | Default `3000` / `0.0.0.0`. |
+| `NEXT_PUBLIC_STUDMANAGER_API_MODE` | **Build time only** | Pipeline variable `apiMode`. Leave it at `direct` — see below. |
 
-Defaults if nothing is passed: `https://studmanagerapi-dev.studmarket.net`, mode `direct`
-— same as the repo's current behaviour (`lib/api/transport.ts`).
+### How the URL became runtime-settable
+
+`next build` inlines `NEXT_PUBLIC_*` into both the client and server bundles, so
+normally the API URL is frozen at build time. The image is therefore built with the
+literal placeholder `__STUDMANAGER_API_URL__`, and `docker-entrypoint.sh` rewrites it
+across `.next` on every container start using `STUDMANAGER_API_URL`.
+
+Two consequences worth knowing:
+
+- It applies on **container recreate** (compose up / Portainer redeploy), not on a bare
+  `docker restart` — a restart cannot change env vars anyway, so the entrypoint finds
+  nothing to substitute and says so in the logs.
+- Browsers that already cached a JS chunk keep the **old** URL, because the chunk
+  filename hash does not change. A hard refresh fixes it.
+
+An invalid value (not starting with `http://` or `https://`) fails the container at
+startup rather than producing a broken `new URL()` at runtime.
+
+### Why the mode is still build-time
+
+`direct` = browser calls the API host itself. `server` = browser calls Next's own
+`/api/*` routes, which forward to the API. **Server mode does not currently work**:
+`/api/ledger`, `/api/injury`, `/api/performance`, `/api/stallion-breeding` and several
+`/api/external-horses/*` paths are referenced by client code but have no `route.ts`.
+Leave `apiMode: direct` until those routes exist.
+
+Because the app runs in `direct` mode, the browser calls `STUDMANAGER_API_URL` straight
+from the page — so any backend you point it at must allow **CORS** from the web origin.
 
 Note: `pnpm api:direct` / `pnpm api:server` write `.env.local`. That file is excluded
 by `.dockerignore` on purpose, so a stale local copy can never override the build args.
@@ -46,8 +74,8 @@ update `dockerRegistryConnection` in `azure-pipelines.yml`.
 
 The first run will ask for permission to use the service connection — approve it once.
 
-To point a build at a different backend, override `apiUrl` / `apiMode` when queueing
-the run (or edit the `variables:` block).
+Pointing at a different backend does **not** need a pipeline run — set
+`STUDMANAGER_API_URL` in the stack and redeploy.
 
 The pipeline builds and pushes only. Deploying is a manual **Pull and redeploy**
 on the stack in Portainer.

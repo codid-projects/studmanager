@@ -24,10 +24,16 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# NEXT_PUBLIC_* values are inlined into the client bundle at BUILD time,
-# so they must be passed as build args — setting them at `docker run` has
-# no effect on the browser code. See docker-compose.yml.
-ARG NEXT_PUBLIC_STUDMANAGER_API_URL=https://studmanagerapi-dev.studmarket.net
+# NEXT_PUBLIC_* values are inlined into the bundles at BUILD time.
+#
+# The API URL is therefore built in as a placeholder and swapped for the real
+# one by docker-entrypoint.sh at container start, so it can be changed from the
+# stack (STUDMANAGER_API_URL) without a rebuild.
+#
+# The transport MODE stays build-time on purpose: `server` mode routes calls
+# through app/api/*, and several of those routes do not exist (ledger, injury,
+# performance, stallion-breeding), so only `direct` works.
+ARG NEXT_PUBLIC_STUDMANAGER_API_URL=__STUDMANAGER_API_URL__
 ARG NEXT_PUBLIC_STUDMANAGER_API_MODE=direct
 ENV NEXT_PUBLIC_STUDMANAGER_API_URL=$NEXT_PUBLIC_STUDMANAGER_API_URL
 ENV NEXT_PUBLIC_STUDMANAGER_API_MODE=$NEXT_PUBLIC_STUDMANAGER_API_MODE
@@ -55,11 +61,14 @@ RUN addgroup -g 1001 -S nodejs \
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 USER nextjs
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/ || exit 1
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 CMD ["node", "server.js"]

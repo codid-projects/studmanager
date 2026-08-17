@@ -15,19 +15,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      # NEXT_PUBLIC_* are baked into the client bundle at build time.
-      # Changing them requires a REBUILD, not just a restart.
+      # The API URL is deliberately NOT passed here: the image is built with a
+      # placeholder and docker-entrypoint.sh resolves it at start from
+      # STUDMANAGER_API_URL below. Only the transport mode is build-time.
       args:
-        NEXT_PUBLIC_STUDMANAGER_API_URL: ${NEXT_PUBLIC_STUDMANAGER_API_URL:-https://studmanagerapi-dev.studmarket.net}
         NEXT_PUBLIC_STUDMANAGER_API_MODE: ${NEXT_PUBLIC_STUDMANAGER_API_MODE:-direct}
 
     environment:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      # Do NOT add NEXT_PUBLIC_* here. Next inlines those at build time into
-      # both the client AND server bundles, so setting them at runtime has no
-      # effect — pointing at a different API means a new pipeline run.
+      STUDMANAGER_API_URL: ${STUDMANAGER_API_URL:-https://studmanagerapi-dev.studmarket.net}
 
     ports:
       # Bind to localhost only if a reverse proxy (Nginx/Traefik/NPM) fronts it.
