@@ -1,11 +1,21 @@
-# StudManagerWeb — Portainer stack (pull only).
+# StudManagerWeb — Portainer stack (pull only, behind Nginx Proxy Manager).
 #
 # Paste into Portainer: Stacks -> Add stack -> Web editor.
 # Unlike docker-compose.yml this file has NO `build:` block, which the Portainer
 # web editor cannot handle - the image comes from the pipeline.
 #
-# Prerequisite: Portainer -> Registries -> registry.studmarket.net added with
+# Prerequisite 1: Portainer -> Registries -> registry.studmarket.net added with
 # credentials, otherwise the pull fails with "no basic auth credentials".
+#
+# Prerequisite 2: set `name:` at the bottom to the network Nginx Proxy Manager
+# actually runs on. Find it with:
+#     docker inspect <npm-container> -f '{{json .NetworkSettings.Networks}}'
+#
+# No port is published: NPM reaches the container over the shared docker
+# network. In NPM -> Proxy Hosts -> Add, forward to:
+#     Scheme   http
+#     Hostname studmanagerweb      <- the container_name below
+#     Port     3000
 #
 # The backend API is external (studmarket.net) and is not part of this stack.
 # The healthcheck lives in the image itself, so it is not repeated here.
@@ -24,11 +34,14 @@ services:
       # the client and server bundles, so setting them at runtime does nothing —
       # pointing at another API means a new pipeline run.
 
-    ports:
-      # Reachable on the VPS at http://<vps-ip>:${WEB_PORT}.
-      # Behind a reverse proxy, change to "127.0.0.1:${WEB_PORT:-3000}:3000"
-      # so the app is not exposed without TLS.
-      - "${WEB_PORT:-3000}:3000"
+    networks:
+      - proxy
+
+    # No `ports:` on purpose. Publishing 3000 on the host clashes with whatever
+    # already holds it (check with `docker ps --filter publish=3000`) and would
+    # expose the app without TLS. Only add one to reach the app without NPM:
+    #   ports:
+    #     - "${WEB_PORT:-3001}:3000"
 
     logging:
       driver: json-file
@@ -36,13 +49,9 @@ services:
         max-size: "10m"
         max-file: "3"
 
-# If a reverse proxy (Nginx Proxy Manager / Traefik) fronts this, drop the
-# `ports:` block above, uncomment the two sections below, and point the proxy at
-# http://studmanagerweb:3000.
-#
-#     networks:
-#       - proxy
-#
-# networks:
-#   proxy:
-#     external: true
+networks:
+  proxy:
+    external: true
+    # Replace with the real NPM network name, e.g. npm_default or
+    # nginx-proxy-manager_default.
+    name: ${NPM_NETWORK:-npm_default}

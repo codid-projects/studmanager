@@ -60,9 +60,13 @@ on the stack in Portainer.
    otherwise the pull fails with `no basic auth credentials`.
 2. **Stacks → Add stack → Web editor**, paste **`portainer-stack.yml`**
    (not `docker-compose.yml` — the web editor cannot handle its `build:` block).
-3. Optionally set `IMAGE_TAG` and `WEB_PORT` under **Environment variables**.
+3. Set `NPM_NETWORK` under **Environment variables** to the network Nginx Proxy
+   Manager runs on, and optionally `IMAGE_TAG`.
 4. Deploy. After each pipeline run: **Pull and redeploy** with **Re-pull image** ticked,
    otherwise Docker keeps the `:latest` layer it already has.
+
+The stack publishes no host port — NPM reaches the container over the shared
+network. Add a proxy host forwarding to `studmanagerweb:3000` (scheme `http`).
 
 ### Plain SSH
 
@@ -72,12 +76,12 @@ docker compose pull && docker compose up -d
 
 ## Reverse proxy
 
-`docker-compose.yml` binds to `127.0.0.1:3000` — it expects Nginx / Traefik /
-Nginx Proxy Manager in front, terminating TLS. Point the proxy at
-`http://127.0.0.1:3000`, or put the container on the proxy's docker network and
-target `http://studmanagerweb:3000`.
+The VPS runs **Nginx Proxy Manager**, and `portainer-stack.yml` joins its docker
+network instead of publishing a port — so NPM terminates TLS and forwards to
+`http://studmanagerweb:3000`. Host port 3000 is already taken on that box anyway
+(`docker ps --filter publish=3000` shows by what).
 
-To expose the app directly on the VPS instead, change the mapping to `"3000:3000"`.
+`docker-compose.yml` is the local-only variant and does bind `127.0.0.1:3000`.
 
 ## Local check
 
