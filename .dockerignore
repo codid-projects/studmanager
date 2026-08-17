@@ -1,0 +1,36 @@
+# --- build output / deps (always rebuilt inside the image) ---
+node_modules
+.next
+out
+tsconfig.tsbuildinfo
+
+# --- secrets & local env ---
+# IMPORTANT: `pnpm api:direct` / `api:server` writes .env.local.
+# If it leaked into the image it would override the build ARGs silently.
+.env
+.env.*
+!.env.example
+
+# --- vcs / tooling ---
+.git
+.gitignore
+.vscode
+.idea
+.claude
+.codex-pet-runs
+.DS_Store
+**/.DS_Store
+
+# --- docs & stray assets not needed at runtime ---
+docs
+tests
+*.md
+*.docx
+*.png
+!app/icon.png
+!public/**/*.png
+
+# --- docker itself ---
+Dockerfile
+.dockerignore
+docker-compose*.yml

@@ -1,0 +1,48 @@
+# StudManagerWeb — production stack for the Contabo VPS (Portainer-friendly).
+#
+# The image is built and pushed by azure-pipelines.yml, so on the VPS this
+# stack normally only PULLS. The `build:` block is kept so the same file also
+# works for a local `docker compose build`.
+#
+# The backend API is external (studmarket.net) — it is not part of this stack.
+
+services:
+  studmanagerweb:
+    image: registry.studmarket.net/studmanager-web:${IMAGE_TAG:-latest}
+    container_name: studmanagerweb
+    restart: unless-stopped
+
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # NEXT_PUBLIC_* are baked into the client bundle at build time.
+      # Changing them requires a REBUILD, not just a restart.
+      args:
+        NEXT_PUBLIC_STUDMANAGER_API_URL: ${NEXT_PUBLIC_STUDMANAGER_API_URL:-https://studmanagerapi-dev.studmarket.net}
+        NEXT_PUBLIC_STUDMANAGER_API_MODE: ${NEXT_PUBLIC_STUDMANAGER_API_MODE:-direct}
+
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      # Do NOT add NEXT_PUBLIC_* here. Next inlines those at build time into
+      # both the client AND server bundles, so setting them at runtime has no
+      # effect — pointing at a different API means a new pipeline run.
+
+    ports:
+      # Bind to localhost only if a reverse proxy (Nginx/Traefik/NPM) fronts it.
+      # Use "3000:3000" to expose the app directly on the VPS.
+      - "127.0.0.1:3000:3000"
+
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
