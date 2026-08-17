@@ -1,0 +1,51 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  # Docker Registry service connection (Project settings -> Service connections)
+  dockerRegistryConnection: DockerRegistry
+  imageRepository: registry.studmarket.net/studmanager-web
+  imageTag: $(Build.BuildId)
+  dockerfilePath: Dockerfile
+  buildContext: .
+  # NEXT_PUBLIC_* are inlined into the browser bundle by `next build`,
+  # so they are build args here - not container env vars.
+  apiUrl: https://studmanagerapi-dev.studmarket.net
+  apiMode: direct
+
+steps:
+- task: DockerInstaller@0
+  displayName: Install Docker
+  inputs:
+    dockerVersion: 24.0.7
+
+- task: Docker@2
+  displayName: Login to container registry
+  inputs:
+    command: login
+    containerRegistry: $(dockerRegistryConnection)
+
+- script: |
+    docker build \
+      -f "$(dockerfilePath)" \
+      --build-arg NEXT_PUBLIC_STUDMANAGER_API_URL="$(apiUrl)" \
+      --build-arg NEXT_PUBLIC_STUDMANAGER_API_MODE="$(apiMode)" \
+      -t "$(imageRepository):$(imageTag)" \
+      -t "$(imageRepository):latest" \
+      "$(buildContext)"
+  displayName: Build Docker image
+
+- script: |
+    docker push "$(imageRepository):$(imageTag)"
+    docker push "$(imageRepository):latest"
+  displayName: Push Docker image
+
+- task: Docker@2
+  displayName: Logout from container registry
+  condition: always()
+  inputs:
+    command: logout
+    containerRegistry: $(dockerRegistryConnection)
