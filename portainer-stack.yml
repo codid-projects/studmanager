@@ -1,0 +1,60 @@
+# StudManagerWeb — Portainer stack (pull only, behind Nginx Proxy Manager).
+#
+# Paste into Portainer: Stacks -> Add stack -> Web editor.
+# Unlike docker-compose.yml this file has NO `build:` block, which the Portainer
+# web editor cannot handle - the image comes from the pipeline.
+#
+# Prerequisite 1: Portainer -> Registries -> registry.studmarket.net added with
+# credentials, otherwise the pull fails with "no basic auth credentials".
+#
+# Prerequisite 2: set `name:` at the bottom to the network Nginx Proxy Manager
+# actually runs on. Find it with:
+#     docker inspect <npm-container> -f '{{json .NetworkSettings.Networks}}'
+#
+# No port is published: NPM reaches the container over the shared docker
+# network. In NPM -> Proxy Hosts -> Add, forward to:
+#     Scheme   http
+#     Hostname studmanagerweb      <- the container_name below
+#     Port     3000
+#
+# The backend API is external (studmarket.net) and is not part of this stack.
+# The healthcheck lives in the image itself, so it is not repeated here.
+
+services:
+  studmanagerweb:
+    image: registry.studmarket.net/studmanager-web:${IMAGE_TAG:-latest}
+    container_name: studmanagerweb
+    restart: unless-stopped
+
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      # Backend API — changeable from here, no rebuild needed. The entrypoint
+      # rewrites it into the bundles on start. Takes effect on redeploy (or any
+      # recreate), not on a bare `docker restart`.
+      STUDMANAGER_API_URL: ${STUDMANAGER_API_URL:-https://studmanagerapi-dev.studmarket.net}
+      # The transport MODE is not settable here — `server` mode needs app/api
+      # routes that do not all exist, so the image is always built as `direct`.
+
+    networks:
+      - proxy
+
+    # No `ports:` on purpose. Publishing 3000 on the host clashes with whatever
+    # already holds it (check with `docker ps --filter publish=3000`) and would
+    # expose the app without TLS. Only add one to reach the app without NPM:
+    #   ports:
+    #     - "${WEB_PORT:-3001}:3000"
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  proxy:
+    external: true
+    # Replace with the real NPM network name, e.g. npm_default or
+    # nginx-proxy-manager_default.
+    name: ${NPM_NETWORK:-npm_default}

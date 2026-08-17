@@ -11,9 +11,12 @@ variables:
   imageTag: $(Build.BuildId)
   dockerfilePath: Dockerfile
   buildContext: .
-  # NEXT_PUBLIC_* are inlined into the browser bundle by `next build`,
-  # so they are build args here - not container env vars.
-  apiUrl: https://studmanagerapi-dev.studmarket.net
+  # The API URL is NOT set here: the image is built with a placeholder that
+  # docker-entrypoint.sh resolves from STUDMANAGER_API_URL at container start,
+  # so it is changed from the Portainer stack instead of by rebuilding.
+  #
+  # The transport mode stays build-time - `server` mode needs app/api routes
+  # that do not all exist, so `direct` is the only working value.
   apiMode: direct
 
 steps:
@@ -31,7 +34,6 @@ steps:
 - script: |
     docker build \
       -f "$(dockerfilePath)" \
-      --build-arg NEXT_PUBLIC_STUDMANAGER_API_URL="$(apiUrl)" \
       --build-arg NEXT_PUBLIC_STUDMANAGER_API_MODE="$(apiMode)" \
       -t "$(imageRepository):$(imageTag)" \
       -t "$(imageRepository):latest" \
