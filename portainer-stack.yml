@@ -1,0 +1,48 @@
+# StudManagerWeb — Portainer stack (pull only).
+#
+# Paste into Portainer: Stacks -> Add stack -> Web editor.
+# Unlike docker-compose.yml this file has NO `build:` block, which the Portainer
+# web editor cannot handle - the image comes from the pipeline.
+#
+# Prerequisite: Portainer -> Registries -> registry.studmarket.net added with
+# credentials, otherwise the pull fails with "no basic auth credentials".
+#
+# The backend API is external (studmarket.net) and is not part of this stack.
+# The healthcheck lives in the image itself, so it is not repeated here.
+
+services:
+  studmanagerweb:
+    image: registry.studmarket.net/studmanager-web:${IMAGE_TAG:-latest}
+    container_name: studmanagerweb
+    restart: unless-stopped
+
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      # Do NOT add NEXT_PUBLIC_* here. Next inlines them at build time into both
+      # the client and server bundles, so setting them at runtime does nothing —
+      # pointing at another API means a new pipeline run.
+
+    ports:
+      # Reachable on the VPS at http://<vps-ip>:${WEB_PORT}.
+      # Behind a reverse proxy, change to "127.0.0.1:${WEB_PORT:-3000}:3000"
+      # so the app is not exposed without TLS.
+      - "${WEB_PORT:-3000}:3000"
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# If a reverse proxy (Nginx Proxy Manager / Traefik) fronts this, drop the
+# `ports:` block above, uncomment the two sections below, and point the proxy at
+# http://studmanagerweb:3000.
+#
+#     networks:
+#       - proxy
+#
+# networks:
+#   proxy:
+#     external: true

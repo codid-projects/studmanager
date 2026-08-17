@@ -11,7 +11,8 @@ via Portainer.
 | `Dockerfile` | 3-stage build: `deps` → `builder` → `runner` (standalone, non-root) |
 | `.dockerignore` | Keeps `node_modules`, `.env*`, docs and stray assets out of the build context |
 | `azure-pipelines.yml` | CI: build and push `registry.studmarket.net/studmanager-web` |
-| `docker-compose.yml` | The stack Portainer runs on the VPS |
+| `portainer-stack.yml` | **Pull-only stack to paste into Portainer on the VPS** |
+| `docker-compose.yml` | Local equivalent, with a `build:` block for `docker compose build` |
 | `.env.example` | Template for the stack's environment variables |
 
 `next.config.js` also gained `output: 'standalone'` — the runner stage depends on it.
@@ -55,11 +56,13 @@ on the stack in Portainer.
 
 ### Portainer
 
-1. **Registries** → make sure `registry.studmarket.net` is registered with credentials.
-2. **Stacks → Add stack**, paste `docker-compose.yml` (or point it at this repo).
-3. Add the variables from `.env.example`.
-4. Deploy. After each pipeline run, hit **Pull and redeploy** on the stack to pick up
-   the new `:latest` image.
+1. **Registries** → make sure `registry.studmarket.net` is registered with credentials,
+   otherwise the pull fails with `no basic auth credentials`.
+2. **Stacks → Add stack → Web editor**, paste **`portainer-stack.yml`**
+   (not `docker-compose.yml` — the web editor cannot handle its `build:` block).
+3. Optionally set `IMAGE_TAG` and `WEB_PORT` under **Environment variables**.
+4. Deploy. After each pipeline run: **Pull and redeploy** with **Re-pull image** ticked,
+   otherwise Docker keeps the `:latest` layer it already has.
 
 ### Plain SSH
 
