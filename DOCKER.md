@@ -35,16 +35,15 @@ by `.dockerignore` on purpose, so a stale local copy can never override the buil
 
 ## Pipeline setup (one time)
 
-The pipeline mirrors the existing `StudManagerApi` one. Create it from
-**Pipelines → New pipeline → Azure Repos Git → StudManagerWeb → Existing YAML file →
-`/azure-pipelines.yml`**, then add these pipeline variables:
+Create it from **Pipelines → New pipeline → Azure Repos Git → StudManagerWeb →
+Existing YAML file → `/azure-pipelines.yml`**.
 
-| Variable | Secret | Value |
-|---|---|---|
-| `REGISTRY_USERNAME` | no | registry user |
-| `REGISTRY_PASSWORD` | **yes** | registry password |
+No pipeline variables or secrets are needed: authentication goes through the
+**`DockerRegistry`** Docker Registry service connection
+(*Project settings → Service connections*). If that connection is ever renamed,
+update `dockerRegistryConnection` in `azure-pipelines.yml`.
 
-These go in the **Pipeline settings UI**, not in the YAML.
+The first run will ask for permission to use the service connection — approve it once.
 
 To point a build at a different backend, override `apiUrl` / `apiMode` when queueing
 the run (or edit the `variables:` block).
@@ -56,7 +55,7 @@ on the stack in Portainer.
 
 ### Portainer
 
-1. **Registries → Add registry** → `registry.studmarket.net` with the same credentials.
+1. **Registries** → make sure `registry.studmarket.net` is registered with credentials.
 2. **Stacks → Add stack**, paste `docker-compose.yml` (or point it at this repo).
 3. Add the variables from `.env.example`.
 4. Deploy. After each pipeline run, hit **Pull and redeploy** on the stack to pick up
