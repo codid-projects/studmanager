@@ -7,7 +7,7 @@ pool:
 variables:
   # Docker Registry service connection (Project settings -> Service connections)
   dockerRegistryConnection: DockerRegistry
-  imageRepository: registry.studmarket.net/studmanager-web-pro
+  imageRepository: registry.studmarket.net/studmanager-web
   imageTag: $(Build.BuildId)
   dockerfilePath: Dockerfile
   buildContext: .
