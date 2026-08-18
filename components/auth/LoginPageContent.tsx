@@ -12,7 +12,7 @@ import {
   UserRound,
 } from 'lucide-react';
 
-import { getClientApiErrorStatus, loginClient } from '@/lib/api/client';
+import { isClientInvalidCredentialsError, loginClient } from '@/lib/api/client';
 import { useLocale, useTranslation } from '@/lib/locale-context';
 
 interface LoginPageContentProps {
@@ -53,16 +53,11 @@ export function LoginPageContent({ sessionExpired = false }: LoginPageContentPro
       router.replace(`/${locale}/dashboard`);
       router.refresh();
     } catch (requestError) {
-      const message = requestError instanceof Error ? requestError.message : '';
-      const status = getClientApiErrorStatus(requestError);
-      const normalizedMessage = message.toLowerCase();
-      const isInvalidCredentials =
-        status === 401 ||
-        normalizedMessage.includes('invalid') ||
-        normalizedMessage.includes('unauthorized') ||
-        message.includes('اسم المستخدم أو كلمة المرور');
-
-      setError(isInvalidCredentials ? t('login.invalidCredentials') : t('login.networkError'));
+      setError(
+        isClientInvalidCredentialsError(requestError)
+          ? t('login.invalidCredentials')
+          : t('login.networkError'),
+      );
     } finally {
       setSubmitting(false);
     }

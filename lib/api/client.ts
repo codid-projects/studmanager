@@ -16,6 +16,7 @@ import type { ApiResult, AuthResponseDto, LocaleCode } from "./types";
 
 const TOKEN_STORAGE_KEY = "studmanager-token";
 const NOT_FOUND_RETRY_DELAYS_MS = [250, 500];
+const INVALID_CREDENTIALS_MESSAGE = "Invalid credentials.";
 
 type QueryValue = string | number | boolean | null | undefined;
 
@@ -132,6 +133,36 @@ export function getClientApiErrorStatus(error: unknown) {
   return Number.isFinite(status) ? status : undefined;
 }
 
+function getClientApiErrorPayload(error: unknown) {
+  if (!error || typeof error !== "object" || !("payload" in error)) return null;
+
+  return (error as { payload?: unknown }).payload ?? null;
+}
+
+function isInvalidCredentialsMessage(message: string | null | undefined) {
+  const normalized = message?.trim().toLowerCase();
+  return (
+    normalized === "invalid credentials" ||
+    normalized === "invalid credentials." ||
+    normalized === "unauthorized" ||
+    normalized?.includes("invalid credential") === true ||
+    normalized?.includes("unauthorized") === true ||
+    message?.includes("اسم المستخدم أو كلمة المرور") === true
+  );
+}
+
+export function isClientInvalidCredentialsError(error: unknown) {
+  if (getClientApiErrorStatus(error) === 401) return true;
+
+  const payloadMessage = getPayloadMessage(getClientApiErrorPayload(error));
+  const errorMessage = error instanceof Error ? error.message : null;
+
+  return (
+    isInvalidCredentialsMessage(payloadMessage) ||
+    isInvalidCredentialsMessage(errorMessage)
+  );
+}
+
 export function isClientApiNotFound(error: unknown) {
   return getClientApiErrorStatus(error) === 404;
 }
@@ -204,9 +235,11 @@ export async function clientApiFetch<T>({
 
     const payloadMessage = getPayloadMessage(payload);
     const message =
-      response.status >= 400
-        ? localizeApiMessage(payloadMessage ?? response.statusText, locale)
-        : (payloadMessage ?? response.statusText);
+      response.status === 401 && authRequest
+        ? INVALID_CREDENTIALS_MESSAGE
+        : response.status >= 400
+          ? localizeApiMessage(payloadMessage ?? response.statusText, locale)
+          : (payloadMessage ?? response.statusText);
 
     throw Object.assign(new Error(String(message)), {
       status: response.status,
@@ -245,7 +278,7 @@ export async function loginClient(payload: {
     if (!response.ok) {
       const message =
         response.status === 401
-          ? data?.message || response.statusText
+          ? INVALID_CREDENTIALS_MESSAGE
           : getFriendlyApiErrorMessage(payload.locale);
 
       throw Object.assign(new Error(message), {
@@ -257,20 +290,37 @@ export async function loginClient(payload: {
     return data;
   }
 
-  const result = await clientApiFetch<ApiResult<AuthResponseDto>>({
-    method: "POST",
-    backendPath: "/api/users/login",
-    nextPath: "/api/auth/login",
-    authRequest: true,
-    locale: payload.locale,
-    body: {
-      username: payload.username,
-      password: payload.password,
-    },
-  });
+  let result: ApiResult<AuthResponseDto>;
+
+  try {
+    result = await clientApiFetch<ApiResult<AuthResponseDto>>({
+      method: "POST",
+      backendPath: "/api/users/login",
+      nextPath: "/api/auth/login",
+      authRequest: true,
+      locale: payload.locale,
+      body: {
+        username: payload.username,
+        password: payload.password,
+      },
+    });
+  } catch (error) {
+    if (isClientInvalidCredentialsError(error)) {
+      throw Object.assign(new Error(INVALID_CREDENTIALS_MESSAGE), {
+        status: getClientApiErrorStatus(error) ?? 401,
+        payload: getClientApiErrorPayload(error),
+        cause: error,
+      });
+    }
+
+    throw error;
+  }
 
   if (!result.succeeded || !result.data?.accessToken) {
-    throw new Error(result.message || "Invalid credentials.");
+    throw Object.assign(new Error(INVALID_CREDENTIALS_MESSAGE), {
+      status: result.statusCode || 401,
+      payload: result,
+    });
   }
 
   persistClientSession(result.data, payload.rememberMe);
