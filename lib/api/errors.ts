@@ -1,7 +1,7 @@
 import type { LocaleCode } from "./types";
 
 const ARABIC_MESSAGE_MAP: Record<string, string> = {
-  "invalid credentials": "اسم المستخدم أو كلمة المرور غير صحيحة.",
+  "invalid credentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
   "login successful": "تم تسجيل الدخول بنجاح.",
   "failed to fetch": "حدث خطأ ما. يرجى المحاولة مرة أخرى لاحقاً.",
   unauthorized: "انتهت صلاحية الجلسة أو لا تملك صلاحية الوصول.",

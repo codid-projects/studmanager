@@ -185,7 +185,7 @@
     "loginButton": "Enter platform",
     "signingIn": "Signing in...",
     "validation": "Please enter your email or username and password.",
-    "invalidCredentials": "Invalid username or password.",
+    "invalidCredentials": "Invalid email or password.",
     "networkError": "Unable to reach the server. Please try again.",
     "sessionExpired": "Your session has finished. Please sign in again.",
     "featureTeam": "Member management",
