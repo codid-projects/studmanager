@@ -4,14 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Newspaper, X } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { clientApiFetch } from "@/lib/api/client";
-import { API_BASE_URL } from "@/lib/api/transport";
+import { resolveBackendAssetUrl } from "@/lib/api/transport";
 import { useLocale, useTranslation } from "@/lib/locale-context";
 import type { ExternalNewsFeedResponse, PagedResponse } from "@/lib/api/types";
 
 function resolveMediaUrl(path: string | null | undefined) {
   if (!path) return null;
   if (path.startsWith("http")) return path;
-  return `${API_BASE_URL}/${path.replace(/^\//, "")}`;
+  return resolveBackendAssetUrl(path);
 }
 
 function formatDate(value: string | null, locale: string) {

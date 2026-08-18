@@ -1,21 +1,13 @@
 #!/bin/sh
-# Makes the backend API URL a RUNTIME setting instead of a build-time one.
-#
-# `next build` inlines NEXT_PUBLIC_* into the compiled bundles, so the image is
-# built with the literal placeholder below and this script rewrites it on every
-# container start with whatever STUDMANAGER_API_URL says.
-#
-# Idempotent: `docker restart` cannot change env vars, and anything that DOES
-# change them (compose up / Portainer redeploy) recreates the container from a
-# fresh image layer where the placeholder is intact. A restart simply finds
-# nothing to replace.
+# Validates STUDMANAGER_API_URL at container start. Older/direct builds may
+# still contain the placeholder below, so keep the replacement path idempotent.
 
 set -eu
 
 PLACEHOLDER='__STUDMANAGER_API_URL__'
 
 # Never leave the placeholder in place — `new URL(path, base)` would throw.
-API_URL="${STUDMANAGER_API_URL:-https://studmanagerapi-dev.studmarket.net}"
+API_URL="${STUDMANAGER_API_URL:-https://api-pro.studmanager.net}"
 API_URL="${API_URL%/}"
 
 case "$API_URL" in

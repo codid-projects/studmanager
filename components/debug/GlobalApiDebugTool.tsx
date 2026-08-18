@@ -5,6 +5,32 @@ import { API_BASE_URL } from '@/lib/api/transport';
 import { ApiDebugInspector, type ApiDebugEntry } from './ApiDebugInspector';
 
 const API_BASE = API_BASE_URL;
+const PROXY_QUERY_KEYS = new Set(['__path', '__locale']);
+
+function backendEndpoint(path: string, query?: Record<string, string>) {
+  const url = new URL(
+    path.startsWith('/') ? path : `/${path}`,
+    API_BASE || 'http://studmanager.local',
+  );
+
+  Object.entries(query ?? {}).forEach(([key, value]) => {
+    if (value) url.searchParams.set(key, value);
+  });
+
+  if (!API_BASE) return `STUDMANAGER_API_URL${url.pathname}${url.search}`;
+
+  return url.toString();
+}
+
+function getProxyQuery(url: URL) {
+  const query: Record<string, string> = {};
+
+  url.searchParams.forEach((value, key) => {
+    if (!PROXY_QUERY_KEYS.has(key)) query[key] = value;
+  });
+
+  return query;
+}
 
 function parseBody(body: BodyInit | null | undefined) {
   if (body instanceof FormData) {
@@ -39,15 +65,26 @@ function parseResponse(text: string) {
 function endpointMeta(pathWithQuery: string, method: string, payload: unknown) {
   const url = new URL(pathWithQuery, window.location.origin);
   const path = url.pathname;
-  const isBackendDirect = url.origin === API_BASE;
+  const isBackendDirect = Boolean(API_BASE) && url.origin === API_BASE;
   const nextServicePrefix = isBackendDirect
     ? 'Direct browser transport: lib/api/client.ts. Phase 2 switch: npm run api:server.'
     : '';
 
+  if (path === '/api/proxy') {
+    const backendPath = url.searchParams.get('__path') ?? '/api';
+
+    return {
+      label: `${method} ${backendPath}`,
+      backendEndpoint: backendEndpoint(backendPath, getProxyQuery(url)),
+      nextEndpoint: `${path}${url.search}`,
+      nextService: 'app/api/proxy/route.ts -> lib/api/http.ts:apiFetch',
+    };
+  }
+
   if (path === '/api/auth/login') {
     return {
       label: 'Login',
-      backendEndpoint: `${API_BASE}/api/users/login`,
+      backendEndpoint: backendEndpoint('/api/users/login'),
       nextEndpoint: '/api/auth/login',
       nextService: 'app/api/auth/login/route.ts -> lib/api/auth-service.ts:loginUser',
     };
@@ -56,7 +93,7 @@ function endpointMeta(pathWithQuery: string, method: string, payload: unknown) {
   if (path === '/api/users/login') {
     return {
       label: 'Login',
-      backendEndpoint: `${API_BASE}/api/users/login`,
+      backendEndpoint: backendEndpoint('/api/users/login'),
       nextEndpoint: '/api/auth/login',
       nextService: nextServicePrefix,
     };
@@ -66,14 +103,14 @@ function endpointMeta(pathWithQuery: string, method: string, payload: unknown) {
     const pageNumber = url.searchParams.get('pageNumber') ?? '1';
     const pageSize = url.searchParams.get('pageSize') ?? '24';
     const search = url.searchParams.get('search');
-    const backend = new URL(`${API_BASE}/api/Horses`);
-    backend.searchParams.set('pageNumber', pageNumber);
-    backend.searchParams.set('pageSize', pageSize);
-    if (search) backend.searchParams.set('search', search);
 
     return {
       label: 'Horses list',
-      backendEndpoint: backend.toString(),
+      backendEndpoint: backendEndpoint('/api/Horses', {
+        pageNumber,
+        pageSize,
+        search: search ?? '',
+      }),
       nextEndpoint: `${path}${url.search}`,
       nextService: 'app/api/horses/route.ts -> lib/api/horses-service.ts:getHorses',
     };
@@ -107,14 +144,13 @@ function endpointMeta(pathWithQuery: string, method: string, payload: unknown) {
   }
 
   if (path === '/api/horses/studbook') {
-    const backend = new URL(`${API_BASE}/api/ExternalHorses/search-external-horses`);
-    backend.searchParams.set('SearchTerm', url.searchParams.get('search') ?? '');
-    backend.searchParams.set('PageNumber', url.searchParams.get('pageNumber') ?? '1');
-    backend.searchParams.set('PageSize', url.searchParams.get('pageSize') ?? '12');
-
     return {
       label: 'Studbook horse search',
-      backendEndpoint: backend.toString(),
+      backendEndpoint: backendEndpoint('/api/ExternalHorses/search-external-horses', {
+        SearchTerm: url.searchParams.get('search') ?? '',
+        PageNumber: url.searchParams.get('pageNumber') ?? '1',
+        PageSize: url.searchParams.get('pageSize') ?? '12',
+      }),
       nextEndpoint: `${path}${url.search}`,
       nextService: 'app/api/horses/studbook/route.ts -> lib/api/horses-service.ts:searchStudbookHorses',
     };
@@ -137,7 +173,7 @@ function endpointMeta(pathWithQuery: string, method: string, payload: unknown) {
   if (path === '/api/horses/import') {
     return {
       label: 'Import Studbook horse',
-      backendEndpoint: `${API_BASE}/api/ExternalHorses/import-horse`,
+      backendEndpoint: backendEndpoint('/api/ExternalHorses/import-horse'),
       nextEndpoint: '/api/horses/import',
       nextService: 'app/api/horses/import/route.ts -> lib/api/horses-service.ts:importHorse',
     };
@@ -146,7 +182,7 @@ function endpointMeta(pathWithQuery: string, method: string, payload: unknown) {
   if (path === '/api/ExternalHorses/import-horse') {
     return {
       label: 'Import Studbook horse',
-      backendEndpoint: `${API_BASE}/api/ExternalHorses/import-horse`,
+      backendEndpoint: backendEndpoint('/api/ExternalHorses/import-horse'),
       nextEndpoint: '/api/horses/import',
       nextService: nextServicePrefix,
     };
@@ -176,7 +212,7 @@ function shouldInspect(input: RequestInfo | URL) {
 
   return (
     (parsed.origin === window.location.origin && parsed.pathname.startsWith('/api/')) ||
-    (parsed.origin === API_BASE && parsed.pathname.startsWith('/api/'))
+    (Boolean(API_BASE) && parsed.origin === API_BASE && parsed.pathname.startsWith('/api/'))
   );
 }
 

@@ -36,8 +36,7 @@ import {
 } from '@/lib/api/external-horses';
 import { mediaUrl, mediaUrls, toProfileHorseModel } from '@/lib/api/horse-formatters';
 import { getLocalizedName } from '@/lib/api/localization';
-import { API_BASE_URL, isDirectApiMode } from '@/lib/api/transport';
-import { AUTH_TOKEN_COOKIE } from '@/lib/auth';
+import { describeBackendEndpoint, isDirectApiMode } from '@/lib/api/transport';
 import type {
   ApiResult,
   HorseInfoDto,
@@ -118,16 +117,7 @@ type AssignBoxResult = ApiResult<never> & {
   success?: boolean;
 };
 
-function getClientCookie(name: string) {
-  if (typeof document === 'undefined') return undefined;
-
-  return document.cookie
-    .split('; ')
-    .find((cookie) => cookie.startsWith(`${name}=`))
-    ?.slice(name.length + 1);
-}
-
-async function postAssignBoxDirect({
+async function postAssignBox({
   horseId,
   locale,
   boxName,
@@ -153,44 +143,23 @@ async function postAssignBoxDirect({
     leftToStudAr?: string | null;
   };
 }) {
-  const url = new URL(`/api/Horses/${horseId}/assign-box`, API_BASE_URL);
-  if (boxName) url.searchParams.set('box', boxName);
-  if (mapKey) url.searchParams.set('mapKey', mapKey);
-  if (entityType) url.searchParams.set('entityType', entityType);
-  if (entityId !== undefined && entityId !== null && entityId !== '') {
-    url.searchParams.set('entityId', String(entityId));
-  }
-  if (remove) url.searchParams.set('remove', 'true');
-
-  const token =
-    window.localStorage.getItem('studmanager-token') ??
-    (getClientCookie(AUTH_TOKEN_COOKIE)
-      ? decodeURIComponent(getClientCookie(AUTH_TOKEN_COOKIE) as string)
-      : null);
-  const headers = new Headers({ Accept: 'application/json', 'Accept-Language': locale });
-  if (temporaryLeave) headers.set('Content-Type', 'application/json');
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-
-  const response = await fetch(url.toString(), {
+  return clientApiFetch<AssignBoxResult>({
     method: 'POST',
-    headers,
-    body: temporaryLeave ? JSON.stringify(temporaryLeave) : undefined,
+    backendPath: `/api/Horses/${horseId}/assign-box`,
+    nextPath: `/api/horses/${horseId}/assign-box`,
+    backendQuery: {
+      box: boxName || undefined,
+      mapKey: mapKey || undefined,
+      entityType: entityType || undefined,
+      entityId:
+        entityId === undefined || entityId === null || entityId === ''
+          ? undefined
+          : String(entityId),
+      remove: remove ? true : undefined,
+    },
+    locale,
+    body: temporaryLeave,
   });
-  const result = (await response.json().catch(() => ({
-    succeeded: false,
-    success: false,
-    message: response.statusText,
-    statusCode: response.status,
-  }))) as AssignBoxResult;
-
-  if (!response.ok || result.success === false || result.succeeded === false) {
-    throw Object.assign(new Error(result.message || response.statusText), {
-      status: response.status || result.statusCode,
-      payload: result,
-    });
-  }
-
-  return result;
 }
 
 function isSuccessfulAssignBoxResult(result: AssignBoxResult) {
@@ -680,7 +649,7 @@ export function HorseProfilePageClient({
     };
 
     try {
-      const result = await postAssignBoxDirect({
+      const result = await postAssignBox({
         horseId,
         locale: locale as LocaleCode,
         boxName,
@@ -747,7 +716,7 @@ export function HorseProfilePageClient({
           id: `horse-detail-${localId}-${Date.now()}`,
           label: 'Horse profile detail',
           method: 'GET',
-          backendEndpoint: `https://studmanagerapi-dev.studmarket.net/api/Horses/${localId}`,
+          backendEndpoint: describeBackendEndpoint(`/api/Horses/${localId}`),
           nextEndpoint: `Server render: /${locale}/horses/${localId}`,
           nextService: 'app/[locale]/horses/[id]/page.tsx -> lib/api/horses-service.ts:getHorse',
           payload: { localId },

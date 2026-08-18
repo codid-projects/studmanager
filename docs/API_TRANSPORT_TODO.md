@@ -3,23 +3,28 @@
 Current phase:
 
 ```txt
-NEXT_PUBLIC_STUDMANAGER_API_MODE=direct
+STUDMANAGER_API_URL=https://api-pro.studmanager.net
+NEXT_PUBLIC_STUDMANAGER_API_MODE=server
 ```
 
-This makes browser code call the backend directly so requests are visible in DevTools Network.
+This makes browser code call the Next server proxy. The proxy reads
+`STUDMANAGER_API_URL` from the server environment, so the backend host is not
+hardcoded into the browser bundle.
 
-Phase 2 switch:
+Local direct-debug switch:
+
+```txt
+NEXT_PUBLIC_STUDMANAGER_API_URL=https://api-pro.studmanager.net
+npm run api:direct
+```
+
+Then restart the Next dev server. This makes browser code call the backend
+directly so requests are visible in DevTools Network.
+
+Switch back to server mode:
 
 ```txt
 npm run api:server
-```
-
-Then restart the Next dev server. This changes the app back to server-side Next API proxy calls where browser requests are hidden behind `/api/*` routes.
-
-Switch back to direct mode:
-
-```txt
-npm run api:direct
 ```
 
 Files prepared for fast switch:
@@ -30,6 +35,4 @@ Files prepared for fast switch:
 
 Remaining Phase 2 work:
 
-- Keep `server` mode as the default for production.
 - Remove client-readable bearer cookie/localStorage token use when server mode is final.
-- Keep `/api/auth/login`, `/api/horses`, `/api/horses/studbook`, and `/api/horses/import` as the only browser-facing API paths.

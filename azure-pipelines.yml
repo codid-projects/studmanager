@@ -11,13 +11,9 @@ variables:
   imageTag: $(Build.BuildId)
   dockerfilePath: Dockerfile
   buildContext: .
-  # The API URL is NOT set here: the image is built with a placeholder that
-  # docker-entrypoint.sh resolves from STUDMANAGER_API_URL at container start,
-  # so it is changed from the Portainer stack instead of by rebuilding.
-  #
-  # The transport mode stays build-time - `server` mode needs app/api routes
-  # that do not all exist, so `direct` is the only working value.
-  apiMode: direct
+  # The browser talks to same-origin Next API routes. The server reads
+  # STUDMANAGER_API_URL from the Portainer stack at runtime.
+  apiMode: server
 
 steps:
 - task: DockerInstaller@0

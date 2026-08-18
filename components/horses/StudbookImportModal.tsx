@@ -8,6 +8,7 @@ import type { ApiDebugEntry } from '@/components/debug/ApiDebugInspector';
 import { useBodyScrollLock } from '@/components/common/useBodyScrollLock';
 import { clientApiFetch } from '@/lib/api/client';
 import { toStudbookCardModel } from '@/lib/api/horse-formatters';
+import { describeBackendEndpoint } from '@/lib/api/transport';
 import type { ApiResult, ImportHorseDto, LocaleCode, PagedResponse, StudbookHorseDto } from '@/lib/api/types';
 import { useLocale, useTranslation } from '@/lib/locale-context';
 
@@ -113,7 +114,7 @@ export function StudbookImportModal({
           id: `studbook-search-${Date.now()}`,
           label: 'Studbook horse search',
           method: 'GET',
-          backendEndpoint: `https://studmanagerapi-dev.studmarket.net/api/ExternalHorses/search-external-horses?SearchTerm=${encodeURIComponent(query)}&PageNumber=${currentPage}&PageSize=${pageSize}`,
+          backendEndpoint: describeBackendEndpoint(`/api/ExternalHorses/search-external-horses?SearchTerm=${encodeURIComponent(query)}&PageNumber=${currentPage}&PageSize=${pageSize}`),
           nextEndpoint: `/api/horses/studbook?search=${encodeURIComponent(query)}&pageNumber=${currentPage}&pageSize=${pageSize}&locale=${locale}`,
           nextService: 'app/api/horses/studbook/route.ts -> lib/api/horses-service.ts:searchStudbookHorses',
           payload: {
@@ -144,7 +145,7 @@ export function StudbookImportModal({
             id: `studbook-search-error-${Date.now()}`,
             label: 'Studbook horse search',
             method: 'GET',
-            backendEndpoint: `https://studmanagerapi-dev.studmarket.net/api/ExternalHorses/search-external-horses?SearchTerm=${encodeURIComponent(query)}&PageNumber=${currentPage}&PageSize=${pageSize}`,
+            backendEndpoint: describeBackendEndpoint(`/api/ExternalHorses/search-external-horses?SearchTerm=${encodeURIComponent(query)}&PageNumber=${currentPage}&PageSize=${pageSize}`),
             nextEndpoint: `/api/horses/studbook?search=${encodeURIComponent(query)}&pageNumber=${currentPage}&pageSize=${pageSize}&locale=${locale}`,
             nextService: 'app/api/horses/studbook/route.ts -> lib/api/horses-service.ts:searchStudbookHorses',
             payload: { search: query, pageNumber: currentPage, pageSize, locale },
@@ -190,7 +191,7 @@ export function StudbookImportModal({
           id: `studbook-import-${selectedHorse.id}-${Date.now()}`,
           label: 'Import Studbook horse',
           method: 'POST',
-          backendEndpoint: 'https://studmanagerapi-dev.studmarket.net/api/ExternalHorses/import-horse',
+          backendEndpoint: describeBackendEndpoint('/api/ExternalHorses/import-horse'),
           nextEndpoint: '/api/horses/import',
           nextService: 'app/api/horses/import/route.ts -> lib/api/horses-service.ts:importHorse',
           payload: {
@@ -228,7 +229,7 @@ export function StudbookImportModal({
         id: `studbook-import-error-${Date.now()}`,
         label: 'Import Studbook horse',
         method: 'POST',
-        backendEndpoint: 'https://studmanagerapi-dev.studmarket.net/api/ExternalHorses/import-horse',
+        backendEndpoint: describeBackendEndpoint('/api/ExternalHorses/import-horse'),
         nextEndpoint: '/api/horses/import',
         nextService: 'app/api/horses/import/route.ts -> lib/api/horses-service.ts:importHorse',
         payload: selectedHorses.map((horse) => ({

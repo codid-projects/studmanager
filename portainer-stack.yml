@@ -30,12 +30,9 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      # Backend API — changeable from here, no rebuild needed. The entrypoint
-      # rewrites it into the bundles on start. Takes effect on redeploy (or any
-      # recreate), not on a bare `docker restart`.
-      STUDMANAGER_API_URL: ${STUDMANAGER_API_URL:-https://studmanagerapi-dev.studmarket.net}
-      # The transport MODE is not settable here — `server` mode needs app/api
-      # routes that do not all exist, so the image is always built as `direct`.
+      # Backend API - changeable from here, no rebuild needed. Browser requests
+      # go through same-origin Next API routes, and the server proxies to this.
+      STUDMANAGER_API_URL: ${STUDMANAGER_API_URL:-https://api-pro.studmanager.net}
 
     networks:
       - proxy

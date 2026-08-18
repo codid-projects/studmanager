@@ -29,7 +29,7 @@ import { createHorse } from '@/lib/api/create-horse';
 import { localizeApiMessage } from '@/lib/api/errors';
 import { buildChangedHorsePayload } from '@/lib/api/horse-update-payload';
 import { fetchSpecialLines, fetchStrains } from '@/lib/api/lineage-client';
-import { isDirectApiMode } from '@/lib/api/transport';
+import { describeBackendEndpoint, isDirectApiMode } from '@/lib/api/transport';
 import {
   exportHorsesToExcel,
   exportHorsesToPdf,
@@ -392,8 +392,7 @@ export function HorsesPageClient({
           id: `initial-horses-${Date.now()}`,
           label: 'Initial horses list',
           method: 'GET',
-          backendEndpoint:
-            'https://studmanagerapi-dev.studmarket.net/api/Horses?pageNumber=1&pageSize=24',
+          backendEndpoint: describeBackendEndpoint('/api/Horses?pageNumber=1&pageSize=24'),
           nextEndpoint: `/api/horses?pageNumber=1&pageSize=24&locale=${locale}`,
           nextService:
             'Server render: app/[locale]/horses/page.tsx -> lib/api/horses-service.ts:getHorses',

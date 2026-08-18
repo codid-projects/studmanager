@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { AUTH_TOKEN_COOKIE } from '@/lib/auth';
 import { ApiError, getPayloadMessage } from './errors';
-import { API_BASE_URL } from './transport';
+import { buildBackendUrl } from './transport';
 
 type QueryValue = string | number | boolean | null | undefined;
 
@@ -14,7 +14,7 @@ interface ApiFetchOptions extends Omit<RequestInit, 'body'> {
 }
 
 function buildUrl(path: string, query?: Record<string, QueryValue>) {
-  const url = new URL(path.startsWith('http') ? path : `${API_BASE_URL}${path}`);
+  const url = new URL(buildBackendUrl(path));
 
   Object.entries(query ?? {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {

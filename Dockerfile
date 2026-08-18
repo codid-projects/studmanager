@@ -24,17 +24,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# NEXT_PUBLIC_* values are inlined into the bundles at BUILD time.
-#
-# The API URL is therefore built in as a placeholder and swapped for the real
-# one by docker-entrypoint.sh at container start, so it can be changed from the
-# stack (STUDMANAGER_API_URL) without a rebuild.
-#
-# The transport MODE stays build-time on purpose: `server` mode routes calls
-# through app/api/*, and several of those routes do not exist (ledger, injury,
-# performance, stallion-breeding), so only `direct` works.
-ARG NEXT_PUBLIC_STUDMANAGER_API_URL=__STUDMANAGER_API_URL__
-ARG NEXT_PUBLIC_STUDMANAGER_API_MODE=direct
+# NEXT_PUBLIC_* values are inlined into the browser bundle at BUILD time.
+# Keep the backend URL private: the container reads STUDMANAGER_API_URL at
+# runtime and server-side Next routes proxy requests to it.
+ARG NEXT_PUBLIC_STUDMANAGER_API_URL=
+ARG NEXT_PUBLIC_STUDMANAGER_API_MODE=server
 ENV NEXT_PUBLIC_STUDMANAGER_API_URL=$NEXT_PUBLIC_STUDMANAGER_API_URL
 ENV NEXT_PUBLIC_STUDMANAGER_API_MODE=$NEXT_PUBLIC_STUDMANAGER_API_MODE
 

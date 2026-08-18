@@ -27,13 +27,13 @@ Date: 2026-05-16
 Default:
 
 ```txt
-https://studmanagerapi-dev.studmarket.net
+Set by the deployment environment.
 ```
 
 Override:
 
 ```txt
-STUDMANAGER_API_BASE_URL=https://studmanagerapi-dev.studmarket.net
+STUDMANAGER_API_URL=https://api-pro.studmanager.net
 ```
 
 ## APIs Used

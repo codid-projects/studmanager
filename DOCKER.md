@@ -9,7 +9,7 @@ via Portainer.
 | File | Purpose |
 |---|---|
 | `Dockerfile` | 3-stage build: `deps` → `builder` → `runner` (standalone, non-root) |
-| `docker-entrypoint.sh` | Resolves `STUDMANAGER_API_URL` into the built bundles at container start |
+| `docker-entrypoint.sh` | Validates `STUDMANAGER_API_URL` at container start |
 | `.dockerignore` | Keeps `node_modules`, `.env*`, docs and stray assets out of the build context |
 | `azure-pipelines.yml` | CI: build and push `registry.studmarket.net/studmanager-web` |
 | `portainer-stack.yml` | **Pull-only stack to paste into Portainer on the VPS** |
@@ -24,40 +24,40 @@ This is the one thing to get right.
 
 | Variable | When it applies | Notes |
 |---|---|---|
-| `STUDMANAGER_API_URL` | **Runtime** | The backend the app talks to. Set it in the Portainer stack; no rebuild needed. Default `https://studmanagerapi-dev.studmarket.net`. |
+| `STUDMANAGER_API_URL` | **Runtime** | The backend the server-side proxy talks to. Set it in the Portainer stack; no rebuild needed. Default `https://api-pro.studmanager.net`. |
 | `IMAGE_TAG` | Runtime | Which pushed tag the stack runs. `latest`, or a `$(Build.BuildId)` to roll back. |
 | `NPM_NETWORK` | Runtime | The Nginx Proxy Manager docker network to join. |
 | `PORT` / `HOSTNAME` | Runtime | Default `3000` / `0.0.0.0`. |
-| `NEXT_PUBLIC_STUDMANAGER_API_MODE` | **Build time only** | Pipeline variable `apiMode`. Leave it at `direct` — see below. |
+| `NEXT_PUBLIC_STUDMANAGER_API_MODE` | **Build time only** | Pipeline variable `apiMode`. Keep it at `server` for production. |
 
-### How the URL became runtime-settable
+### How the URL stays runtime-settable
 
-`next build` inlines `NEXT_PUBLIC_*` into both the client and server bundles, so
-normally the API URL is frozen at build time. The image is therefore built with the
-literal placeholder `__STUDMANAGER_API_URL__`, and `docker-entrypoint.sh` rewrites it
-across `.next` on every container start using `STUDMANAGER_API_URL`.
+The production image is built in `server` transport mode. Browser requests go to
+same-origin Next API routes, and those routes read `STUDMANAGER_API_URL` on the
+server at runtime. The backend host is therefore not baked into the browser
+bundle.
 
 Two consequences worth knowing:
 
 - It applies on **container recreate** (compose up / Portainer redeploy), not on a bare
-  `docker restart` — a restart cannot change env vars anyway, so the entrypoint finds
-  nothing to substitute and says so in the logs.
-- Browsers that already cached a JS chunk keep the **old** URL, because the chunk
-  filename hash does not change. A hard refresh fixes it.
+  `docker restart` - a restart cannot change env vars anyway.
+- The legacy entrypoint placeholder replacement remains idempotent for older/direct
+  images, but the current production path does not require exposing the backend URL
+  as a `NEXT_PUBLIC_*` value.
 
 An invalid value (not starting with `http://` or `https://`) fails the container at
 startup rather than producing a broken `new URL()` at runtime.
 
-### Why the mode is still build-time
+### Why production uses server mode
 
 `direct` = browser calls the API host itself. `server` = browser calls Next's own
-`/api/*` routes, which forward to the API. **Server mode does not currently work**:
-`/api/ledger`, `/api/injury`, `/api/performance`, `/api/stallion-breeding` and several
-`/api/external-horses/*` paths are referenced by client code but have no `route.ts`.
-Leave `apiMode: direct` until those routes exist.
+`/api/*` routes, which forward to the API. Production uses `server` mode so the
+public site avoids backend CORS and does not hardcode the API host into browser
+requests.
 
-Because the app runs in `direct` mode, the browser calls `STUDMANAGER_API_URL` straight
-from the page — so any backend you point it at must allow **CORS** from the web origin.
+The generic `/api/proxy` route handles client API calls that do not have a
+dedicated `route.ts` yet, and `/api/backend-media` proxies relative backend media
+paths.
 
 Note: `pnpm api:direct` / `pnpm api:server` write `.env.local`. That file is excluded
 by `.dockerignore` on purpose, so a stale local copy can never override the build args.

@@ -91,6 +91,24 @@ function buildUrl(
   return url.toString();
 }
 
+function buildProxyUrl(
+  backendPath: string,
+  query: Record<string, QueryValue> | undefined,
+  locale: LocaleCode,
+) {
+  const url = new URL("/api/proxy", window.location.origin);
+  url.searchParams.set("__path", backendPath);
+  url.searchParams.set("__locale", locale);
+
+  Object.entries(query ?? {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      url.searchParams.set(key, String(value));
+    }
+  });
+
+  return url.toString();
+}
+
 async function parseResponse(response: Response) {
   const text = await response.text();
   if (!text) return null;
@@ -121,22 +139,19 @@ export function isClientApiNotFound(error: unknown) {
 export async function clientApiFetch<T>({
   method = "GET",
   backendPath,
-  nextPath,
   query,
   backendQuery,
-  nextQuery,
   body,
   backendBody,
-  nextBody,
   locale = "ar",
   authRequest = false,
 }: ClientApiOptions): Promise<T> {
   const normalizedMethod = method.toUpperCase();
   const direct = API_TRANSPORT_MODE === "direct";
-  const requestBody = direct ? (backendBody ?? body) : (nextBody ?? body);
+  const requestBody = backendBody ?? body;
   const url = direct
     ? buildUrl(API_BASE_URL, backendPath, backendQuery ?? query)
-    : buildUrl(window.location.origin, nextPath, nextQuery ?? query);
+    : buildProxyUrl(backendPath, backendQuery ?? query, locale);
   const headers = new Headers({ Accept: "application/json" });
   headers.set("Accept-Language", locale);
   const token =

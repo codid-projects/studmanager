@@ -15,17 +15,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      # The API URL is deliberately NOT passed here: the image is built with a
-      # placeholder and docker-entrypoint.sh resolves it at start from
-      # STUDMANAGER_API_URL below. Only the transport mode is build-time.
+      # Browser calls go through same-origin Next API routes. The backend URL
+      # stays server-side and is read from STUDMANAGER_API_URL below.
       args:
-        NEXT_PUBLIC_STUDMANAGER_API_MODE: ${NEXT_PUBLIC_STUDMANAGER_API_MODE:-direct}
+        NEXT_PUBLIC_STUDMANAGER_API_MODE: ${NEXT_PUBLIC_STUDMANAGER_API_MODE:-server}
 
     environment:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
-      STUDMANAGER_API_URL: ${STUDMANAGER_API_URL:-https://studmanagerapi-dev.studmarket.net}
+      STUDMANAGER_API_URL: ${STUDMANAGER_API_URL:-https://api-pro.studmanager.net}
 
     ports:
       # Bind to localhost only if a reverse proxy (Nginx/Traefik/NPM) fronts it.
